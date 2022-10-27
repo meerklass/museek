@@ -19,14 +19,16 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-from ivy.utils.struct import Struct
-from mock import patch
-from seek.plugins import mask_artefacts
 from datetime import datetime
+
 import numpy as np
+from mock import patch
+
+from ivy.utils.struct import Struct
+from seek.plugins import mask_artefacts
 
 
-class TestMaskArtefactsPlugin(object):
+class TestMaskArtefactsPlugin:
     
     def test_frequency_masking(self):
         tod = np.ma.array(np.random.uniform(size=(10,100)),

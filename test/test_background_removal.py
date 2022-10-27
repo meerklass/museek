@@ -21,10 +21,11 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 import numpy as np
 
 from ivy.utils.struct import Struct
-from seek.plugins import background_removal
 from seek import Coords
+from seek.plugins import background_removal
 
-class TestBackgroundRemovalPlugin(object):
+
+class TestBackgroundRemovalPlugin:
 
 
     def test_bkg_removal_median(self):

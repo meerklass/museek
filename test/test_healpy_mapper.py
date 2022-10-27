@@ -19,13 +19,15 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import numpy as np
 import healpy as hp
-from ivy.utils.struct import Struct
-from seek.mapmaking import healpy_mapper
-from seek import Coords
+import numpy as np
 
-class TestHealpyMapper(object):
+from ivy.utils.struct import Struct
+from seek import Coords
+from seek.mapmaking import healpy_mapper
+
+
+class TestHealpyMapper:
     
     def test_get_map(self):
         

@@ -18,10 +18,11 @@ Created on Feb 29, 2016
 '''
 
 import numpy as np
-from ivy.utils.struct import Struct
+
 from seek.calibration import fitting
 
-class TestFitting(object):
+
+class TestFitting:
            
     def test_fitting(self):
 

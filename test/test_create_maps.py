@@ -19,12 +19,14 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
+import h5py
 import numpy as np
+
 from ivy.utils.struct import Struct
 from seek.plugins import create_maps
-import h5py
 
-class TestCreateMapsPlugin(object):
+
+class TestCreateMapsPlugin:
 
     def test_create_maps(self, tmpdir):
         

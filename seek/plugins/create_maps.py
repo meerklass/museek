@@ -26,7 +26,7 @@ import numpy as np
 from ivy.plugin.base_plugin import BasePlugin
 
 
-class RestructuredTODStore(object):
+class RestructuredTODStore:
     """
     This class restructures all the 'chunks' of data so that all the
     data points associated with the same healpix pixel is collected

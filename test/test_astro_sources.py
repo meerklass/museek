@@ -18,10 +18,11 @@ Created on Feb 29, 2016
 '''
 
 import numpy as np
-from ivy.utils.struct import Struct
+
 from seek.calibration import astro_calibration_source
 
-class TestAstroCalibrationSource(object):
+
+class TestAstroCalibrationSource:
            
     def test_astro_sources(self):
 

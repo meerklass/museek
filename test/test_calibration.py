@@ -16,14 +16,14 @@ Created on Jan 7, 2015
 
 @author: seehars
 '''
-import numpy as np
+import os
+
 from ivy.utils.struct import Struct
 from seek.plugins import calibration
-import os
 
 DATA_PATH = 'res/data'
 
-class TestCalibrationPlugin(object):
+class TestCalibrationPlugin:
     
     def setup(self):
         current_path = os.path.dirname(__file__)

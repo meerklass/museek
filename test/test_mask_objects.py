@@ -26,7 +26,7 @@ from seek import Coords
 from seek.plugins import mask_objects
 
 
-class TestMaskObjectsPlugin(object):
+class TestMaskObjectsPlugin:
 
     def setup(self):
         self.params = Struct(telescope_latitude=47.344192,

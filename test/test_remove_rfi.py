@@ -16,14 +16,14 @@ Created on Jan 7, 2015
 
 @author: seehars
 '''
-import os
 
 import numpy as np
-from ivy.utils.struct import Struct
 
+from ivy.utils.struct import Struct
 from seek.plugins import remove_RFI
 
-class TestRemoveRFIPlugin(object):
+
+class TestRemoveRFIPlugin:
     
     def setup(self):
         params = Struct(cleaner = "seek.mitigation.outlier_masking",

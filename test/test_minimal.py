@@ -17,10 +17,12 @@ Tests for `seekd` module.
 """
 from __future__ import print_function, division, absolute_import
 
-import pytest
-import tempfile
-import ivy
 import os
+import tempfile
+
+import pytest
+
+import ivy
 
 DATA_PATH = 'res/data'
         
@@ -31,7 +33,7 @@ except KeyError:
     JENKINS = False
 
 JENKINS = True
-class TestSampleRun(object):
+class TestSampleRun:
 
     def test_sampleRun(self):
         if JENKINS:

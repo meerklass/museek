@@ -22,7 +22,8 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 from ivy.utils.struct import Struct
 from seek.plugins import map_indicies
 
-class TestMapIndiciesPlugin(object):
+
+class TestMapIndiciesPlugin:
 
     def test_map_indicies(self):
         params = Struct(cpu_count=2)
