@@ -32,7 +32,7 @@ seed = 1
 
 map_name = "BGS_maps.hdf"
 
-overwrite = False                  # True if file should be overwritten 
+overwrite = True  # True if file should be overwritten
 
 # ==================================================================
 # T E L E S C O P E

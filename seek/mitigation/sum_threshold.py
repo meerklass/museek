@@ -17,16 +17,13 @@ Created on Jan 21, 2015
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
-
+import numba
 import numpy as np
 from scipy import ndimage
 
-import hope
-
 from seek.mitigation import sum_threshold_utils
-from seek.utils.tod_utils import get_empty_mask
 from seek.utils import filter
+from seek.utils.tod_utils import get_empty_mask
 
 # Maximum neighbourhood size
 MAX_PIXELS = 8
@@ -41,7 +38,7 @@ SIGMA_N = 15
 STRUCT_SIZE = 3
 
 
-@hope.jit
+@numba.jit
 def _sumthreshold(data, mask, i, chi, ds0, ds1):
     """
     The operation of summing and thresholding.
@@ -59,26 +56,27 @@ def _sumthreshold(data, mask, i, chi, ds0, ds1):
     for x in range(ds0):
         sum = 0.0
         cnt = 0
-        
-        for ii in range(0, i):
+
+        for ii in range(0, min(i, mask.shape[1])):
             if mask[x, ii] != True:
                 sum += data[x, ii]
                 cnt += 1
-        
+
         for y in range(i, ds1):
             if sum > chi * cnt:
                 for ii2 in range(0, i):
-                    tmp_mask[x, y-ii2-1] = True
-                    
+                    tmp_mask[x, y - ii2 - 1] = True
+
             if mask[x, y] != True:
                 sum += data[x, y]
                 cnt += 1
-            
-            if mask[x, y-i] != 1:
-                sum -= data[x, y-i]
+
+            if mask[x, y - i] != 1:
+                sum -= data[x, y - i]
                 cnt -= 1
-                
+
     return tmp_mask
+
 
 def _run_sumthreshold(data, init_mask, eta, M, chi_i, sm_kwargs, plotting=True):
     """
@@ -98,22 +96,23 @@ def _run_sumthreshold(data, init_mask, eta, M, chi_i, sm_kwargs, plotting=True):
     """
 
     smoothed_data = filter.gaussian_filter(data, init_mask, **sm_kwargs)
-    res = data-smoothed_data
-    
+    res = data - smoothed_data
+
     st_mask = init_mask.copy()
 
     for m, chi in zip(M, chi_i):
         chi = chi / eta
-        if m==1:
-            st_mask = st_mask | (chi<=res)
+        if m == 1:
+            st_mask = st_mask | (chi <= res)
         else:
-            st_mask = _sumthreshold(res,   st_mask,   m, chi, *res.shape)
+            st_mask = _sumthreshold(res, st_mask, m, chi, *res.shape)
             st_mask = _sumthreshold(res.T, st_mask.T, m, chi, *res.T.shape).T
 
     if plotting:
-        sum_threshold_utils.plot_steps(data, st_mask, smoothed_data, res, "%s (%s)"%(eta, chi_i))
-        
+        sum_threshold_utils.plot_steps(data, st_mask, smoothed_data, res, "%s (%s)" % (eta, chi_i))
+
     return st_mask
+
 
 def binary_mask_dilation(mask, struct_size_0, struct_size_1):
     """
@@ -143,7 +142,16 @@ def normalize(data, mask):
     data = np.abs(data - median)
     return data.data
 
-def get_rfi_mask(tod, mask=None, chi_1=35000, eta_i=[0.5, 0.55, 0.62, 0.75, 1], normalize_standing_waves=True, suppress_dilation=False, plotting=True, sm_kwargs=None, di_kwargs=None):
+
+def get_rfi_mask(tod,
+                 mask=None,
+                 chi_1=35000,
+                 eta_i=[0.5, 0.55, 0.62, 0.75, 1],
+                 normalize_standing_waves=True,
+                 suppress_dilation=False,
+                 plotting=True,
+                 sm_kwargs=None,
+                 di_kwargs=None):
     """
     Computes a mask to cover the RFI in a data set.
     
@@ -160,23 +168,23 @@ def get_rfi_mask(tod, mask=None, chi_1=35000, eta_i=[0.5, 0.55, 0.62, 0.75, 1], 
     :return mask: the mask covering the identified RFI
     """
     data = tod.data
-    
+
     if mask is None:
         mask = get_empty_mask(data.shape)
-    
+
     if sm_kwargs is None: sm_kwargs = get_sm_kwargs()
-    
+
     if plotting: sum_threshold_utils.plot_moments(data)
 
     if normalize_standing_waves:
         data = normalize(data, mask)
 
         if plotting: sum_threshold_utils.plot_moments(data)
-    
+
     p = 1.5
     m = np.arange(1, MAX_PIXELS)
-    M = 2**(m-1)
-    chi_i = chi_1 / p**np.log2(m)
+    M = 2 ** (m - 1)
+    chi_i = chi_1 / p ** np.log2(m)
 
     st_mask = mask
     for eta in eta_i:
@@ -186,11 +194,12 @@ def get_rfi_mask(tod, mask=None, chi_1=35000, eta_i=[0.5, 0.55, 0.62, 0.75, 1], 
     if not suppress_dilation:
         if di_kwargs is None: di_kwargs = get_di_kwrags()
 
-        dilated_mask = binary_mask_dilation(dilated_mask - mask, **di_kwargs)
-    
+        dilated_mask = binary_mask_dilation(dilated_mask.astype(np.float) - mask.astype(np.float), **di_kwargs)
+
         if plotting: sum_threshold_utils.plot_dilation(st_mask, mask, dilated_mask)
-        
-    return dilated_mask+mask
+
+    return dilated_mask + mask
+
 
 def get_sm_kwargs(kernel_m=KERNEL_M, kernel_n=KERNEL_N, sigma_m=SIGMA_M, sigma_n=SIGMA_N):
     """
@@ -205,6 +214,7 @@ def get_sm_kwargs(kernel_m=KERNEL_M, kernel_n=KERNEL_N, sigma_m=SIGMA_M, sigma_n
     """
     return dict(M=kernel_m, N=kernel_n, sigma_m=sigma_m, sigma_n=sigma_n)
 
+
 def get_di_kwrags(struct_size_0=STRUCT_SIZE, struct_size_1=STRUCT_SIZE):
     """
     Creates a dict with the dilation keywords.
@@ -215,6 +225,7 @@ def get_di_kwrags(struct_size_0=STRUCT_SIZE, struct_size_1=STRUCT_SIZE):
     :return: dictionary with the dilation keywords
     """
     return dict(struct_size_0=struct_size_0, struct_size_1=struct_size_1)
+
 
 def get_sumthreshold_kwargs(params):
     """
@@ -227,11 +238,12 @@ def get_sumthreshold_kwargs(params):
     sm_kwargs = get_sm_kwargs(params.sm_kernel_m,
                               params.sm_kernel_n,
                               params.sm_sigma_m,
-                              params.sm_sigma_n,)
+                              params.sm_sigma_n, )
 
     di_kwargs = get_di_kwrags(params.struct_size_0, params.struct_size_1)
-    
+
     return sm_kwargs, di_kwargs
+
 
 def rm_rfi(ctx):
     """
@@ -242,10 +254,10 @@ def rm_rfi(ctx):
     :return: SumThreshold RFI mask.
     """
     sm_kwars, di_kwargs = get_sumthreshold_kwargs(ctx.params)
-    
-    rfi_mask_vx = get_rfi_mask(ctx.tod_vx, 
+
+    rfi_mask_vx = get_rfi_mask(ctx.tod_vx,
                                mask=ctx.tod_vx.mask,
-                               chi_1 = ctx.params.chi_1,
+                               chi_1=ctx.params.chi_1,
                                eta_i=ctx.params.eta_i,
                                plotting=False,
                                sm_kwargs=sm_kwars,
