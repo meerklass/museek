@@ -4,7 +4,7 @@ Usage
 
 To use SEEK, you can download the example data that was collected at the Bleien Observatory::
 
-	$ wget -r -nH -np --cut-dirs=2 http://people.phys.ethz.ch/~ast/cosmo/bgs_example_data/
+	$ wget -r -nH -np --cut-dirs=2 https://people.phys.ethz.ch/~ipa/cosmo/bgs_example_data/
 
 then you will be able to process the data with seek::
 

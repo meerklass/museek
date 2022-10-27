@@ -3,9 +3,8 @@ scipy
 Cython
 h5py
 mock
-hope
+numba
 pyephem
 six
 healpy
 astropy
-git+https://github.com/cosmo-ethz/ivy.git

@@ -17,14 +17,16 @@ Created on Jan 15, 2016
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
+
+import os
+
+import h5py
+import numpy as np
 
 from ivy.plugin.base_plugin import BasePlugin
-import h5py
-import os
-import numpy as np
-from seek.plugins import load_data
 from seek import Coords
+from seek.plugins import load_data
+
 
 class Plugin(BasePlugin):
     """
@@ -38,20 +40,19 @@ class Plugin(BasePlugin):
         filename = os.path.basename(self.ctx.file_paths[0])
         filepath = os.path.join(self.ctx.params.post_processing_prefix,
                                 filename)
-        
+
         if self.ctx.params.verbose:
             print(filepath)
-        
+
         self.ctx.strategy_start = load_data.get_observation_start_from_hdf5(filepath)
         with h5py.File(filepath, "r") as fp:
-            tod = np.ma.array(fp["data"].value, mask=fp["mask"].value)
+            tod = np.ma.array(fp["data"][()], mask=fp["mask"][()])
             self.ctx.tod_vx = tod
             self.ctx.tod_vy = tod.copy()
-            self.ctx.frequencies = fp["frequencies"].value
-            self.ctx.time_axis = fp["time"].value
-            self.ctx.coords = Coords(fp["ra"].value, fp["dec"].value, None, None, self.ctx.time_axis)
-            self.ctx.ref_channel = fp["ref_channel"].value
+            self.ctx.frequencies = fp["frequencies"][()]
+            self.ctx.time_axis = fp["time"][()]
+            self.ctx.coords = Coords(fp["ra"][()], fp["dec"][()], None, None, self.ctx.time_axis)
+            self.ctx.ref_channel = fp["ref_channel"][()]
 
-            
     def __str__(self):
         return "loading processed data"
