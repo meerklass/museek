@@ -40,8 +40,10 @@ def gauss2(x, a_1, x0_1, sigma_1, a_2, x0_2, sigma_2, b, c):
     Double Gaussian model plus a linear background.
     """
     if a_1 > 0 and a_2 > 0:
-        return a_1 * np.exp(-(x - x0_1) ** 2 / (2 * sigma_1 ** 2)) + a_2 * np.exp(
-            -(x - x0_2) ** 2 / (2 * sigma_2 ** 2)) + b * x + c
+        return a_1 * np.exp(-(x - x0_1) ** 2 / (2 * sigma_1 ** 2)) \
+               + a_2 * np.exp(-(x - x0_2) ** 2 / (2 * sigma_2 ** 2)) \
+               + b * x \
+               + c
     else:
         return 1e30
 

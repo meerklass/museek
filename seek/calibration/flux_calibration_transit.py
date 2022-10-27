@@ -41,8 +41,16 @@ k = 1.38e-23
 c = 3e8
 
 CalibrationSource = namedtuple("CalibrationSource", ["date", "azimut", "elevation", "target"])
-GaussFitResult = namedtuple("GaussFitResult", ["gauss_A", "gauss_x0", "gauss_sigma", "sky1", "sky2",
-                                               "gauss_A_err", "gauss_x0_err", "gauss_sigma_err", "sky1_err", "sky2_err",
+GaussFitResult = namedtuple("GaussFitResult", ["gauss_A",
+                                               "gauss_x0",
+                                               "gauss_sigma",
+                                               "sky1",
+                                               "sky2",
+                                               "gauss_A_err",
+                                               "gauss_x0_err",
+                                               "gauss_sigma_err",
+                                               "sky1_err",
+                                               "sky2_err",
                                                "rsquared"])
 
 
@@ -126,7 +134,8 @@ def fit_gaussian_source_full(data, time_axis, rfi_mask, source_dec, params):
     no_params = 5
     fit_results = np.zeros((data.shape[0], 2 * no_params + 1))
     deg = np.arange(data.shape[1]) * (time_axis[1] - time_axis[0]) * 60 * 60 * (
-                360. / 24 / 60 / 60) * params.integration_time * np.cos(source_dec / 180. * np.pi)  # deg
+            360. / 24 / 60 / 60
+    ) * params.integration_time * np.cos(source_dec / 180. * np.pi)  # deg
 
     for k in range(data.shape[0]):
         ratio = np.sum(rfi_mask[k]) / rfi_mask.shape[1]

@@ -143,8 +143,15 @@ def normalize(data, mask):
     return data.data
 
 
-def get_rfi_mask(tod, mask=None, chi_1=35000, eta_i=[0.5, 0.55, 0.62, 0.75, 1], normalize_standing_waves=True,
-                 suppress_dilation=False, plotting=True, sm_kwargs=None, di_kwargs=None):
+def get_rfi_mask(tod,
+                 mask=None,
+                 chi_1=35000,
+                 eta_i=[0.5, 0.55, 0.62, 0.75, 1],
+                 normalize_standing_waves=True,
+                 suppress_dilation=False,
+                 plotting=True,
+                 sm_kwargs=None,
+                 di_kwargs=None):
     """
     Computes a mask to cover the RFI in a data set.
     
