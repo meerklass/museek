@@ -17,9 +17,9 @@ Created on Dec 22, 2014
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import ephem
+
 
 def get_observer(params):
     """
@@ -29,13 +29,14 @@ def get_observer(params):
 
     :return: pyephem observer
     """
-    
+
     obs = ephem.Observer()
     obs.lon = str(params.telescope_longitude)
     obs.lat = str(params.telescope_latitude)
     obs.elevation = params.telescope_elevation
     obs.pressure = 0
     return obs
+
 
 def altaz_to_ra_dec(date, az, alt, obs=None, params=None):
     """
@@ -49,10 +50,9 @@ def altaz_to_ra_dec(date, az, alt, obs=None, params=None):
 
     :return: RA/DEC coordinates
     """
-    
+
     if obs is None:
         obs = get_observer(params)
     obs.date = (date.year, date.month, date.day, date.hour, date.minute, date.second)
-    
-    return obs.radec_of(az, alt)
 
+    return obs.radec_of(az, alt)

@@ -17,13 +17,12 @@ Created on Dec 8, 2014
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
-from pkg_resources import resource_filename
-from ivy.plugin.base_plugin import BasePlugin
-import numpy as np
 import healpy as hp
+import numpy as np
+from pkg_resources import resource_filename
 
 import seek
+from ivy.plugin.base_plugin import BasePlugin
 
 
 class Plugin(BasePlugin):

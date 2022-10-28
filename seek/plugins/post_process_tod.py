@@ -17,11 +17,13 @@ Created on Feb 6, 2015
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
+
+import os
+
+import h5py
 
 from ivy.plugin.base_plugin import BasePlugin
-import h5py
-import os
+
 
 class Plugin(BasePlugin):
     """
@@ -34,11 +36,11 @@ class Plugin(BasePlugin):
     def __call__(self):
         if not self.ctx.params.store_intermediate_result:
             return
-        
+
         filename = os.path.basename(self.ctx.file_paths[0])
         filepath = os.path.join(self.ctx.params.post_processing_prefix,
                                 filename)
-        
+
         with h5py.File(filepath, "w") as fp:
             fp["data"] = self.ctx.tod_vx.data
             fp["mask"] = self.ctx.tod_vx.mask
@@ -47,7 +49,6 @@ class Plugin(BasePlugin):
             fp["ra"] = self.ctx.coords.ra
             fp["dec"] = self.ctx.coords.dec
             fp["ref_channel"] = self.ctx.ref_channel
-            
-            
+
     def __str__(self):
         return "postprocessing TOD"

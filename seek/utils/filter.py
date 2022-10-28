@@ -17,7 +17,6 @@ Created on Jan 23, 2015
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numba
 import numpy as np

@@ -17,9 +17,9 @@ Created on Feb 26, 2016
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numpy as np
+
 
 def get_mapped_values(re_data, ctx):
     """
@@ -28,5 +28,5 @@ def get_mapped_values(re_data, ctx):
 
     :return: variance and sum of unmasked data
     """
-    
+
     return re_data.var(axis=1), np.sum(~re_data.mask, axis=1)

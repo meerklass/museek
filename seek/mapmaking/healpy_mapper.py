@@ -17,10 +17,10 @@ Created on Jan 5, 2015
 
 author: seehars
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
-import numpy as np
 import healpy as hp
+import numpy as np
+
 
 def get_map(ctx):
     """
@@ -31,25 +31,26 @@ def get_map(ctx):
     """
     npix = hp.nside2npix(ctx.params.nside)
     nfreq = ctx.frequencies.shape[0]
-    theta, phi = eq2rad(ctx.coords.ra, ctx.coords.dec) 
+    theta, phi = eq2rad(ctx.coords.ra, ctx.coords.dec)
     inds = hp.ang2pix(ctx.params.nside, theta, phi)
-    
+
     maps = np.zeros((nfreq, 2, npix))
     counts = np.zeros(maps.shape)
     varflag = ctx.params.variance
-    
+
     varmaps = np.zeros((nfreq, 2, npix)) if varflag else None
-    
+
     for tod_ind in range(min(theta.shape[0], ctx.tod_vx.shape[1])):
         ind = inds[tod_ind]
         updateMaps(ctx.tod_vx, maps, counts, tod_ind, ind, 0, varmaps)
-        updateMaps(ctx.tod_vy, maps, counts, tod_ind, ind, 1, varmaps)            
-            
+        updateMaps(ctx.tod_vy, maps, counts, tod_ind, ind, 1, varmaps)
+
     redshifts = 1420.40575177 / ctx.frequencies - 1
     return_maps = varmaps if varflag else maps * counts
     return return_maps, redshifts, counts
 
-def updateMaps(tod, maps, counts, tod_ind, map_ind, xy_ind, varmaps = None):
+
+def updateMaps(tod, maps, counts, tod_ind, map_ind, xy_ind, varmaps=None):
     """
     Running update of map as more data is included.
 
@@ -76,6 +77,7 @@ def updateMaps(tod, maps, counts, tod_ind, map_ind, xy_ind, varmaps = None):
         varmaps[m, xy_ind, map_ind] += p1 * p2
         return maps, varmaps
 
+
 def eq2rad(ra, dec):
     """
     Convert RA/DEC coordinates to theta/phi used in healpix
@@ -85,6 +87,6 @@ def eq2rad(ra, dec):
 
     :return: theta/phi coordinate
     """
-    theta = np.pi * .5  - dec
+    theta = np.pi * .5 - dec
     phi = ra
     return theta, phi

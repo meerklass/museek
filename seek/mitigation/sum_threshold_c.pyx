@@ -5,7 +5,6 @@ Created on Feb 16, 2015
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 cimport cython
 import numpy as np
