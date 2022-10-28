@@ -140,7 +140,7 @@ plugins Package
 :mod:`remove_RFI` Module
 ------------------------
 
-.. automodule:: seek.plugins.remove_RFI
+.. automodule:: seek.plugins.remove_rfi
     :members:
     :undoc-members:
     :show-inheritance:
