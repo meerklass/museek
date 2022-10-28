@@ -19,11 +19,13 @@ author: cchang
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
+import os
+
 import numpy as np
+import pytest
+
 from ivy.utils.struct import Struct
 from seek.calibration import flux_calibration_transit
-import os
-import pytest
 
 DATA_PATH = 'res/data'
 
@@ -42,7 +44,7 @@ def ctx():
     ctx = Struct(params=params)
     return ctx
 
-class TestCalibrationTransit(object):
+class TestCalibrationTransit:
 
     def test_fit_gaussian_source(self, ctx):   
 

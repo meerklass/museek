@@ -18,13 +18,16 @@ Created on Mar 20, 2015
 author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
-from seek.mitigation import sum_threshold
+
+from collections import Counter
 
 import numpy as np
-from collections import Counter
-from ivy.utils.struct import Struct
 
-class TestSumThreshold(object):
+from ivy.utils.struct import Struct
+from seek.mitigation import sum_threshold
+
+
+class TestSumThreshold:
     
     def test_no_masking(self):
         tod = np.ma.array(np.zeros((100,100)))

@@ -19,15 +19,15 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-from ivy.utils.struct import Struct
-
-import numpy as np
 import healpy as hp
+import numpy as np
 
+from ivy.utils.struct import Struct
 from seek import Coords
 from seek.plugins import make_maps
 
-class TestMakeMapsPlugin(object):
+
+class TestMakeMapsPlugin:
     
     def test_make_map(self):
         params = Struct(map_maker = "seek.mapmaking.healpy_mapper",

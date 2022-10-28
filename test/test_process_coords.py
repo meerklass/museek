@@ -16,18 +16,18 @@ Created on Jan 7, 2015
 
 @author: seehars
 '''
-from datetime import datetime
 import os
+from datetime import datetime
+
+import numpy as np
 
 from ivy.utils.struct import Struct
-import numpy as np
 from seek.plugins import process_coords
-
 
 COORDS_ROOT = os.path.join(os.path.dirname(__file__), "res", "coords")
 
 
-class TestLoadCoordsPlugin(object):
+class TestLoadCoordsPlugin:
     
         
     def testLoadCoords(self):

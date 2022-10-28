@@ -20,11 +20,12 @@ author: jakeret
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numpy as np
+
 from ivy.utils.struct import Struct
 from seek.plugins import reduce_maps
 
 
-class TestReduceMapsPlugin(object):
+class TestReduceMapsPlugin:
 
     def test_reduce(self):
         

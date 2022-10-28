@@ -19,13 +19,14 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
+import os
+
 from ivy.utils.struct import Struct
 from seek.plugins import map_file_paths
-import os
 
 NAME = 'res/skymap/SKYMAP_2014-11-21-20:00:00.hdf'
 
-class TestMapFilePathPlugin(object):
+class TestMapFilePathPlugin:
 
     def test_map_file_path(self):
         current_path = os.path.dirname(__file__)

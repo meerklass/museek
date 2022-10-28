@@ -19,11 +19,13 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import numpy as np
-import healpy as hp
 import os
 
-class Plugin(object):
+import healpy as hp
+import numpy as np
+
+
+class Plugin:
     """
     Aggregates the partial maps to one complete healpy map.
     """

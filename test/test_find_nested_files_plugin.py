@@ -19,14 +19,16 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
+import os
+
+import pytest
+
 from ivy.utils.struct import Struct
 from seek.plugins import find_nested_files
-import os
-import pytest
 
 DATA_PATH = 'res/data'
 
-class TestFindNestedFilesPlugin(object):
+class TestFindNestedFilesPlugin:
 
     def test_find_file_in_range(self):
         current_path = os.path.dirname(__file__)

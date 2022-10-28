@@ -19,7 +19,7 @@ author: jakeret
 '''
 
 
-class Plugin(object):
+class Plugin:
     """
     Maps the file paths to the plugin collection.
     """

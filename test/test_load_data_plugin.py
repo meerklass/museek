@@ -18,8 +18,9 @@ Created on Feb 2, 2015
 author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
-import os
+
 import datetime
+import os
 
 import numpy as np
 
@@ -35,7 +36,7 @@ FREQUENCY_COUNT = 200
 TIME_STEP_SIZE = 0.25
 OBSERVATION_DATE = datetime.datetime(2014,11,21,20,00,00)
 
-class TestLoadDataPlugin(object):
+class TestLoadDataPlugin:
 
     def setup(self):
         self.params = Struct(spectrometer = "custom",

@@ -27,7 +27,7 @@ from ivy.utils.struct import Struct
 from seek.plugins import write_maps
 
 
-class TestWriteMapsPlugin(object):
+class TestWriteMapsPlugin:
 
     def setup(self):
         self.maps = np.zeros((1, 2))

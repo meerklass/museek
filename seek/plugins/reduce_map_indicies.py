@@ -19,7 +19,7 @@ author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-class Plugin(object):
+class Plugin:
     """
     Reduces the restructured TODs constructed per chunk to one.
     """

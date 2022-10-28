@@ -20,9 +20,11 @@ author: jakeret
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numpy as np
+
 from seek.utils import tod_utils
 
-class TestTodUtils(object):
+
+class TestTodUtils:
     
     def test_smooth_axis0(self):
         #axis = 0
