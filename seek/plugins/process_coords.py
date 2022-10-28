@@ -23,7 +23,7 @@ from datetime import timedelta
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek import Coords
 from seek.utils import format_date
 from seek.utils import sphere
@@ -56,7 +56,7 @@ def convert_coords(date, time_steps, azs, els, obs):
     return np.array(strategy)
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Loads the telescope coordinate file for the current observation date and
     converts AZ/EL to RA/DEC.

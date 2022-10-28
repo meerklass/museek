@@ -20,12 +20,12 @@ author: jakeret
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek import utils
 from seek.utils import parse_datetime
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     First masks given frequency ranges that are known to be
     RFI-contaminatedm. Next masks artefacts based on a custom file

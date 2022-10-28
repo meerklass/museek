@@ -22,10 +22,10 @@ import importlib
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Make map from restructured TOD based on the specified map_maker.
     """

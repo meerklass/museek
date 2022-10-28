@@ -23,7 +23,7 @@ import re
 from collections import OrderedDict
 from datetime import timedelta
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.utils import format_date
 from seek.utils import parse_datetime
 
@@ -90,7 +90,7 @@ def get_calibration_path(path, date):
     return os.path.join(path, calibration_filename)
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Traverses the file system from the `file_prefix` and collects all data and
     coord paths within the scanning strategy start and end date

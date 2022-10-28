@@ -18,12 +18,12 @@ Created on Feb 4, 2016
 author: cchang
 '''
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.calibration import flux_calibration_transit
 from seek.utils import load_file
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """ This class is used to specify which calibration type
     to use. If the case "data" is specified, derive gain curve
     from separate module in calibration directory."""

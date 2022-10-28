@@ -23,12 +23,12 @@ import os
 import h5py
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek import Coords
 from seek.plugins import load_data
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Loads the data, mask and frequencies of the current iteration from disk. Can
     be used for closer analysis of the masking (sum threshold). The data is

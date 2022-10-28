@@ -22,10 +22,10 @@ import importlib
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """ Call the specified RFI mitigation module. """
 
     def __call__(self):

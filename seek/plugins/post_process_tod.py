@@ -22,10 +22,10 @@ import os
 
 import h5py
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Writes the data, mask and frequencies of the current iteration to disk. Can
     be used for closer analysis of the masking (sum threshold). Output is

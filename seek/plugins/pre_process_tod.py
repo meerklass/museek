@@ -20,7 +20,7 @@ author: jakeret
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 SPECTROMETER_CALLISTO = 'callisto'
 SPECTROMETER_M9703A = 'M9703A'
@@ -43,7 +43,7 @@ def apply_gain(frequencies, data, gain_file):
     return 1. / tod_gain * data
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Converts the TOD's depending on the spectrometer
     """

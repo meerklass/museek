@@ -23,7 +23,7 @@ import os
 import h5py
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 MAPS_KEY = 'MAPS'
 REDSHIFTS_KEY = 'REDSHIFTS'
@@ -31,7 +31,7 @@ COUNTS_KEY = 'COUNTS'
 FREQUENCIES_KEY = 'FREQUENCIES'
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Writes map and associated information to HDF5 files.
     """
