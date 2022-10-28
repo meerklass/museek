@@ -43,7 +43,7 @@ class TestMapFilePathPlugin:
 
         plugin = map_file_paths.Plugin(ctx)
 
-        for idx, ctx in enumerate(plugin.getWorkload()):
+        for idx, ctx in enumerate(plugin.get_workload()):
             assert ctx is not None
             assert ctx.file_paths[0] == full_path
 
@@ -54,6 +54,6 @@ class TestMapFilePathPlugin:
         ctx.params.chunk_size = 2
         plugin = map_file_paths.Plugin(ctx)
 
-        ctxs = list(plugin.getWorkload())
+        ctxs = list(plugin.get_workload())
         assert len(ctxs[0].file_paths) == 2
         assert len(ctxs[1].file_paths) == 1

@@ -30,7 +30,7 @@ class TestMapIndiciesPlugin:
                      restructured_tod_pixels=[1, 2, 3, 4])
         plugin = map_indicies.Plugin(ctx)
 
-        for i, ctx in enumerate(plugin.getWorkload()):
+        for i, ctx in enumerate(plugin.get_workload()):
             assert len(ctx.map_pixels) == 2
 
         assert i == 1
