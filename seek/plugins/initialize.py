@@ -30,7 +30,7 @@ class Plugin(AbstractPlugin):
     Read in healpix mask from GSM if 'smooth' background model is specified.
     """
 
-    def __call__(self):
+    def run(self):
         if self.ctx.params.background_model == "smooth":
             self.ctx.simulation_mask = hp.read_map(resource_filename(seek.__name__, self.ctx.params.gsm_mask),
                                                    dtype=np.bool, verbose=False)

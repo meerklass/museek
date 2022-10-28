@@ -33,7 +33,7 @@ class TestBackgroundRemovalPlugin:
                      tod_vy=np.ma.array(tod))
 
         plugin = background_removal.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert np.all(ctx.tod_vx.sum(axis=1) == 0)
         assert np.all(ctx.tod_vy.sum(axis=1) == 0)
@@ -55,7 +55,7 @@ class TestBackgroundRemovalPlugin:
                      simulation_mask=np.zeros(9, dtype=np.bool))
 
         plugin = background_removal.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert np.all(ctx.tod_vx.sum(axis=1) == 0)
         assert np.all(ctx.tod_vy.sum(axis=1) == 0)

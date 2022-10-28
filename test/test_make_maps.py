@@ -53,7 +53,7 @@ class TestMakeMapsPlugin:
                      coords=Coords(times[:, -2], times[:, -1], None, None, None))
 
         plugin = make_maps.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert len(ctx.map_idxs) == 3
         assert ctx.maps[0] == tod_vx.sum()

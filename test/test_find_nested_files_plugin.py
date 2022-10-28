@@ -46,11 +46,11 @@ class TestFindNestedFilesPlugin:
         plugin = find_nested_files.Plugin(ctx)
 
         with pytest.raises(AssertionError):
-            plugin()
+            plugin.run()
 
         params.strategy_start = "2015-05-04-00:00:00"
         params.strategy_end = "2015-05-05-18:00:10"
-        plugin()
+        plugin.run()
 
         assert ctx.calibrations_paths is not None
         assert len(ctx.calibrations_paths) == 0
@@ -76,7 +76,7 @@ class TestFindNestedFilesPlugin:
         plugin = find_nested_files.Plugin(ctx)
 
         with pytest.raises(AssertionError):
-            plugin()
+            plugin.run()
 
     def test_calibration_in_range(self):
         current_path = os.path.dirname(__file__)
@@ -93,7 +93,7 @@ class TestFindNestedFilesPlugin:
 
         plugin = find_nested_files.Plugin(ctx)
 
-        plugin()
+        plugin.run()
 
         assert ctx.calibrations_paths is not None
         assert len(ctx.calibrations_paths) == 1

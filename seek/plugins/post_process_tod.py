@@ -33,7 +33,7 @@ class Plugin(AbstractPlugin):
     filename (may overwrite the original file if not being careful)
     """
 
-    def __call__(self):
+    def run(self):
         if not self.ctx.params.store_intermediate_result:
             return
 

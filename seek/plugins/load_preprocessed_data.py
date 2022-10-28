@@ -36,7 +36,7 @@ class Plugin(AbstractPlugin):
     filename.
     """
 
-    def __call__(self):
+    def run(self):
         filename = os.path.basename(self.ctx.file_paths[0])
         filepath = os.path.join(self.ctx.params.post_processing_prefix,
                                 filename)

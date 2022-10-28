@@ -28,7 +28,7 @@ from ivy.plugin.abstract_plugin import AbstractPlugin
 class Plugin(AbstractPlugin):
     """ Call the specified RFI mitigation module. """
 
-    def __call__(self):
+    def run(self):
         if hasattr(self.ctx.params, 'cleaner') and self.ctx.params.cleaner != "None":
             # load module
             mod = importlib.import_module(self.ctx.params.cleaner)

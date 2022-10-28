@@ -23,16 +23,16 @@ from seek.plugins import calibration
 
 DATA_PATH = 'res/data'
 
+
 class TestCalibrationPlugin:
-    
+
     def setup(self):
         current_path = os.path.dirname(__file__)
-        params = Struct(flux_calibration = "default",
-                        gain_file_default=os.path.join(os.path.join(current_path, DATA_PATH),'gain_null.dat'))
-        self.ctx = Struct(params = params)
-        
-    def testCalibration(self):
-        calib = calibration.Plugin(self.ctx)
-        calib()
-        assert self.ctx.params.gain_file_default
+        params = Struct(flux_calibration="default",
+                        gain_file_default=os.path.join(os.path.join(current_path, DATA_PATH), 'gain_null.dat'))
+        self.ctx = Struct(params=params)
 
+    def test_calibration(self):
+        calibration_plugin = calibration.Plugin(self.ctx)
+        calibration_plugin.run()
+        assert self.ctx.params.gain_file_default

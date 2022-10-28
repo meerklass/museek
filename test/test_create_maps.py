@@ -43,7 +43,7 @@ class TestCreateMapsPlugin:
                      )
 
         plugin = create_maps.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert np.all(ctx.map_idxs == map_pixels)
         assert np.all(ctx.maps[:, 0, 0] == 1)

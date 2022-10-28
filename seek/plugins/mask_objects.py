@@ -66,7 +66,7 @@ class Plugin(AbstractPlugin):
     Masks the Sun and the Moon using ephem.
     """
 
-    def __call__(self):
+    def run(self):
         self.mask_objects()
 
     def mask_objects(self):

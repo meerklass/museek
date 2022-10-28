@@ -30,7 +30,7 @@ class Plugin(AbstractPlugin):
     Make map from restructured TOD based on the specified map_maker.
     """
 
-    def __call__(self):
+    def run(self):
         # load module
         mod = importlib.import_module(self.ctx.params.map_maker)
 

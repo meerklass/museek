@@ -48,7 +48,7 @@ class Plugin(AbstractPlugin):
     Converts the TOD's depending on the spectrometer
     """
 
-    def __call__(self):
+    def run(self):
         try:
             data = apply_gain(self.ctx.frequencies, self.ctx.tod_vx, self.ctx.gain_file)
             self.ctx.tod_vx = np.ma.array(data, mask=self.ctx.tod_vx.mask)

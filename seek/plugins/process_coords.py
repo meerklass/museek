@@ -62,7 +62,7 @@ class Plugin(AbstractPlugin):
     converts AZ/EL to RA/DEC.
     """
 
-    def __call__(self):
+    def run(self):
         if self.ctx.tod_vx.shape[0] > 0:
             date = self.ctx.strategy_start
             coord_path = self.ctx.coords_paths[format_date(date)]

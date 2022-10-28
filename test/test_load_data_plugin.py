@@ -171,7 +171,7 @@ class TestLoadDataPlugin:
         ctx.file_paths = [FITS_DATA_FILE_PATH, FITS_DATA_FILE_PATH]
 
         plugin = load_data.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert ctx.strategy_start is not None
         assert ctx.tod_vx is not None

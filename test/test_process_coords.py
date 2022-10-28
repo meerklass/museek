@@ -44,7 +44,7 @@ class TestLoadCoordsPlugin:
         ctx.time_axis = np.arange(3)
         
         plugin = process_coords.Plugin(ctx)
-        plugin()
+        plugin.run()
         assert ctx.coords is not None
         assert len(ctx.coords.ra) == 3
         assert len(ctx.coords.dec) == 3

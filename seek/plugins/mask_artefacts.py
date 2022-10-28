@@ -32,7 +32,7 @@ class Plugin(AbstractPlugin):
     in the data directory.
     """
 
-    def __call__(self):
+    def run(self):
         self.mask_frequencies()
         self.mask_artefacts()
 

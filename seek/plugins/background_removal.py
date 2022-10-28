@@ -58,7 +58,7 @@ class Plugin(AbstractPlugin):
     Galactic emission. The final mask is used to build a smooth
     balckground model. """
 
-    def __call__(self):
+    def run(self):
 
         if self.ctx.params.background_model == 'median':
             bg_modelx = np.ma.median(self.ctx.tod_vx, axis=1)[:, np.newaxis]
