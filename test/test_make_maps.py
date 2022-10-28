@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Mar 20, 2015
 
 author: jakeret
-'''
+"""
 
 import healpy as hp
 import numpy as np

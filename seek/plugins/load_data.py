@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jul 28, 2015
 
 author: jakeret
-'''
+"""
 
 import os
 from collections import namedtuple

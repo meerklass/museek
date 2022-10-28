@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 2, 2015
 
 author: jakeret
-'''
+"""
 
 import datetime
 import os

@@ -12,14 +12,14 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 5, 2015
 
 author: seehars
 
 Common parameters that are always loaded.
 
-'''
+"""
 
 # ==================================================================
 # G E N E R A L

@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 26, 2016
 
 author: jakeret
-'''
+"""
 
 import h5py
 import numpy as np

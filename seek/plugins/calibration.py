@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 4, 2016
 
 author: cchang
-'''
+"""
 
 from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.calibration import flux_calibration_transit

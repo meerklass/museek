@@ -11,11 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 Created on Jan 7, 2015
 
 @author: seehars
-'''
+"""
 import os
 from datetime import datetime
 

@@ -12,7 +12,7 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 23, 2015
 
 author: seehars
@@ -20,7 +20,7 @@ author: seehars
 Config file that specifies the Ivy workflow and other parameters used
 to run SEEK.
 
-'''
+"""
 
 from ivy.plugin.parallel_plugin_collection import ParallelPluginCollection
 

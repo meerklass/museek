@@ -12,7 +12,7 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Dec 18, 2015
 
 author: jakeret
@@ -20,7 +20,7 @@ author: jakeret
 Config file that specifies parameters specific for the FFT spectrometer.
 Includes the other two config files to avoid duplication.
 
-'''
+"""
 
 from seek.config import process_survey
 

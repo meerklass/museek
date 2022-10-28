@@ -1,9 +1,8 @@
-'''
+"""
 Created on Dec 2, 2013
 
 @author: jakeret
-'''
-import py
+"""
 import subprocess
 def test_linkcheck(tmpdir):
     doctrees = tmpdir.join("doctrees")

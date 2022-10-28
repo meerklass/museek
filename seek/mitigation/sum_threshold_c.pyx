@@ -1,10 +1,10 @@
 # Copyright (C) 2015 ETH Zurich, Institute for Astronomy
 
-'''
+"""
 Created on Feb 16, 2015
 
 author: jakeret
-'''
+"""
 
 cimport cython
 import numpy as np

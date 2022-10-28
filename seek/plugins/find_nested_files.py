@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jul 27, 2015
 
 author: jakeret
-'''
+"""
 
 import os
 import re

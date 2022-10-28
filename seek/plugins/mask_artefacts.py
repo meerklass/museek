@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jun 6, 2016
 
 author: jakeret
-'''
+"""
 
 import numpy as np
 

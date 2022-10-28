@@ -11,11 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 Created on Feb 29, 2016
 
 @author: cchang
-'''
+"""
 
 import numpy as np
 
