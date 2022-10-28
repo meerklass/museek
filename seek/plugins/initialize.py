@@ -22,10 +22,10 @@ import numpy as np
 from pkg_resources import resource_filename
 
 import seek
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Read in healpix mask from GSM if 'smooth' background model is specified.
     """

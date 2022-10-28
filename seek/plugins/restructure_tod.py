@@ -24,7 +24,7 @@ from collections import Counter
 import h5py
 import healpy as hp
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.mapmaking.healpy_mapper import eq2rad
 
 
@@ -36,7 +36,7 @@ def restructure(fp, tod, cntr, pix_numbers):
         grp.create_dataset("mask", data=data.mask, compression="gzip", compression_opts=4, shuffle=True)
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Restructure each TOD all the data points associated with the same
     healpix pixel is collected together.

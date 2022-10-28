@@ -26,7 +26,7 @@ import numpy as np
 from astropy.io import fits
 from numpy import ma
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.utils import parse_datetime
 from seek.utils.tod_utils import get_empty_mask
 from seek.utils.tod_utils import smooth
@@ -315,7 +315,7 @@ def _integrate(data, masks, frequencies, time_axes, ctx):
     return tod_vx, tod_vy, frequencies, time_axes
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Loads the data from files, applies cuts in frequency direction and also
     integrates the data in time and freq

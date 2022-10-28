@@ -23,7 +23,7 @@ from datetime import timedelta
 
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.utils import sphere
 
 try:
@@ -61,7 +61,7 @@ def get_object_separation(obs, start_date, time, ra, dec):
     return np.array(sun_separation), np.array(moon_separation)
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     Masks the Sun and the Moon using ephem.
     """

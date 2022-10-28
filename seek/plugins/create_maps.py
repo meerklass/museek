@@ -23,7 +23,7 @@ import importlib
 import h5py
 import numpy as np
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 
 
 class RestructuredTODStore:
@@ -72,7 +72,7 @@ def _fill_maps(maps, map_counts, paths, pixels, mapper, ctx):
             map_counts[:, xy_ind, i] = counts
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """
     This class fills the map pixels by delegating the computation to the 'map_maker'.
     """

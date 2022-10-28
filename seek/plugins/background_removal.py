@@ -22,7 +22,7 @@ import healpy as hp
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter as gaussian
 
-from ivy.plugin.base_plugin import BasePlugin
+from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.mitigation import sum_threshold
 
 
@@ -51,7 +51,7 @@ def mask_galaxy(nside, mask_original, mask_gal, ra, dec):
     return new_mask
 
 
-class Plugin(BasePlugin):
+class Plugin(AbstractPlugin):
     """ If specified "median", take the median of the masked data as the
     background model. If specified "smooth", the code will take the mask
     after sum-threshold and mask additionally the expected region of high
