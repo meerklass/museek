@@ -27,7 +27,7 @@ class Plugin:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def getWorkload(self):
+    def get_workload(self):
         pixels = self.ctx.restructured_tod_pixels
         chunk_size = int(len(pixels) / self.ctx.params.cpu_count)
         for map_pixels in chunk(pixels, chunk_size):
