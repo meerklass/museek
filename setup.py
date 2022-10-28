@@ -2,14 +2,14 @@
 
 import os
 import sys
-from setuptools.command.test import test as TestCommand
+
 from setuptools import find_packages
+from setuptools.command.test import test as TestCommand
 
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
-
 
 if sys.argv[-1] == 'publish':
     os.system('python setup.py sdist upload')
@@ -38,7 +38,7 @@ The full documentation can be generated with Sphinx"""
 history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
 requires = ["ivy", "hope", "numpy", "scipy", "h5py", "pyephem", "astropy"]
-tests_require=['pytest>=2.3', "mock"]
+tests_require = ['pytest>=2.3', "mock"]
 
 PACKAGE_PATH = os.path.abspath(os.path.join(__file__, os.pardir))
 
@@ -58,8 +58,8 @@ setup(
     zip_safe=False,
     keywords='seek',
     entry_points={
-    'console_scripts': [
-        'seek = ivy.cli.main:run',
+        'console_scripts': [
+            'seek = ivy.cli.main:run',
         ]
     },
     classifiers=[
@@ -68,10 +68,8 @@ setup(
         'Intended Audience :: Developers',
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         'Natural Language :: English',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.10',
     ],
     tests_require=tests_require,
-    cmdclass = {'test': PyTest},
+    cmdclass={'test': PyTest},
 )
