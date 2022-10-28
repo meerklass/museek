@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 4, 2016
 
 author: cchang
-'''
+"""
 
 from ivy.plugin.abstract_plugin import AbstractPlugin
 from seek.calibration import flux_calibration_transit
@@ -28,7 +28,7 @@ class Plugin(AbstractPlugin):
     to use. If the case "data" is specified, derive gain curve
     from separate module in calibration directory."""
 
-    def __call__(self):
+    def run(self):
 
         if self.ctx.params.flux_calibration == 'default':
             self.ctx.gain_file = load_file(self.ctx.params.gain_file_default)

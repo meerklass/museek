@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Mar 7, 2016
 
 author: jakeret
-'''
+"""
 
 import h5py
 import numpy as np
@@ -43,7 +43,7 @@ class TestCreateMapsPlugin:
                      )
 
         plugin = create_maps.Plugin(ctx)
-        plugin()
+        plugin.run()
 
         assert np.all(ctx.map_idxs == map_pixels)
         assert np.all(ctx.maps[:, 0, 0] == 1)

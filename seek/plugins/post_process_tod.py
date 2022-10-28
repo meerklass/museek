@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 6, 2015
 
 author: jakeret
-'''
+"""
 
 import os
 
@@ -33,7 +33,7 @@ class Plugin(AbstractPlugin):
     filename (may overwrite the original file if not being careful)
     """
 
-    def __call__(self):
+    def run(self):
         if not self.ctx.params.store_intermediate_result:
             return
 

@@ -11,11 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 Created on Jan 5, 2015
 
 @author: seehars
-'''
+"""
 import os
 import tempfile
 
@@ -47,22 +47,22 @@ class TestWriteMapsPlugin:
         name1 = name + '_1.hdf'
         self.params.map_name = name1
         self.params.overwrite = False
-        self.plugin()
+        self.plugin.run()
         assert os.path.isfile(name1)
         f = h5py.File(name1)
         assert np.allclose(f[write_maps.MAPS_KEY][()], self.maps)
         assert np.allclose(f[write_maps.REDSHIFTS_KEY][()], self.redshifts)
 
         with pytest.raises(Exception):
-            self.plugin()
+            self.plugin.run()
 
         self.plugin.ctx.params.overwrite = True
-        self.plugin()
+        self.plugin.run()
         assert os.path.isfile(name1)
 
         name2 = name + "_2.hdf"
         self.params.map_name = name2
         self.params.overwrite = False
-        self.plugin()
+        self.plugin.run()
         assert os.path.isfile(name1)
         assert os.path.isfile(name2)

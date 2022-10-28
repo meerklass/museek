@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 15, 2016
 
 author: jakeret
-'''
+"""
 
 import os
 
@@ -36,7 +36,7 @@ class Plugin(AbstractPlugin):
     filename.
     """
 
-    def __call__(self):
+    def run(self):
         filename = os.path.basename(self.ctx.file_paths[0])
         filepath = os.path.join(self.ctx.params.post_processing_prefix,
                                 filename)

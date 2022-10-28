@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Dec 22, 2014
 
 author: jakeret
-'''
+"""
 
 import ephem
 

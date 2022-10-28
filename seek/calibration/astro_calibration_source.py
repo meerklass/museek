@@ -12,7 +12,7 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Aug 20, 2015
 
 author: cchang
@@ -21,7 +21,7 @@ Models taken from: Baars 1997, Hafez 2008, Benz 2009
 All numbers divided by 2 to account for the fact that our data is
 single polarization.
 
-'''
+"""
 
 import numpy as np
 

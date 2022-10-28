@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Mar 7, 2016
 
 author: jakeret
-'''
+"""
 
 from ivy.utils.struct import Struct
 from seek.plugins import map_indicies

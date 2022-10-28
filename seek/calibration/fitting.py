@@ -12,12 +12,12 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Aug 18, 2015
 
 author: cchang
 
-'''
+"""
 
 import numba
 import numpy as np

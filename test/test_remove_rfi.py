@@ -11,29 +11,29 @@
 # You should have received a copy of the GNU General Public License
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 Created on Jan 7, 2015
 
 @author: seehars
-'''
+"""
 
 import numpy as np
 
 from ivy.utils.struct import Struct
-from seek.plugins import remove_RFI
+from seek.plugins import remove_rfi
 
 
-class TestRemoveRFIPlugin:
-    
+class TestRemoveRfiPlugin:
+
     def setup(self):
-        params = Struct(cleaner = "seek.mitigation.outlier_masking",
-                        multiplicator = 5)
-        self.ctx = Struct(params = params,
-                          tod_vx = np.ma.array([[1]]),
-                          tod_vy = np.ma.array([[1]]))
-        
-    def testRemoveRFI(self):
-        rm_RFI = remove_RFI.Plugin(self.ctx)
-        rm_RFI()
-        assert self.ctx.tod_vx.mask == False
-        assert self.ctx.tod_vy.mask == False
+        params = Struct(cleaner="seek.mitigation.outlier_masking",
+                        multiplicator=5)
+        self.ctx = Struct(params=params,
+                          tod_vx=np.ma.array([[1]]),
+                          tod_vy=np.ma.array([[1]]))
+
+    def test_remove_rfi(self):
+        remove_rfi_plugin = remove_rfi.Plugin(self.ctx)
+        remove_rfi_plugin.run()
+        assert not self.ctx.tod_vx.mask
+        assert not self.ctx.tod_vy.mask

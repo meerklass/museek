@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 22, 2015
 
 author: seehars
-'''
+"""
 from numpy import std, mean, bitwise_or
 
 

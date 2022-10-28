@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 6, 2015
 
 author: jakeret
-'''
+"""
 
 from datetime import datetime
 from datetime import timedelta
@@ -66,7 +66,7 @@ class Plugin(AbstractPlugin):
     Masks the Sun and the Moon using ephem.
     """
 
-    def __call__(self):
+    def run(self):
         self.mask_objects()
 
     def mask_objects(self):

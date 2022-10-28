@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jul 28, 2015
 
 author: jakeret
-'''
+"""
 
 import os
 from collections import namedtuple
@@ -321,7 +321,7 @@ class Plugin(AbstractPlugin):
     integrates the data in time and freq
     """
 
-    def __call__(self):
+    def run(self):
         if self.ctx.params.verbose:
             print("Current files: %s" % ("\n".join(self.ctx.file_paths)))
 

@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Feb 3, 2015
 
 author: jakeret
-'''
+"""
 
 
 class Plugin:

@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 5, 2015
 
 author: seehars
-'''
+"""
 
 import os
 
@@ -36,7 +36,7 @@ class Plugin(AbstractPlugin):
     Writes map and associated information to HDF5 files.
     """
 
-    def __call__(self):
+    def run(self):
         if os.path.exists(self.ctx.params.map_name):
             if self.ctx.params.overwrite:
                 os.remove(self.ctx.params.map_name)

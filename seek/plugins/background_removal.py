@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on May 30, 2016
 
 author: cchang
-'''
+"""
 
 import healpy as hp
 import numpy as np
@@ -58,7 +58,7 @@ class Plugin(AbstractPlugin):
     Galactic emission. The final mask is used to build a smooth
     balckground model. """
 
-    def __call__(self):
+    def run(self):
 
         if self.ctx.params.background_model == 'median':
             bg_modelx = np.ma.median(self.ctx.tod_vx, axis=1)[:, np.newaxis]

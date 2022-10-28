@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jul 27, 2015
 
 author: jakeret
-'''
+"""
 
 import os
 import re
@@ -96,7 +96,7 @@ class Plugin(AbstractPlugin):
     coord paths within the scanning strategy start and end date
     """
 
-    def __call__(self):
+    def run(self):
         strategy_start = parse_datetime(self.ctx.params.strategy_start)
         strategy_end = parse_datetime(self.ctx.params.strategy_end)
 

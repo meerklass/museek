@@ -12,11 +12,11 @@
 # along with SEEK.  If not, see <http://www.gnu.org/licenses/>.
 
 
-'''
+"""
 Created on Jan 21, 2015
 
 author: jakeret
-'''
+"""
 import numba
 import numpy as np
 from scipy import ndimage
