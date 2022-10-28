@@ -16,7 +16,6 @@ Created on Feb 24, 2016
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numpy as np
 
@@ -27,10 +26,9 @@ from seek.plugins import background_removal
 
 class TestBackgroundRemovalPlugin:
 
-
     def test_bkg_removal_median(self):
         tod = np.ones((5, 9)) * np.arange(9)
-        ctx = Struct(params=Struct(background_model = "median"),
+        ctx = Struct(params=Struct(background_model="median"),
                      tod_vx=np.ma.array(tod),
                      tod_vy=np.ma.array(tod))
 
@@ -40,14 +38,13 @@ class TestBackgroundRemovalPlugin:
         assert np.all(ctx.tod_vx.sum(axis=1) == 0)
         assert np.all(ctx.tod_vy.sum(axis=1) == 0)
 
-
     def test_bkg_removal_smooth(self):
         tod = np.ones((5, 9)) * np.arange(9)
         mask = np.zeros((5, 9))
-        mask[:,0] = 1
-        mask[:,-1] = 1
+        mask[:, 0] = 1
+        mask[:, -1] = 1
         mask = mask.astype('bool')
-        ctx = Struct(params=Struct(background_model = "smooth",
+        ctx = Struct(params=Struct(background_model="smooth",
                                    struct_size_0=1,
                                    struct_size_1=1,
                                    nside=1),

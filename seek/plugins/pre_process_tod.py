@@ -17,11 +17,10 @@ Created on Jan 20, 2016
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
-
-from ivy.plugin.base_plugin import BasePlugin
 
 import numpy as np
+
+from ivy.plugin.base_plugin import BasePlugin
 
 SPECTROMETER_CALLISTO = 'callisto'
 SPECTROMETER_M9703A = 'M9703A'
@@ -36,12 +35,13 @@ def apply_gain(frequencies, data, gain_file):
     
     :returns data: the converted data
     """
-    freq = gain_file[:,0]
-    gain = gain_file[:,1]
-    
+    freq = gain_file[:, 0]
+    gain = gain_file[:, 1]
+
     tod_gain = np.interp(frequencies, freq, gain).reshape(-1, 1)
-    
+
     return 1. / tod_gain * data
+
 
 class Plugin(BasePlugin):
     """
@@ -61,4 +61,3 @@ class Plugin(BasePlugin):
 
     def __str__(self):
         return "Convert TOD"
-

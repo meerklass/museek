@@ -17,7 +17,6 @@ Created on Feb 16, 2015
 
 author: jakeret
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import healpy as hp
 import numpy as np
@@ -28,30 +27,29 @@ from seek.mapmaking import healpy_mapper
 
 
 class TestHealpyMapper:
-    
+
     def test_get_map(self):
-        
         params = Struct(nside=2, variance=False)
-        
+
         npix = hp.nside2npix(params.nside)
         ind = 1
         theta, phi = hp.pix2ang(params.nside, ind)
         dec = np.pi * .5 - theta
         ra = phi
-        times = np.array([[0,0,0,ra,dec],[0,0,0,ra,dec]])
-        rfi_mask = np.array([[False, False]], dtype = bool)
+        times = np.array([[0, 0, 0, ra, dec], [0, 0, 0, ra, dec]])
+        rfi_mask = np.array([[False, False]], dtype=bool)
         tod_vx = np.ma.array([[1., 2.]], mask=rfi_mask)
         tod_vy = np.ma.array([[2., 4.]], mask=rfi_mask)
-        
+
         frequencies = np.array([1420.40575177])
-        ctx = Struct(params = params,
-                     frequencies = frequencies,
-                     times = times,
-                     tod_vx = tod_vx,
-                     tod_vy = tod_vy,
-                     coords = Coords(times[:,-2], times[:,-1], None, None, None)
+        ctx = Struct(params=params,
+                     frequencies=frequencies,
+                     times=times,
+                     tod_vx=tod_vx,
+                     tod_vy=tod_vy,
+                     coords=Coords(times[:, -2], times[:, -1], None, None, None)
                      )
-        
+
         maps, z, counts = healpy_mapper.get_map(ctx)
         t = np.zeros((1, 2, npix))
         t[0, 0, 1] = 3.

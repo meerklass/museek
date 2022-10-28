@@ -17,8 +17,8 @@ Created on Jan 22, 2015
 
 author: seehars
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
 from numpy import std, mean, bitwise_or
+
 
 def rm_rfi(ctx):
     """
@@ -34,6 +34,7 @@ def rm_rfi(ctx):
     rfi_mask_vy = getMask(ctx.tod_vy, ctx.params.multiplicator)
 
     return rfi_mask_vx, rfi_mask_vy
+
 
 def getMask(tod, multiplicator):
     """
