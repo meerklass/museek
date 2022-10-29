@@ -21,16 +21,10 @@ If you are reporting a bug, please include:
 
 Fix Bugs
 ~~~~~~~~
-
 Implement Features
 ~~~~~~~~~~~~~~~~~~
-
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
-
-SEEK: Signal Extraction and Emission Kartographer could always use more documentation, whether as part of the 
-official SEEK: Signal Extraction and Emission Kartographer docs, in docstrings, or even on the web in blog posts,
-articles, and such.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
@@ -48,16 +42,6 @@ Pull Request Guidelines
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put
-   your new functionality into a function with a docstring, and add the
-   feature to the list in README.rst.
-3. The pull request should work for Python 3.10, and for PyPy.
-   make sure that the tests pass for all supported Python versions.
-
-
-Tips
-----
-
-To run a subset of tests::
-
-	 $ py.test test/test_seek.py
+2. The docs should be updated or extended accordingly. Add any new plugins to the list in README.rst.
+3. The pull request should work for Python 3.10.
+4. Make sure that the tests pass.
