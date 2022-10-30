@@ -1,20 +1,17 @@
 from ivy.plugin.abstract_plugin import AbstractPlugin
 
-from museek.plugins.sanity_check_observation import Plugin as SanityCheckObservationPlugin
+from museek.plugins.sanity_check_observation_plugin import SanityCheckObservationPlugin
 
 
-class Plugin(AbstractPlugin):
+class SanityCheckDishPlugin(AbstractPlugin):
     """
     DOC
     """
 
-    plugin_name = 'SanityCheckDish'
-
     def run(self):
-        print(self)
         sanity_check_observation_results = self.output_of_plugin(SanityCheckObservationPlugin)
 
-        print(self.config.second_parameter)
+        print(f'successfully accessed own config: {self.config.second_parameter}.')
         second_result = self.config.second_parameter * 3
         self.save_to_context({'result': second_result})
         print(f'successfully accessed result of previous plugin: '
