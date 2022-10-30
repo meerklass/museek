@@ -10,3 +10,19 @@ The **MuSEEK** package has been developed at the `Centre for Radio Cosmology` at
 It is inspired by **SEEK**, developed by the `Software Lab of the Cosmology Research Group <http://www.cosmology.ethz.ch/research/software-lab.html>`_ of the `ETH Institute of Astronomy <http://www.astro.ethz.ch>`_.
 
 The development is coordinated on `GitHub <http://github.com/cosmo-ethz/seek>`_ and contributions are welcome. The documentation of **MuSEEK** is not yet available at `readthedocs.org <http://museek.readthedocs.io/>`_ .
+
+Plugins
+-----------------------
+Plugins can be implementing by creating a class inheriting from **ivy**s `AbstractPlugin`.
+
+1. Only one plugin per file is allowed.
+
+2. Naming: CamelCase ending on "Plugin", example: "GainCalibrationPlugin".
+
+3. To have the plugin included in the pipeline, the config file's "Pipeline" entry needs to include it under "plugins".
+
+4. If the plugin requires specific configuration (most do), the config file needs to contain an entry of the same name as the plugin. For more information see section config.
+
+Config
+-----------------------
+TBD
