@@ -6,10 +6,7 @@ class Plugin(AbstractPlugin):
     DOC
     """
 
-    @classmethod
-    @property
-    def plugin_name(cls):
-        return 'SanityCheckObservation'
+    plugin_name = 'SanityCheckObservation'
 
     def run(self):
         print(self)

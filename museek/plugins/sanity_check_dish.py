@@ -8,10 +8,7 @@ class Plugin(AbstractPlugin):
     DOC
     """
 
-    @classmethod
-    @property
-    def plugin_name(cls):
-        return 'SanityCheckDish'
+    plugin_name = 'SanityCheckDish'
 
     def run(self):
         print(self)
