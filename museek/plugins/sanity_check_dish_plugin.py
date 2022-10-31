@@ -1,4 +1,4 @@
-from ivy.plugin.abstract_plugin import AbstractPlugin
+from ivory.plugin.abstract_plugin import AbstractPlugin
 
 from museek.plugins.sanity_check_observation_plugin import SanityCheckObservationPlugin
 

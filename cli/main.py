@@ -1,4 +1,4 @@
-from ivy.cli.main import run
+from ivory.cli.main import run
 
 
 def main():

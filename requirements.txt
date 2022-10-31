@@ -8,3 +8,4 @@ pyephem
 six
 healpy
 astropy
+ivory
