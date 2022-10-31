@@ -1,4 +1,4 @@
-from ivy.plugin.abstract_plugin import AbstractPlugin
+from ivory.plugin.abstract_plugin import AbstractPlugin
 
 
 class SanityCheckObservationPlugin(AbstractPlugin):
