@@ -9,10 +9,15 @@ from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
 
 class TestTimeOrderedData(unittest.TestCase):
 
+    @patch('museek.time_ordered_data.TimeOrderedDataElement')
     @patch.object(TimeOrderedData, '_set_scan_state_dumps')
     @patch.object(TimeOrderedData, '_correlator_products_indices')
     @patch.object(TimeOrderedData, 'load_data')
-    def setUp(self, mock_load_data, mock_correlator_products_indices, mock_set_scan_state_dumps):
+    def setUp(self,
+              mock_load_data,
+              mock_correlator_products_indices,
+              mock_set_scan_state_dumps,
+              mock_time_ordered_data_element):
         self.mock_katdal_data = MagicMock()
         self.mock_correlator_products_indices = mock_correlator_products_indices
         mock_load_data.return_value = self.mock_katdal_data
@@ -53,6 +58,16 @@ class TestTimeOrderedData(unittest.TestCase):
             f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
         )
 
+    @patch.object(TimeOrderedData, '_correlator_products_indices')
+    def test_select(self, mock_correlator_products_indices):
+        self.time_ordered_data.select(data=self.mock_katdal_data)
+        self.mock_katdal_data.select.assert_has_calls(
+            calls=[call(corrprods=self.mock_correlator_products_indices.return_value),
+                   call(corrprods=mock_correlator_products_indices.return_value)])
+        mock_correlator_products_indices.assert_called_once_with(
+            all_correlator_products=self.mock_katdal_data.corr_products
+        )
+
     def test_antenna(self):
         mock_receiver = MagicMock()
         mock_antenna_name_list = MagicMock()
@@ -60,6 +75,54 @@ class TestTimeOrderedData(unittest.TestCase):
         antenna = self.time_ordered_data.antenna(receiver=mock_receiver)
         mock_antenna_name_list.index.assert_called_once_with(mock_receiver.antenna_name)
         self.assertEqual(self.time_ordered_data.antennas.__getitem__.return_value, antenna)
+
+    @patch('museek.time_ordered_data.TimeOrderedDataElement')
+    def test_element(self, mock_time_ordered_data_element):
+        mock_array = Mock()
+        element = self.time_ordered_data.element(array=mock_array)
+        mock_time_ordered_data_element.assert_called_once_with(array=mock_array, parent=self.time_ordered_data)
+        self.assertEqual(mock_time_ordered_data_element(), element)
+
+    @patch.object(TimeOrderedData, 'element')
+    @patch.object(TimeOrderedData, '_visibility_flags_weights')
+    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_element):
+        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
+        self.time_ordered_data.load_visibility_flags_weights()
+        self.assertEqual(self.time_ordered_data.visibility, mock_element.return_value)
+        self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
+        self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
+
+    @patch.object(TimeOrderedData, 'select')
+    @patch('museek.time_ordered_data.np')
+    @patch('museek.time_ordered_data.katdal')
+    @patch.object(TimeOrderedData, '_load_autocorrelation_visibility')
+    def test_visibility_flags_weights_when_force_load_from_correlator_data(
+            self,
+            mock_load_autocorrelation_visibility,
+            mock_katdal,
+            mock_np,
+            mock_select
+    ):
+        self.time_ordered_data._force_load_from_correlator_data = True
+        mock_load_autocorrelation_visibility.return_value = (Mock(), Mock(), Mock())
+        visibility, flags, weights = self.time_ordered_data._visibility_flags_weights()
+        mock_katdal.open.assert_called_once()
+        mock_np.savez_compressed.assert_called_once()
+        mock_select.assert_called_once()
+        self.assertEqual(mock_load_autocorrelation_visibility.return_value[0].real, visibility)
+        self.assertEqual(mock_load_autocorrelation_visibility.return_value[1], flags)
+        self.assertEqual(mock_load_autocorrelation_visibility.return_value[2], weights)
+
+    @patch('museek.time_ordered_data.DaskLazyIndexer')
+    def test_load_autocorrelation_visibility(self, mock_dask_lazy_indexer):
+        self.time_ordered_data.shape = (1, 1, 1)
+        visibility, flags, weights = self.time_ordered_data._load_autocorrelation_visibility(
+            data=self.mock_katdal_data
+        )
+        mock_dask_lazy_indexer.get.assert_called_once()
+        np.testing.assert_array_equal(np.asarray([[[0. + 0.j]]]), visibility)
+        np.testing.assert_array_equal(np.asarray([[[0]]]), flags)
+        np.testing.assert_array_equal(np.asarray([[[0]]]), weights)
 
     def test_antenna_when_explicit(self):
         self.time_ordered_data._antenna_name_list = ['m000', 'm001']
