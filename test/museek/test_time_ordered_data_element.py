@@ -13,6 +13,10 @@ class TestTimeOrderedDataElement(unittest.TestCase):
         self.array = np.resize(np.arange(27), (3, 3, 3))
         self.element = TimeOrderedDataElement(array=self.array, parent=self.mock_parent)
 
+    def test_init_expect_raise(self):
+        array = np.zeros((2, 2))
+        self.assertRaises(ValueError, TimeOrderedDataElement, array=array, parent=self.mock_parent)
+
     def test_mul_when_parents_different_expect_raise(self):
         element_2 = TimeOrderedDataElement(array=np.zeros(self.shape), parent=MagicMock())
         self.assertRaises(ValueError, self.element.__mul__, element_2)
@@ -71,6 +75,7 @@ class TestTimeOrderedDataElement(unittest.TestCase):
 
     @patch('museek.time_ordered_data_element.np')
     def test_mean_when_mocked(self, mock_np):
+        mock_np.mean.return_value.shape = (1, 1, 1)
         mock_axis = MagicMock()
         mean = self.element.mean(axis=mock_axis)
         self.assertEqual(mean._array, mock_np.mean.return_value)
@@ -80,6 +85,9 @@ class TestTimeOrderedDataElement(unittest.TestCase):
 
     def test_get(self):
         mock_array = MagicMock()
+        mock_array.shape = (1, 1, 1)
+        mock_array.copy.return_value = mock_array
+        mock_array.__getitem__.return_value.shape = mock_array.shape
         element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
         mock_time = MagicMock()
         mock_freq = MagicMock()
@@ -93,6 +101,9 @@ class TestTimeOrderedDataElement(unittest.TestCase):
     def test_get_when_integers(self, mock_isinstance):
         mock_isinstance.return_value = True
         mock_array = MagicMock()
+        mock_array.shape = (1, 1, 1)
+        mock_array.copy.return_value = mock_array
+        mock_array.__getitem__.return_value.shape = mock_array.shape
         element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
         mock_time = MagicMock()
         mock_freq = MagicMock()
@@ -104,6 +115,9 @@ class TestTimeOrderedDataElement(unittest.TestCase):
 
     def test_get_when_only_time_given(self):
         mock_array = MagicMock()
+        mock_array.shape = (1, 1, 1)
+        mock_array.copy.return_value = mock_array
+        mock_array.__getitem__.return_value.shape = mock_array.shape
         element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
         mock_time = MagicMock()
         element_get = element.get(time=mock_time)
@@ -113,6 +127,7 @@ class TestTimeOrderedDataElement(unittest.TestCase):
 
     def test_get_when_both_recv_and_ants_is_given_expect_raise(self):
         mock_array = MagicMock()
+        mock_array.shape = (1, 1, 1)
         element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
         mock_ants = MagicMock()
         mock_recv = MagicMock()

@@ -18,6 +18,8 @@ class TimeOrderedDataElement:
         :param parent: instance of `TimeOrderedData`, to access the scan dump informations
         :raise ValueError: if `array is not 3-dimensional
         """
+        if len(array.shape) != 3:
+            raise ValueError(f'Input `array` needs to be 3-dimensional, got shape {array.shape}')
         self._array = array
         self._parent = parent
 
