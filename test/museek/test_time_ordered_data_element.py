@@ -40,6 +40,11 @@ class TestTimeOrderedDataElement(unittest.TestCase):
         np.testing.assert_array_equal(expect, multiplied._array)
         self.assertEqual(self.mock_parent, multiplied._parent)
 
+    @patch('museek.time_ordered_data_element.np')
+    def test_getitem(self, mock_np):
+        self.assertEqual(mock_np.squeeze.return_value, self.element[0, 1, 2])
+        mock_np.squeeze.assert_called_once_with(5)
+
     @patch.object(TimeOrderedDataElement, 'get_array')
     def test_scan(self, mock_get_array):
         self.element.scan

@@ -38,6 +38,11 @@ class TimeOrderedDataElement:
         if isinstance(other, np.ndarray | numbers.Number):
             return TimeOrderedDataElement(array=self._array * other, parent=self._parent)
 
+
+    def __getitem__(self, index: int | list[int]) -> np.ndarray:
+        """ Returns `numpy`s getitem coupled with a squeeze. """
+        return np.squeeze(self._array[index])
+
     @property
     def scan(self) -> np.ndarray:
         """ Returns a `numpy` `array` containing the 'scan' dumps of `self`. """
