@@ -20,4 +20,4 @@ class DemoLoadPlugin(AbstractPlugin):
                                       allow_overwrite=True))
 
     def set_requirements(self):
-        self.requirements = []
+        pass

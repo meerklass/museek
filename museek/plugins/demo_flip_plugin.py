@@ -15,8 +15,10 @@ class DemoFlipPlugin(AbstractPlugin):
 
     def run(self, astronaut_image: Image):
         if self.config.do_flip_right_left:
+            print('Flipping right left...')
             astronaut_image = self._flip_right_left(image=astronaut_image)
         if self.config.do_flip_top_bottom:
+            print('Flipping top bottom...')
             astronaut_image = self._flip_top_bottom(image=astronaut_image)
         self.set_result(result=Result(location=DemoEnum.ASTRONAUT_RIDING_HORSE_IN_SPACE_FLIPPED,
                                       result=astronaut_image))
