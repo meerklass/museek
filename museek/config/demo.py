@@ -10,8 +10,6 @@ Pipeline = ConfigSection(
 )
 
 DemoLoadPlugin = ConfigSection(
-    # url='https://cdn.openai.com/dall-e-2/demos/text2im/astronaut/horse/photo/0.jpg'
-    # url='https://cdn.openai.com/dall-e-2/demos/text2im/astronaut/horse/photo/4.jpg'
     url='https://cdn.openai.com/dall-e-2/demos/text2im/astronaut/horse/photo/9.jpg'
 )
 
@@ -20,7 +18,8 @@ DemoPlotPlugin = ConfigSection(
 )
 
 DemoFlipPlugin = ConfigSection(
-    do_flip=False
+    do_flip_right_left=True,
+    do_flip_top_bottom=True
 )
 
 DemoStorePlugin = ConfigSection(
