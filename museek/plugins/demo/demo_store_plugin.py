@@ -13,7 +13,7 @@ class DemoStorePlugin(AbstractPlugin):
     def __init__(self, ctx: Struct):
         super().__init__(ctx=ctx)
         self.ctx = ctx
-        self.output_file_name = os.path.join(PLUGIN_ROOT, f'../../results/demo/{self.config.file_name}')
+        self.output_file_name = os.path.join(PLUGIN_ROOT, f'../../../results/demo/{self.config.file_name}')
 
     def run(self):
         with open(self.output_file_name, "wb") as context_file:

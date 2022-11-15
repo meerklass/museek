@@ -28,5 +28,5 @@ class DemoPlotPlugin(AbstractPlugin):
         plt.axis('off')
         if self.config.do_show:
             plt.show()
-        else:
+        if self.config.do_save:
             plt.savefig(f'demo_plot_plugin{next(count)}.png')

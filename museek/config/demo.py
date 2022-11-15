@@ -2,10 +2,10 @@ from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
     plugins=[
-        'museek.plugins.demo_load_plugin',
-        'museek.plugins.demo_flip_plugin',
-        'museek.plugins.demo_plot_plugin',
-        'museek.plugins.demo_store_plugin'
+        'museek.plugins.demo.demo_load_plugin',
+        'museek.plugins.demo.demo_flip_plugin',
+        'museek.plugins.demo.demo_plot_plugin',
+        'museek.plugins.demo.demo_store_plugin'
     ]
 )
 
@@ -14,7 +14,8 @@ DemoLoadPlugin = ConfigSection(
 )
 
 DemoPlotPlugin = ConfigSection(
-    do_show=True
+    do_show=False,
+    do_save=True
 )
 
 DemoFlipPlugin = ConfigSection(
