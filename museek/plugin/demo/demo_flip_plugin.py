@@ -1,4 +1,5 @@
 from PIL import Image
+from PIL.Image import Transpose
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
@@ -25,8 +26,8 @@ class DemoFlipPlugin(AbstractPlugin):
 
     @staticmethod
     def _flip_right_left(image: Image) -> Image:
-        return image.transpose(method=Image.FLIP_LEFT_RIGHT)
+        return image.transpose(method=Transpose.FLIP_LEFT_RIGHT)
 
     @staticmethod
     def _flip_top_bottom(image: Image) -> Image:
-        return image.transpose(method=Image.FLIP_TOP_BOTTOM)
+        return image.transpose(method=Transpose.FLIP_TOP_BOTTOM)
