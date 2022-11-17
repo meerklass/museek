@@ -1,6 +1,6 @@
 from ivory.plugin.abstract_plugin import AbstractPlugin
 
-from museek.plugins.sanity_check_observation_plugin import SanityCheckObservationPlugin
+from museek.plugin.sanity_check_observation_plugin import SanityCheckObservationPlugin
 
 
 class SanityCheckDishPlugin(AbstractPlugin):
