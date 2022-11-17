@@ -89,54 +89,43 @@ class TestTimeOrderedDataElement(unittest.TestCase):
                                              keepdims=True)
 
     def test_get(self):
-        mock_array = MagicMock()
-        mock_array.shape = (1, 1, 1)
-        mock_array.copy.return_value = mock_array
-        mock_array.__getitem__.return_value.shape = mock_array.shape
-        element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
-        mock_time = MagicMock()
-        mock_freq = MagicMock()
-        mock_recv = MagicMock()
-        element_get = element.get(time=mock_time, freq=mock_freq, recv=mock_recv)
-        self.assertEqual(self.mock_parent, element_get._parent)
-        self.assertEqual(mock_array.copy.return_value.__getitem__.return_value, element_get._array)
-        mock_array.copy.return_value.__getitem__.assert_called_once_with((mock_time, mock_freq, mock_recv))
-
-    @patch('museek.time_ordered_data_element.isinstance')
-    def test_get_when_integers(self, mock_isinstance):
-        mock_isinstance.return_value = True
-        mock_array = MagicMock()
-        mock_array.shape = (1, 1, 1)
-        mock_array.copy.return_value = mock_array
-        mock_array.__getitem__.return_value.shape = mock_array.shape
-        element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
-        mock_time = MagicMock()
-        mock_freq = MagicMock()
-        mock_recv = MagicMock()
-        element_get = element.get(time=mock_time, freq=mock_freq, recv=mock_recv)
-        self.assertEqual(self.mock_parent, element_get._parent)
-        self.assertEqual(mock_array.copy.return_value.__getitem__.return_value, element_get._array)
-        mock_array.copy.return_value.__getitem__.assert_called_once_with(([mock_time], [mock_freq], [mock_recv]))
+        list_ = [1] * 9 + [2] * 9 + [3] * 9
+        array = np.reshape(list_, (3, 3, 3))
+        element = TimeOrderedDataElement(array=array, parent=self.mock_parent)
+        np.testing.assert_array_equal(np.ones((3, 3)), element.get(time=0).full)
+        np.testing.assert_array_equal(np.ones((3, 3)) * 2, element.get(time=1).full)
+        expect = np.asarray([[1, 1, 1],
+                             [2, 2, 2],
+                             [3, 3, 3]])
+        np.testing.assert_array_equal(expect, element.get(freq=1).full)
+        np.testing.assert_array_equal(expect, element.get(recv=1).full)
 
     def test_get_when_only_time_given(self):
-        mock_array = MagicMock()
-        mock_array.shape = (1, 1, 1)
-        mock_array.copy.return_value = mock_array
-        mock_array.__getitem__.return_value.shape = mock_array.shape
-        element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
-        mock_time = MagicMock()
-        element_get = element.get(time=mock_time)
-        self.assertEqual(self.mock_parent, element_get._parent)
-        self.assertEqual(mock_array.copy.return_value.__getitem__.return_value, element_get._array)
-        mock_array.copy.return_value.__getitem__.assert_called_once_with((mock_time, slice(None), slice(None)))
+        shape_ = (10, 11, 3)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        np.testing.assert_array_equal(np.zeros((11, 3)), element.get(time=5).full)
 
-    def test_get_when_both_recv_and_ants_is_given_expect_raise(self):
-        mock_array = MagicMock()
-        mock_array.shape = (1, 1, 1)
-        element = TimeOrderedDataElement(array=mock_array, parent=self.mock_parent)
-        mock_ants = MagicMock()
-        mock_recv = MagicMock()
-        self.assertRaises(ValueError, element.get, ants=mock_ants, recv=mock_recv)
+    def test_get_when_three_integers_given(self):
+        shape_ = (10, 11, 3)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        self.assertEqual(0, element.get(time=5, freq=10, recv=2).full)
+
+    def test_get_when_lists_given(self):
+        shape_ = (10, 11, 3)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        np.testing.assert_array_equal(np.zeros((3, 2, 2)),
+                                      element.get(time=[5, 6, 7], freq=[9, 10], recv=[0, 1]).full)
+
+    def test_get_when_slices_given(self):
+        shape_ = (10, 11, 3)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        np.testing.assert_array_equal(np.zeros((10, 2, 2)),
+                                      element.get(time=slice(None), freq=slice(2, 4), recv=slice(0, 2)).full)
+
+    def test_get_when_minus_1_given(self):
+        shape_ = (10, 11, 3)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        np.testing.assert_array_equal(0, element.get(time=-1, freq=-1, recv=-1).full)
 
     @patch('museek.time_ordered_data_element.np')
     @patch.object(TimeOrderedDataElement, 'get')
@@ -145,3 +134,10 @@ class TestTimeOrderedDataElement(unittest.TestCase):
         self.assertEqual(mock_np.squeeze.return_value, self.element.get_array(**mock_kwargs))
         mock_get.assert_called_once_with(**mock_kwargs)
         mock_np.squeeze.assert_called_once_with(mock_get.return_value._array)
+
+    def test_get_array_when_shape_1_1_1(self):
+        shape_ = (1, 1, 1)
+        element = TimeOrderedDataElement(array=np.zeros(shape_), parent=self.mock_parent)
+        result = element.get_array()
+        self.assertEqual(0., result)
+        self.assertIsInstance(result, float)

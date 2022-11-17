@@ -8,7 +8,6 @@ class TimeOrderedDataElement:
     Class to access an 'element' of time ordered data, e.g. the visibility data, or temperature values.
     All elements are internally stored with shape `(n_dump, n_frequency, n_receiver)`. If one of these axes only
     contains copies, e.g. the temperature is the same for all frequencies, then the corresponding shape is `1`.
-
     The elements should be accessed using one of the properties and manipulated with the public methods.
     """
 
@@ -37,7 +36,6 @@ class TimeOrderedDataElement:
             return TimeOrderedDataElement(array=self._array * other._array, parent=self._parent)
         if isinstance(other, np.ndarray | numbers.Number):
             return TimeOrderedDataElement(array=self._array * other, parent=self._parent)
-
 
     def __getitem__(self, index: int | list[int]) -> np.ndarray:
         """ Returns `numpy`s getitem coupled with a squeeze. """
@@ -68,53 +66,48 @@ class TimeOrderedDataElement:
         """ Returns a `numpy` `array` containing the all dumps of `self`. """
         return self.get_array()
 
-    def mean(self, axis: int | list[int]) -> 'TimeOrderedDataElement':
+    def mean(self, axis: int | list[int, int] | tuple[int, int]) -> 'TimeOrderedDataElement':
         """ Return the mean of `self` along `axis` as a `TimeOrderedDataElement`, i.e. the dimensions are kept. """
         return TimeOrderedDataElement(array=np.mean(self._array, axis=axis, keepdims=True), parent=self._parent)
 
     def get(self,
             *,  # force named parameters
-            time: int | list[int] | None = None,
-            freq: int | list[int] | None = None,
-            recv: int | list[int] | None = None,
-            ants: int | list[int] | None = None
+            time: int | list[int] | slice | None = None,
+            freq: int | list[int] | slice | None = None,
+            recv: int | list[int] | slice | None = None,
             ) -> 'TimeOrderedDataElement':
         """
         Simplified indexing
-        :param time: indices along the zeroth (dump) axis
-        :param freq: indices along the first (frequency) axis
-        :param recv: indices along the second (receiver) axis
-        :param ants: identical to `recv`, indices along the second (receiver) axis
-        :raise ValueError: if both `ants` and `recv` are given and not `None`
+        :param time: indices or slice along the zeroth (dump) axis
+        :param freq: indices or slice along the first (frequency) axis
+        :param recv: indices or slice along the second (receiver) axis
         :return: a copy of `self` indexed at the input indices
         """
-        if ants is not None and recv is not None:
-            raise ValueError('`ants` and `recv` cannot both be given at the same time.')
 
         array = self._array.copy()
+
         if isinstance(time, int):
             time = [time]
         if isinstance(freq, int):
             freq = [freq]
         if isinstance(recv, int):
             recv = [recv]
-        if isinstance(ants, int):
-            ants = [ants]
 
-        time_slice = freq_slice = recv_slice = slice(None)
         if time is not None:
-            time_slice = time
+            array = array[time, :, :]
         if freq is not None:
-            freq_slice = freq
+            array = array[:, freq, :]
         if recv is not None:
-            recv_slice = recv
-        elif ants is not None:
-            recv_slice = ants
-        return TimeOrderedDataElement(array=array[time_slice, freq_slice, recv_slice], parent=self._parent)
+            array = array[:, :, recv]
 
-    def get_array(self, **kwargs) -> np.ndarray:
+        return TimeOrderedDataElement(array=array, parent=self._parent)
+
+    def get_array(self, **kwargs) -> np.ndarray | float:
         """
         Returns `self` as a `numpy.ndarray` without extra dimensions.
         :param kwargs: passed on to `self.get()`
         """
-        return np.squeeze(self.get(**kwargs)._array)
+        array = self.get(**kwargs)._array
+        if array.shape == (1, 1, 1):  # squeeze behaves weirdly in this case
+            return array[0, 0, 0]
+        return np.squeeze(array)
