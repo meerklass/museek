@@ -136,6 +136,12 @@ class TimeOrderedData:
         self.flags = [self.element(array=flags)]  # this will contain all kinds of flags
         self.weights = self.element(array=weights)
 
+    def delete_visibility_flags_weights(self):
+        """ Delete these large arrays from memory, i.e. replace them with `None`. """
+        self.visibility = None
+        self.flags = None
+        self.weights = None
+
     def _visibility_flags_weights(self, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns a tuple of visibility, flags and weights as `np.ndarray`s.
@@ -206,10 +212,11 @@ class TimeOrderedData:
         """
         result = [np.where(np.prod(all_correlator_products == correlator_product, axis=1))[0]
                   for correlator_product in self.correlator_products]
-        result = np.asarray(result)
+        result = np.asarray(result, dtype=object)
         if len(result) != len(self.correlator_products) or len(result.shape) != 2 or result.shape[1] == 0:
             raise ValueError('Input `all_correlator_products` must contain all receivers.')
-        return list(np.squeeze(result))
+        result = np.atleast_1d(np.squeeze(result)).tolist()
+        return result
 
     def _dumps_of_scan_state(self, scan_state: ScanStateEnum) -> list[int]:
         """ Returns the dump indices that belong to a certain `scan_sate`. """

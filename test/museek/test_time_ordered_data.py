@@ -76,6 +76,12 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_antenna_name_list.index.assert_called_once_with(mock_receiver.antenna_name)
         self.assertEqual(self.time_ordered_data.antennas.__getitem__.return_value, antenna)
 
+    def test_antenna_when_explicit(self):
+        self.time_ordered_data._antenna_name_list = ['m000', 'm001']
+        self.time_ordered_data.antennas = ['antenna0', 'antenna1']
+        antenna = self.time_ordered_data.antenna(receiver=Receiver(antenna_number=1, polarisation=Polarisation.v))
+        self.assertEqual('antenna1', antenna)
+
     @patch('museek.time_ordered_data.TimeOrderedDataElement')
     def test_element(self, mock_time_ordered_data_element):
         mock_array = Mock()
@@ -91,6 +97,19 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(self.time_ordered_data.visibility, mock_element.return_value)
         self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
         self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
+
+    @patch.object(TimeOrderedData, 'element')
+    @patch.object(TimeOrderedData, '_visibility_flags_weights')
+    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_element):
+        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
+        self.time_ordered_data.load_visibility_flags_weights()
+        self.assertEqual(self.time_ordered_data.visibility, mock_element.return_value)
+        self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
+        self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
+        self.time_ordered_data.delete_visibility_flags_weights()
+        self.assertIsNone(self.time_ordered_data.visibility)
+        self.assertIsNone(self.time_ordered_data.flags)
+        self.assertIsNone(self.time_ordered_data.weights)
 
     @patch.object(TimeOrderedData, 'select')
     @patch('museek.time_ordered_data.np')
@@ -123,12 +142,6 @@ class TestTimeOrderedData(unittest.TestCase):
         np.testing.assert_array_equal(np.asarray([[[0. + 0.j]]]), visibility)
         np.testing.assert_array_equal(np.asarray([[[0]]]), flags)
         np.testing.assert_array_equal(np.asarray([[[0]]]), weights)
-
-    def test_antenna_when_explicit(self):
-        self.time_ordered_data._antenna_name_list = ['m000', 'm001']
-        self.time_ordered_data.antennas = ['antenna0', 'antenna1']
-        antenna = self.time_ordered_data.antenna(receiver=Receiver(antenna_number=1, polarisation=Polarisation.v))
-        self.assertEqual('antenna1', antenna)
 
     @patch.object(TimeOrderedData, '__setattr__')
     @patch.object(TimeOrderedData, '_dumps_of_scan_state')
