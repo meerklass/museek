@@ -11,6 +11,15 @@ It is inspired by **SEEK**, developed by the `Software Lab of the Cosmology Rese
 
 The development is coordinated on `GitHub <https://github.com/meerklass/museek>`_ and contributions are welcome. The documentation of **MuSEEK** is not yet available at `readthedocs.org <http://museek.readthedocs.io/>`_ .
 
+Run
+-----------------------
+`MuSEEK` is run via the workflow engine `Ivory`. Consequently the `Ivory` directory needs to be in the `PYTHONPATH` of your python interpreter.
+A shorthand for running `Ivory` is directly inside `MuSEEK` and allows running the plugins like (assuming working directory in the repository root)
+
+.. code-block:: python
+
+    python cli/main.py museek.config.demo
+
 Plugins
 -----------------------
 Plugins can be implementing by creating a class inheriting from **ivory**s `AbstractPlugin`. They need to implement the methods
@@ -37,6 +46,8 @@ There is one general section called `Pipeline`, which defines the entire pipelin
 the name of the plugin it belongs to. The workflow manager will then hand over the correct configuration parameters to
 each plugin.
 
+A demonstration config is `museek.config.demo`.
+
 Requirement
 -----------------------
 Plugin requirements are encapsulated as `Requirement()` objects, which are mere `NamedTuples`. See the `Requirement` class doc for more information.
@@ -44,3 +55,13 @@ Plugin requirements are encapsulated as `Requirement()` objects, which are mere 
 Result
 -----------------------
 Plugin results need to be defined as `Result()` objects. See the `Result` class doc for more information.
+
+Available Plugins
+-----------------------
+More information on these are included in their class documentations.
+
+1. Demonstration plugins: `DemoFlipPlugin`, `DemoLoadPlugin` & `DemoPlotPlugin`
+
+2. `InOutPlugin`
+
+3. `SanityCheckObservationPlugin`
