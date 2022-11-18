@@ -27,7 +27,9 @@ class InOutPlugin(AbstractPlugin):
 
     def run(self):
         """ Loads the data as `TimeOrderedData` and sets it as a result. """
-        receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.config.receiver_list]
+        receivers = None
+        if self.config.receiver_list is not None:
+            receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.config.receiver_list]
         data = TimeOrderedData(token=self.config.token,
                                data_folder=self.config.data_folder,
                                block_name=self.config.block_name,
