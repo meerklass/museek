@@ -6,7 +6,7 @@ from astropy import coordinates, units
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.struct import Struct
-from museek.enum.plugin_enum import PluginEnum
+from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 
@@ -28,8 +28,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.report_writer = None
 
     def set_requirements(self):
-        self.requirements = [Requirement(location=PluginEnum.DATA, variable='data'),
-                             Requirement(location=PluginEnum.OUTPUT_PATH, variable='output_path')]
+        self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, data: TimeOrderedData, output_path: str):
         """
@@ -41,7 +41,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.output_path = output_path
         report_writer = ReportWriter(output_path=output_path,
                                      report_name=self.report_file_name,
-                                     data_name=data.name)
+                                     data_name=data.name,
+                                     plugin_name=self.name)
         self.report_writer = report_writer
 
         # declarations

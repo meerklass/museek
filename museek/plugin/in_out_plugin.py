@@ -4,7 +4,7 @@ from datetime import datetime
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from ivory.utils.struct import Struct
-from museek.enum.plugin_enum import PluginEnum
+from museek.enum.result_enum import ResultEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 
@@ -41,10 +41,10 @@ class InOutPlugin(AbstractPlugin):
         timestamp = int(data.name.split('_')[0])
         observation_date = datetime.fromtimestamp(timestamp)
 
-        self.set_result(result=Result(location=PluginEnum.DATA, result=data))
-        self.set_result(result=Result(location=PluginEnum.RECEIVERS, result=receivers))
-        self.set_result(result=Result(location=PluginEnum.OUTPUT_PATH, result=output_path))
-        self.set_result(result=Result(location=PluginEnum.OBSERVATION_DATE, result=observation_date))
+        self.set_result(result=Result(location=ResultEnum.DATA, result=data))
+        self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
+        self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=output_path))
+        self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
 
     def check_output_folder_exists(self):
         """ Raises a `ValueError` if `self.output_folder` does not exist. """

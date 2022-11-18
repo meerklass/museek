@@ -1,7 +1,9 @@
 from enum import Enum, auto
 
 
-class PluginEnum(Enum):
+class ResultEnum(Enum):
+
+    # in-out
     DATA = auto()
     RECEIVERS = auto()
     OUTPUT_PATH = auto()
