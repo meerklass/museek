@@ -14,7 +14,7 @@ from museek.util.report_writer import ReportWriter
 class SanityCheckObservationPlugin(AbstractPlugin):
     """
     A plugin for sanity checks specific for MeerKLASS observations.
-    MORE DOC
+    The scope is the production of plots and tests of the scanning route.
     """
 
     def __init__(self, ctx: Struct | None):
@@ -28,6 +28,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.report_writer = None
 
     def set_requirements(self):
+        """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
@@ -158,6 +159,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.savefig('Weather')
 
     def savefig(self, description: str = 'description'):
+        """ Save a figure and embed it in the report with `description`. """
         count = next(self.plot_count)
         plot_name = self.plot_name_template.format(plot_count=count)
 
