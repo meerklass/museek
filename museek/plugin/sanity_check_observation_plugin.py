@@ -1,7 +1,9 @@
 import itertools
 
 import matplotlib.pylab as plt
+import numpy as np
 from astropy import coordinates, units
+from katpoint import Antenna
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
@@ -27,6 +29,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.plot_count = itertools.count()
         self.report_writer = None
 
+        self.elevation_sum_square_difference_threshold = self.config.elevation_sum_square_difference_threshold
+        self.elevation_square_difference_threshold = self.config.elevation_square_difference_threshold
+
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
@@ -46,13 +51,68 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                      plugin_name=self.name)
         self.report_writer = report_writer
 
-        # declarations
         frequencies = data.frequencies
+        timestamp_dates = data.timestamp_dates
+        mega = 1e6
+
+        # start
+        report_writer.print_to_report(data)
+        report_writer.print_to_report(data.obs_script_log)
+        report_writer.print_to_report([f'Number of available antennas: {len(data.all_antennas)}',
+                                       f'dump period: {data.dump_period}',
+                                       f'Frequencies from {frequencies.get(freq=0).full / mega:.1f} ',
+                                       f'\t \t to {frequencies.get(freq=-1).full / mega:.1f} MHz',
+                                       f'Observation start time: {timestamp_dates[0]}\n ',
+                                       f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
+
+        self.check_elevation(data=data, report_writer=report_writer)
+        self.create_plots(data=data)
+
+    def savefig(self, description: str = 'description'):
+        """ Save a figure and embed it in the report with `description`. """
+        count = next(self.plot_count)
+        plot_name = self.plot_name_template.format(plot_count=count)
+
+        plt.savefig(self.output_path + plot_name)
+        plt.close()
+        self.report_writer.write_plot_description_to_report(description=description, plot_name=plot_name)
+
+    def check_elevation(self, data: TimeOrderedData, report_writer: ReportWriter):
+        """
+        Look for dishes that have non-constant elevation during scanning and write results to the report.
+        :param data: the `TimeOrderedData` to check
+        :param report_writer: the `ReportWriter` object to handle the report
+        """
+        report_writer.write_to_report(lines=[
+            '## Elevation constancy check',
+            f'performed with summed square difference threshold {self.elevation_sum_square_difference_threshold} deg^2 '
+            f'and per-timestamp square difference threshold {self.elevation_square_difference_threshold} deg^2.'
+        ])
+        bad_dishes = self.get_antennas_with_non_constant_elevation(data=data)
+        if bad_dishes:
+            report_writer.write_to_report(lines=['The following antennas fail the test: '])
+            report_writer.print_to_report(bad_dishes)
+
+    def get_antennas_with_non_constant_elevation(self, data: TimeOrderedData) -> list[Antenna]:
+        """ Returns a `list` of `Antenna`s which do not suffice the elevation difference thresholds. """
+        result: list[Antenna] = []
+        antenna_mean_elevation = data.elevation.mean(axis=-1).scan
+        for i_antenna, antenna in enumerate(data.antennas):
+            antenna_elevation = data.elevation.get(recv=i_antenna).scan
+            square_diff = (antenna_elevation - antenna_mean_elevation) ** 2
+            if np.sum(square_diff) > self.elevation_sum_square_difference_threshold:
+                result.append(antenna)
+            elif (square_diff > self.elevation_square_difference_threshold).any():
+                result.append(antenna)
+        return result
+
+    def create_plots(self, data: TimeOrderedData):
+        """ Create all observation diagnostic plots for `data` and embed them in the report. """
+
         timestamp_dates = data.timestamp_dates
         reference_receiver = data.receivers[self.reference_receiver_index]
         reference_antenna = data.antenna(receiver=reference_receiver)
 
-        # coordinates
         sky_coordinates = coordinates.SkyCoord(data.azimuth.get_array() * units.deg,
                                                data.elevation.get_array() * units.deg,
                                                frame='altaz')
@@ -69,20 +129,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         reference_right_ascension = data.right_ascension.get(recv=self.reference_receiver_index)
         reference_declination = data.declination.get(recv=self.reference_receiver_index)
 
-        # conversions
-        mega = 1e6
-
-        # start
-        report_writer.print_to_report(data)
-        report_writer.print_to_report(data.obs_script_log)
-        report_writer.print_to_report([f'Number of available antennas: {len(data.all_antennas)}',
-                                       f'dump period: {data.dump_period}',
-                                       f'Frequencies from {frequencies.get(freq=0).full / mega:.1f} ',
-                                       f'\t \t to {frequencies.get(freq=-1).full / mega:.1f} MHz',
-                                       f'Observation start time: {timestamp_dates[0]}\n ',
-                                       f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
-
-        # create plots
         plt.figure(figsize=(8, 4))
         plt.plot(reference_right_ascension.full,
                  reference_declination.full,
@@ -97,7 +143,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Scanning route of entire observation. '
-                                 f'Reference antenna {reference_antenna.name}.')
+                                 f'All antennas.')
 
         plt.figure(figsize=(8, 4))
         plt.subplots_adjust(hspace=.2)
@@ -158,12 +204,3 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.xlabel('time')
         plt.ylabel('pressure')
         self.savefig('Weather')
-
-    def savefig(self, description: str = 'description'):
-        """ Save a figure and embed it in the report with `description`. """
-        count = next(self.plot_count)
-        plot_name = self.plot_name_template.format(plot_count=count)
-
-        plt.savefig(self.output_path + plot_name)
-        plt.close()
-        self.report_writer.write_plot_description_to_report(description=description, plot_name=plot_name)

@@ -9,9 +9,7 @@ Pipeline = ConfigSection(
 
 InOutPlugin = ConfigSection(
     block_name='1631379874',  # observation time stamp
-    receiver_list=['m000v',
-                   'm001v',
-                   'm002v'],
+    receiver_list=None,
     token=None,  # archive token
     data_folder='/idia/projects/hi_im/SCI-20210212-MS-01/',  # only relevant if `token` is `None`
     output_folder=None,  # directory to store results, if `None`, a 'results/' is chosen
@@ -23,4 +21,6 @@ InOutPlugin = ConfigSection(
 SanityCheckObservationPlugin = ConfigSection(
     # the receiver index to use primarily for plots, relative to the `receiver_list` of `InOutPlugin`.
     reference_receiver_index=0,
+    elevation_sum_square_difference_threshold=1e-2,  # degrees
+    elevation_square_difference_threshold=1e-3,  # degrees
 )

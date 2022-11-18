@@ -203,3 +203,19 @@ class TestTimeOrderedData(unittest.TestCase):
         element = self.time_ordered_data._element(array=mock_array)
         mock_time_ordered_data_element.assert_called_once_with(array=mock_array, parent=self.time_ordered_data)
         self.assertEqual(mock_time_ordered_data_element(), element)
+
+    def test_get_receivers_if_receivers_given(self):
+        mock_receivers = [MagicMock()]
+        self.assertEqual(mock_receivers, self.time_ordered_data._get_receivers(receivers=mock_receivers,
+                                                                               data=MagicMock()))
+
+    @patch.object(Receiver, 'from_string')
+    def test_get_receivers_if_receivers_none(self, mock_from_string):
+        mock_data = MagicMock()
+        mock_data.corr_products = np.array([['1', '2'], ['2', '1'], ['1', '3']])
+        expect = [mock_from_string()] * 3
+        self.assertListEqual(expect, self.time_ordered_data._get_receivers(receivers=None,
+                                                                           data=mock_data))
+        mock_from_string.assert_has_calls(calls=[call(receiver_string='1'),
+                                                 call(receiver_string='2'),
+                                                 call(receiver_string='3')])

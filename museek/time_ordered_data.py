@@ -72,10 +72,9 @@ class TimeOrderedData:
         self._force_load_from_correlator_data = force_load_from_correlator_data
         self._do_save_to_disc = do_create_cache
 
-        self.receivers = receivers
-        self.correlator_products = self._get_correlator_products()
-
         data = self.load_data(block_name=block_name, data_folder=data_folder, token=token)
+        self.receivers = self._get_receivers(receivers=receivers, data=data)
+        self.correlator_products = self._get_correlator_products()
         self.all_antennas = data.ants
         self._select(data=data)
         self._data_str = str(data)
@@ -251,3 +250,11 @@ class TimeOrderedData:
     def _element(self, array: np.ndarray) -> TimeOrderedDataElement:
         """ Initialises and returns a `TimeOrderedDataElement` with `array` and `self` as parent. """
         return TimeOrderedDataElement(array=array, parent=self)
+
+    @staticmethod
+    def _get_receivers(receivers: list[Receiver] | None, data: DataSet) -> list[Receiver]:
+        """ Returns `receivers` unmodified if it is not `None`, otherwise it returns all receivers in `data`. """
+        if receivers is not None:
+            return receivers
+        all_receiver_names = np.unique(data.corr_products.flatten())
+        return [Receiver.from_string(receiver_string=name) for name in all_receiver_names]
