@@ -248,6 +248,6 @@ class TimeOrderedData:
         """ Run `data._select()` on the correlator products in `self`. """
         data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
 
-    def _element(self, array: np.ndarray):
+    def _element(self, array: np.ndarray) -> TimeOrderedDataElement:
         """ Initialises and returns a `TimeOrderedDataElement` with `array` and `self` as parent. """
         return TimeOrderedDataElement(array=array, parent=self)
