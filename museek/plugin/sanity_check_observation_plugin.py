@@ -31,6 +31,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         self.elevation_sum_square_difference_threshold = self.config.elevation_sum_square_difference_threshold
         self.elevation_square_difference_threshold = self.config.elevation_square_difference_threshold
+        self.elevation_antenna_standard_deviation_threshold = self.config.elevation_antenna_standard_deviation_threshold
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -88,13 +89,17 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             f'performed with summed square difference threshold {self.elevation_sum_square_difference_threshold} deg^2 '
             f'and per-timestamp square difference threshold {self.elevation_square_difference_threshold} deg^2.'
         ])
-        bad_dishes = self.get_antennas_with_non_constant_elevation(data=data)
-        if bad_dishes:
+        bad_antennas = self.get_antennas_with_elevation_deviating_from_mean(data=data)
+        bad_antennas.extend(self.get_antennas_with_non_constant_elevation(data=data))
+        if bad_antennas:
             report_writer.write_to_report(lines=['The following antennas fail the test: '])
-            report_writer.print_to_report(bad_dishes)
+            report_writer.print_to_report(bad_antennas)
 
-    def get_antennas_with_non_constant_elevation(self, data: TimeOrderedData) -> list[Antenna]:
-        """ Returns a `list` of `Antenna`s which do not suffice the elevation difference thresholds. """
+    def get_antennas_with_elevation_deviating_from_mean(self, data: TimeOrderedData) -> list[Antenna]:
+        """
+        Returns a `list` of `Antenna`s which do not suffice the elevation difference thresholds relative to
+        the mean over all dishes.
+        """
         result: list[Antenna] = []
         antenna_mean_elevation = data.elevation.mean(axis=-1).scan
         for i_antenna, antenna in enumerate(data.antennas):
@@ -103,6 +108,17 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             if np.sum(square_diff) > self.elevation_sum_square_difference_threshold:
                 result.append(antenna)
             elif (square_diff > self.elevation_square_difference_threshold).any():
+                result.append(antenna)
+        return result
+
+    def get_antennas_with_non_constant_elevation(self, data: TimeOrderedData) -> list[Antenna]:
+        """ Returns a `list` of `Antenna`s which do not have constant elevation individually`. """
+        result: list[Antenna] = []
+        for i_antenna, antenna in enumerate(data.antennas):
+            antenna_elevation = data.elevation.get(recv=i_antenna).scan
+            standard_deviation = np.std(antenna_elevation)
+            print(standard_deviation)
+            if standard_deviation > self.elevation_antenna_standard_deviation_threshold:
                 result.append(antenna)
         return result
 
