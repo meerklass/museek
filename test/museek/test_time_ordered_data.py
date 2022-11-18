@@ -58,16 +58,6 @@ class TestTimeOrderedData(unittest.TestCase):
             f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
         )
 
-    @patch.object(TimeOrderedData, '_correlator_products_indices')
-    def test_select(self, mock_correlator_products_indices):
-        self.time_ordered_data.select(data=self.mock_katdal_data)
-        self.mock_katdal_data.select.assert_has_calls(
-            calls=[call(corrprods=self.mock_correlator_products_indices.return_value),
-                   call(corrprods=mock_correlator_products_indices.return_value)])
-        mock_correlator_products_indices.assert_called_once_with(
-            all_correlator_products=self.mock_katdal_data.corr_products
-        )
-
     def test_antenna(self):
         mock_receiver = MagicMock()
         mock_antenna_name_list = MagicMock()
@@ -82,14 +72,7 @@ class TestTimeOrderedData(unittest.TestCase):
         antenna = self.time_ordered_data.antenna(receiver=Receiver(antenna_number=1, polarisation=Polarisation.v))
         self.assertEqual('antenna1', antenna)
 
-    @patch('museek.time_ordered_data.TimeOrderedDataElement')
-    def test_element(self, mock_time_ordered_data_element):
-        mock_array = Mock()
-        element = self.time_ordered_data.element(array=mock_array)
-        mock_time_ordered_data_element.assert_called_once_with(array=mock_array, parent=self.time_ordered_data)
-        self.assertEqual(mock_time_ordered_data_element(), element)
-
-    @patch.object(TimeOrderedData, 'element')
+    @patch.object(TimeOrderedData, '_element')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
@@ -98,7 +81,7 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
         self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
 
-    @patch.object(TimeOrderedData, 'element')
+    @patch.object(TimeOrderedData, '_element')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
@@ -111,7 +94,7 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertIsNone(self.time_ordered_data.flags)
         self.assertIsNone(self.time_ordered_data.weights)
 
-    @patch.object(TimeOrderedData, 'select')
+    @patch.object(TimeOrderedData, '_select')
     @patch('museek.time_ordered_data.np')
     @patch('museek.time_ordered_data.katdal')
     @patch.object(TimeOrderedData, '_load_autocorrelation_visibility')
@@ -203,3 +186,20 @@ class TestTimeOrderedData(unittest.TestCase):
         expect_list = [['m000v', 'm000v'], ['m000h', 'm000h'], ['m200h', 'm200h']]
         for expect, correlator_product in zip(expect_list, self.time_ordered_data._get_correlator_products()):
             self.assertListEqual(expect, correlator_product)
+
+    @patch.object(TimeOrderedData, '_correlator_products_indices')
+    def test_select(self, mock_correlator_products_indices):
+        self.time_ordered_data._select(data=self.mock_katdal_data)
+        self.mock_katdal_data.select.assert_has_calls(
+            calls=[call(corrprods=self.mock_correlator_products_indices.return_value),
+                   call(corrprods=mock_correlator_products_indices.return_value)])
+        mock_correlator_products_indices.assert_called_once_with(
+            all_correlator_products=self.mock_katdal_data.corr_products
+        )
+
+    @patch('museek.time_ordered_data.TimeOrderedDataElement')
+    def test_element(self, mock_time_ordered_data_element):
+        mock_array = Mock()
+        element = self.time_ordered_data._element(array=mock_array)
+        mock_time_ordered_data_element.assert_called_once_with(array=mock_array, parent=self.time_ordered_data)
+        self.assertEqual(mock_time_ordered_data_element(), element)

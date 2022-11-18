@@ -33,7 +33,7 @@ class InOutPlugin(AbstractPlugin):
                                block_name=self.config.block_name,
                                receivers=receivers,
                                force_load_from_correlator_data=self.config.force_load_from_correlator_data,
-                               do_save_to_disc=self.config.do_save_visibility_to_disc)
+                               do_create_cache=self.config.do_save_visibility_to_disc)
 
         output_path = os.path.join(self.output_folder, f'{self.config.block_name}/')
         os.makedirs(output_path, exist_ok=True)

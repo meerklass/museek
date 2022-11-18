@@ -36,7 +36,7 @@ class ScanStateEnum(Enum):
 
 class TimeOrderedData:
     """
-    Class for easy handling of time ordered data as provided by `katdal`.
+    Class for handling of time ordered data as provided by `katdal`.
     """
 
     def __init__(self,
@@ -45,7 +45,17 @@ class TimeOrderedData:
                  token: Optional[str],
                  data_folder: Optional[str],
                  force_load_from_correlator_data: bool = False,
-                 do_save_to_disc: bool = True):
+                 do_create_cache: bool = True):
+        """
+        Initialize
+        :param block_name: name of the observation block
+        :param receivers: list of receivers to load the data of
+        :param token: to access the data, usage of `token` is prioritized over `data_folder`
+        :param data_folder: folder where data is stored
+        :param force_load_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
+        :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
+                                already present
+        """
         self.scan_dumps: list[int] | None = None
         self.track_dumps: list[int] | None = None
         self.slew_dumps: list[int] | None = None
@@ -60,14 +70,14 @@ class TimeOrderedData:
         self._katdal_open_argument: Optional[str] = None
 
         self._force_load_from_correlator_data = force_load_from_correlator_data
-        self._do_save_to_disc = do_save_to_disc
+        self._do_save_to_disc = do_create_cache
 
         self.receivers = receivers
         self.correlator_products = self._get_correlator_products()
 
         data = self.load_data(block_name=block_name, data_folder=data_folder, token=token)
         self.all_antennas = data.ants
-        self.select(data=data)
+        self._select(data=data)
         self._data_str = str(data)
         self._cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
 
@@ -82,22 +92,22 @@ class TimeOrderedData:
         self._set_scan_state_dumps()
 
         # data elements
-        self.timestamps = self.element(array=data.timestamps[:, np.newaxis, np.newaxis])
-        self.timestamp_dates = self.element(
+        self.timestamps = self._element(array=data.timestamps[:, np.newaxis, np.newaxis])
+        self.timestamp_dates = self._element(
             array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
         )
-        self.frequencies = self.element(array=data.freqs[np.newaxis, :, np.newaxis])
+        self.frequencies = self._element(array=data.freqs[np.newaxis, :, np.newaxis])
 
         # sky coordinates
-        self.azimuth = self.element(array=data.az[:, np.newaxis, :])
-        self.elevation = self.element(array=data.el[:, np.newaxis, :])
-        self.declination = self.element(array=data.dec[:, np.newaxis, :])
-        self.right_ascension = self.element(array=data.ra[:, np.newaxis, :])
+        self.azimuth = self._element(array=data.az[:, np.newaxis, :])
+        self.elevation = self._element(array=data.el[:, np.newaxis, :])
+        self.declination = self._element(array=data.dec[:, np.newaxis, :])
+        self.right_ascension = self._element(array=data.ra[:, np.newaxis, :])
 
         # climate
-        self.temperature = self.element(array=data.temperature[:, np.newaxis, np.newaxis])
-        self.humidity = self.element(array=data.humidity[:, np.newaxis, np.newaxis])
-        self.pressure = self.element(array=data.pressure[:, np.newaxis, np.newaxis])
+        self.temperature = self._element(array=data.temperature[:, np.newaxis, np.newaxis])
+        self.humidity = self._element(array=data.humidity[:, np.newaxis, np.newaxis])
+        self.pressure = self._element(array=data.pressure[:, np.newaxis, np.newaxis])
 
     def __str__(self):
         """ Returns the same `str` as `katdal`. """
@@ -117,27 +127,19 @@ class TimeOrderedData:
         self._katdal_open_argument = katdal_open_argument
         return katdal.open(self._katdal_open_argument)
 
-    def select(self, data: DataSet):
-        """ Run `data.select()` on the correlator products in `self`. """
-        data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
-
     def antenna(self, receiver) -> Antenna:
         """ Returns the `Antenna` object belonging to `receiver`. """
         return self.antennas[self._antenna_name_list.index(receiver.antenna_name)]
 
-    def element(self, array: np.ndarray):
-        """ Initialises and returns a `TimeOrderedDataElement` with `array` and `self` as parent. """
-        return TimeOrderedDataElement(array=array, parent=self)
-
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         visibility, flags, weights = self._visibility_flags_weights()
-        self.visibility = self.element(array=visibility)
-        self.flags = [self.element(array=flags)]  # this will contain all kinds of flags
-        self.weights = self.element(array=weights)
+        self.visibility = self._element(array=visibility)
+        self.flags = [self._element(array=flags)]  # this will contain all kinds of flags
+        self.weights = self._element(array=weights)
 
     def delete_visibility_flags_weights(self):
-        """ Delete these large arrays from memory, i.e. replace them with `None`. """
+        """ Delete large arrays from memory, i.e. replace them with `None`. """
         self.visibility = None
         self.flags = None
         self.weights = None
@@ -156,7 +158,7 @@ class TimeOrderedData:
         if not os.path.exists(cache_file) or self._force_load_from_correlator_data:
             if data is None:
                 data = katdal.open(self._katdal_open_argument)
-                self.select(data=data)
+                self._select(data=data)
             visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
             if self._do_save_to_disc:
                 np.savez_compressed(cache_file,
@@ -241,3 +243,11 @@ class TimeOrderedData:
         for each `receiver` in `self.receivers`.
         """
         return [[str(receiver)] * 2 for receiver in self.receivers]
+
+    def _select(self, data: DataSet):
+        """ Run `data._select()` on the correlator products in `self`. """
+        data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
+
+    def _element(self, array: np.ndarray):
+        """ Initialises and returns a `TimeOrderedDataElement` with `array` and `self` as parent. """
+        return TimeOrderedDataElement(array=array, parent=self)
