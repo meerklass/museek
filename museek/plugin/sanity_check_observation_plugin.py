@@ -117,7 +117,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         for i_antenna, antenna in enumerate(data.antennas):
             antenna_elevation = data.elevation.get(recv=i_antenna).scan
             standard_deviation = np.std(antenna_elevation)
-            print(standard_deviation)
             if standard_deviation > self.elevation_antenna_standard_deviation_threshold:
                 result.append(antenna)
         return result
