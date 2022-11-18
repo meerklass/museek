@@ -50,6 +50,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         frequencies = data.frequencies
         timestamp_dates = data.timestamp_dates
         reference_receiver = data.receivers[self.reference_receiver_index]
+        reference_antenna = data.antenna(receiver=reference_receiver)
 
         # coordinates
         sky_coordinates = coordinates.SkyCoord(data.azimuth.get_array() * units.deg,
@@ -89,14 +90,14 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.xlabel('ra')
         plt.ylabel('dec')
         self.savefig(description=f'Scanning route of entire observation. '
-                                 f'Reference receiver {reference_receiver.name}.')
+                                 f'Reference antenna {reference_antenna.name}.')
 
         plt.figure(figsize=(8, 4))
         plt.plot(sky_coordinates.az, sky_coordinates.alt, '.-')
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Scanning route of entire observation. '
-                                 f'Reference receiver {reference_receiver.name}.')
+                                 f'Reference antenna {reference_antenna.name}.')
 
         plt.figure(figsize=(8, 4))
         plt.subplots_adjust(hspace=.2)
