@@ -17,7 +17,12 @@ class Receiver:
         self._polarisation_enum = polarisation
         self.polarisation = self._polarisation_enum.name
 
-    def __str__(self):
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def name(self) -> str:
+        """ Returns the string name of `self`. """
         return f'{self.antenna_name}{self.polarisation}'
 
     @classmethod

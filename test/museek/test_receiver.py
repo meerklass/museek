@@ -9,6 +9,10 @@ class TestReceiver(unittest.TestCase):
         receiver = Receiver(antenna_number=0, polarisation=Polarisation.v)
         self.assertEqual(str(receiver), 'm000v')
 
+    def test_name(self):
+        receiver = Receiver(antenna_number=0, polarisation=Polarisation.v)
+        self.assertEqual(receiver.name, 'm000v')
+
     def test_from_string(self):
         receiver = Receiver.from_string(receiver_string='m000v')
         self.assertEqual(receiver.polarisation, Polarisation.v.name)
