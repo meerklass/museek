@@ -21,6 +21,7 @@ InOutPlugin = ConfigSection(
 SanityCheckObservationPlugin = ConfigSection(
     # the receiver index to use primarily for plots, relative to the `receiver_list` of `InOutPlugin`.
     reference_receiver_index=0,
-    elevation_sum_square_difference_threshold=1e-2,  # degrees
-    elevation_square_difference_threshold=1e-3,  # degrees
+    elevation_sum_square_difference_threshold=1e-2,  # degrees^2
+    elevation_square_difference_threshold=1e-3,  # degrees^2
+    elevation_antenna_standard_deviation_threshold=1e-2,  # standard deviation threshold of individual dishes
 )
