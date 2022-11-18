@@ -78,6 +78,11 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.report_writer.write_plot_description_to_report(description=description, plot_name=plot_name)
 
     def check_elevation(self, data: TimeOrderedData, report_writer: ReportWriter):
+        """
+        Look for dishes that have non-constant elevation during scanning and write results to the report.
+        :param data: the `TimeOrderedData` to check
+        :param report_writer: the `ReportWriter` object to handle the report
+        """
         report_writer.write_to_report(lines=[
             '## Elevation constancy check',
             f'performed with summed square difference threshold {self.elevation_sum_square_difference_threshold} deg^2 '
