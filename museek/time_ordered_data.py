@@ -49,7 +49,7 @@ class TimeOrderedData:
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
         """
-        self.scan_dumps: list[int] | None = None
+        self.scan_dumps: list[int] | None = None  # TODO(amadeus): make these immutable or at least private
         self.track_dumps: list[int] | None = None
         self.slew_dumps: list[int] | None = None
         self.stop_dumps: list[int] | None = None
