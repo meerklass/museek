@@ -141,6 +141,28 @@ class TestTimeOrderedData(unittest.TestCase):
                    call('stop_dumps', mock_dumps_of_scan_state.return_value)]
         )
 
+    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
+    def test_set_scan_state_dumps_when_force_false_expect_dumps_unchanged(self, mock_dumps_of_scan_state):
+        self.time_ordered_data.scan_dumps = [1]
+        self.time_ordered_data._set_scan_state_dumps(force=False)
+        mock_dumps_of_scan_state.assert_has_calls(calls=[call(scan_state=ScanStateEnum.SCAN),
+                                                         call(scan_state=ScanStateEnum.TRACK),
+                                                         call(scan_state=ScanStateEnum.SLEW),
+                                                         call(scan_state=ScanStateEnum.STOP)])
+        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.track_dumps)
+        self.assertEqual([1], self.time_ordered_data.scan_dumps)
+
+    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
+    def test_set_scan_state_dumps_when_force_true_expect_dumps_changed(self, mock_dumps_of_scan_state):
+        self.time_ordered_data.scan_dumps = [1]
+        self.time_ordered_data._set_scan_state_dumps(force=True)
+        mock_dumps_of_scan_state.assert_has_calls(calls=[call(scan_state=ScanStateEnum.SCAN),
+                                                         call(scan_state=ScanStateEnum.TRACK),
+                                                         call(scan_state=ScanStateEnum.SLEW),
+                                                         call(scan_state=ScanStateEnum.STOP)])
+        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.track_dumps)
+        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.scan_dumps)
+
     def test_correlator_products_indices(self):
         all_correlator_products = np.asarray([('a', 'a'), ('b', 'b'), ('c', 'c'), ('d', 'd')])
         self.time_ordered_data.correlator_products = np.asarray([('c', 'c'), ('a', 'a')])
@@ -163,8 +185,9 @@ class TestTimeOrderedData(unittest.TestCase):
                           all_correlator_products=all_correlator_products)
 
     def test_dumps_of_scan_state(self):
-        self.time_ordered_data._scan_tuple_list = [ScanTuple(dumps=[0], state='scan', index=0, target=Mock()),
-                                                   ScanTuple(dumps=[1], state='track', index=1, target=Mock())]
+        self.time_ordered_data._scan_tuple_list = [
+            ScanTuple(dumps=[0], state=ScanStateEnum.SCAN, index=0, target=Mock()),
+            ScanTuple(dumps=[1], state=ScanStateEnum.TRACK, index=1, target=Mock())]
         self.assertEqual([0], self.time_ordered_data._dumps_of_scan_state(scan_state=ScanStateEnum.SCAN))
         self.assertEqual([1], self.time_ordered_data._dumps_of_scan_state(scan_state=ScanStateEnum.TRACK))
 
@@ -174,8 +197,8 @@ class TestTimeOrderedData(unittest.TestCase):
                                              (1, 'track', mock_target)])
         mock_data = MagicMock(scans=mock_scans)
         scan_tuple_list = self.time_ordered_data._get_scan_tuple_list(data=mock_data)
-        expect_list = [ScanTuple(dumps=mock_data.dumps, state='scan', index=0, target=mock_target),
-                       ScanTuple(dumps=mock_data.dumps, state='track', index=1, target=mock_target)]
+        expect_list = [ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.SCAN, index=0, target=mock_target),
+                       ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.TRACK, index=1, target=mock_target)]
         for expect, scan_tuple in zip(expect_list, scan_tuple_list):
             self.assertTupleEqual(expect, scan_tuple)
 
