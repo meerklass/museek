@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from enum import Enum
 from typing import Optional, NamedTuple
 
 import katdal
@@ -9,6 +8,7 @@ from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Target, Antenna
 
+from museek.enum.scan_state_enum import ScanStateEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data_element import TimeOrderedDataElement
 
@@ -17,21 +17,14 @@ MODULE_ROOT = os.path.dirname(__file__)
 
 class ScanTuple(NamedTuple):
     """
-    A `NamedTuple` to hold a given scan's dump indices, the state as `str`, the scan index and the `Target` object.
+    A `NamedTuple` to hold a given scan's dump indices, the state as `ScanStateEnum` and
+    the scan index and the `Target` object.
     The definitions relate to `KatDal`.
     """
     dumps: list[int]
-    state: str
+    state: ScanStateEnum
     index: int
     target: Target
-
-
-class ScanStateEnum(Enum):
-    """ `Enum` class to define the scan states as named in `KatDal`. """
-    SCAN = 'scan'
-    TRACK = 'track'
-    SLEW = 'slew'
-    STOP = 'stop'
 
 
 class TimeOrderedData:
@@ -56,7 +49,7 @@ class TimeOrderedData:
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
         """
-        self.scan_dumps: list[int] | None = None
+        self.scan_dumps: list[int] | None = None  # TODO(amadeus): make these immutable or at least private
         self.track_dumps: list[int] | None = None
         self.slew_dumps: list[int] | None = None
         self.stop_dumps: list[int] | None = None
@@ -130,6 +123,13 @@ class TimeOrderedData:
         """ Returns the `Antenna` object belonging to `receiver`. """
         return self.antennas[self._antenna_name_list.index(receiver.antenna_name)]
 
+    def antenna_index_of_receiver(self, receiver) -> int | None:
+        """ Returns the index of the `Antenna` belonging to `receiver`. Returns `None` if it is not found. """
+        try:
+            return self.antennas.index(self.antenna(receiver=receiver))
+        except ValueError:
+            return
+
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         visibility, flags, weights = self._visibility_flags_weights()
@@ -197,14 +197,17 @@ class TimeOrderedData:
                             out=[visibility, flags, weights])
         return visibility, flags, weights
 
-    def _set_scan_state_dumps(self):
+    def _set_scan_state_dumps(self, force: bool = False):
         """
         Sets the dumps for each scan state defined in `ScanStateEnum`.
         For examle, the dumps for state `scan` will be set to `self.scan_dumps`.
+        :param force: if `True`, the dumps are overwritten
         """
         for scan_state_enum in ScanStateEnum:
             scan_dumps = self._dumps_of_scan_state(scan_state=scan_state_enum)
-            self.__setattr__(f'{scan_state_enum.value}_dumps', scan_dumps)
+            attribute_name = f'{scan_state_enum.value}_dumps'
+            if self.__getattribute__(attribute_name) is None or force:
+                self.__setattr__(attribute_name, scan_dumps)
 
     def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> list[int]:
         """
@@ -223,7 +226,7 @@ class TimeOrderedData:
         """ Returns the dump indices that belong to a certain `scan_sate`. """
         result = []
         for scan_tuple in self._scan_tuple_list:
-            if scan_tuple.state == scan_state.value:
+            if scan_tuple.state == scan_state:
                 result.extend(scan_tuple.dumps)
         return result
 
@@ -232,7 +235,7 @@ class TimeOrderedData:
         """ Returns a `list` containing all `ScanTuple`s for `data`. """
         scan_tuple_list: list[ScanTuple] = []
         for index, state, target in data.scans():
-            scan_tuple = ScanTuple(dumps=data.dumps, state=state, index=index, target=target)
+            scan_tuple = ScanTuple(dumps=data.dumps, state=ScanStateEnum(state), index=index, target=target)
             scan_tuple_list.append(scan_tuple)
         return scan_tuple_list
 
