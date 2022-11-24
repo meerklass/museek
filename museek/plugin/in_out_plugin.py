@@ -5,6 +5,7 @@ from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from ivory.utils.struct import Struct
 from museek.enum.result_enum import ResultEnum
+from museek.noise_diode_data import NoiseDiodeData
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 
@@ -20,6 +21,7 @@ class InOutPlugin(AbstractPlugin):
         if self.output_folder is None:
             self.output_folder = os.path.join(PLUGIN_ROOT, '../../results/')
         self.check_output_folder_exists()
+        self._do_use_noise_diode = self.config.do_use_noise_diode
 
     def set_requirements(self):
         """ First plugin, no requirements. """
@@ -30,12 +32,16 @@ class InOutPlugin(AbstractPlugin):
         receivers = None
         if self.config.receiver_list is not None:
             receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.config.receiver_list]
-        data = TimeOrderedData(token=self.config.token,
-                               data_folder=self.config.data_folder,
-                               block_name=self.config.block_name,
-                               receivers=receivers,
-                               force_load_from_correlator_data=self.config.force_load_from_correlator_data,
-                               do_create_cache=self.config.do_save_visibility_to_disc)
+        if self._do_use_noise_diode:
+            data_class = NoiseDiodeData
+        else:
+            data_class = TimeOrderedData
+        data = data_class(token=self.config.token,
+                          data_folder=self.config.data_folder,
+                          block_name=self.config.block_name,
+                          receivers=receivers,
+                          force_load_from_correlator_data=self.config.force_load_from_correlator_data,
+                          do_create_cache=self.config.do_save_visibility_to_disc)
 
         output_path = os.path.join(self.output_folder, f'{self.config.block_name}/')
         os.makedirs(output_path, exist_ok=True)
