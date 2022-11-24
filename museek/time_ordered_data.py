@@ -123,6 +123,13 @@ class TimeOrderedData:
         """ Returns the `Antenna` object belonging to `receiver`. """
         return self.antennas[self._antenna_name_list.index(receiver.antenna_name)]
 
+    def antenna_index_of_receiver(self, receiver) -> int | None:
+        """ Returns the index of the `Antenna` belonging to `receiver`. Returns `None` if it is not found. """
+        try:
+            return self.antennas.index(self.antenna(receiver=receiver))
+        except ValueError:
+            return
+
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         visibility, flags, weights = self._visibility_flags_weights()

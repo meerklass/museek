@@ -72,6 +72,19 @@ class TestTimeOrderedData(unittest.TestCase):
         antenna = self.time_ordered_data.antenna(receiver=Receiver(antenna_number=1, polarisation=Polarisation.v))
         self.assertEqual('antenna1', antenna)
 
+    @patch.object(TimeOrderedData, 'antenna')
+    def test_antenna_index_of_receiver(self, mock_antenna):
+        self.time_ordered_data.antennas = [MagicMock(), mock_antenna.return_value, MagicMock()]
+        antenna_index = self.time_ordered_data.antenna_index_of_receiver(receiver=MagicMock())
+        self.assertEqual(1, antenna_index)
+
+    @patch.object(TimeOrderedData, 'antenna')
+    def test_antenna_index_of_receiver_when_not_there(self, mock_antenna):
+        self.time_ordered_data.antennas = [MagicMock(), MagicMock()]
+        antenna_index = self.time_ordered_data.antenna_index_of_receiver(receiver=MagicMock())
+        mock_antenna.assert_called_once()
+        self.assertIsNone(antenna_index)
+
     @patch.object(TimeOrderedData, '_element')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_element):
