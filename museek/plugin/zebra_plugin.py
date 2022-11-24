@@ -1,7 +1,6 @@
 import itertools
 import os
 from copy import copy
-from datetime import datetime
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -155,7 +154,7 @@ class ZebraPlugin(AbstractPlugin):
             swing_direction = self.get_swing_direction(d_azimuth_d_time=d_azimuth_d_time, index=start)
 
             inverse_zebra_scale = 1 / (self.suspected_zebra_peaks[1] - self.suspected_zebra_peaks[0])
-            zebra_scale_index = np.argmin(abs(fft_freq - inverse_zebra_scale)) - 2
+            zebra_scale_index = np.argmin(abs(fft_freq - inverse_zebra_scale))
 
             if next(copy(count)) == 35:
                 self.save_zebra_phase_and_position(data=data,
@@ -171,7 +170,7 @@ class ZebraPlugin(AbstractPlugin):
                 if fft_mean != 0:
                     fft_visibility[:, i_frequency] = fft_visibility[:, i_frequency] / fft_mean
 
-            zebra_scale_index = np.argmin(abs(fft_freq - inverse_zebra_scale)) - 2
+            zebra_scale_index = np.argmin(abs(fft_freq - inverse_zebra_scale))
 
             plt.imshow(fft_visibility.T, aspect='auto')
             xticks = range(len(fft_freq))[::5][:-1]
@@ -208,7 +207,7 @@ class ZebraPlugin(AbstractPlugin):
                                                           azimuth,
                                                           visibility[:, i_frequency])
 
-        fft_visibility = rfft(interp_visibility, axis=0)[2:]
+        fft_visibility = rfft(interp_visibility, axis=0)
 
         fft_freq = rfftfreq(interp_visibility.shape[0], abs(interp_azimuth[1] - interp_azimuth[0]))
         return fft_visibility, fft_freq
@@ -223,10 +222,9 @@ class ZebraPlugin(AbstractPlugin):
         position = antenna.position_wgs84
 
         fft = fft[:, self.zebra_channel]
-        if np.abs(fft[phase_index]) <= np.mean(np.abs(fft[phase_index+1:])):
+        if np.abs(fft[phase_index]) <= 10 * np.mean(np.abs(fft[phase_index+1:])):
             print('Warning: the zebra mode should be dominant but is not.')
         phase = np.angle(fft)[phase_index]
-
         file_path = os.path.join(output_path, 'dish_phase_location.txt')
 
         line = f'{antenna.name} | {position} | {phase}\n'
