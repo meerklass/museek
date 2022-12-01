@@ -16,7 +16,7 @@ class ScanStateEnum(Enum):
 
     def factory(self, *args, **kwargs) -> AbstractDataElementFactory:
         """ Initialise and return the `AbstractDataElementFactory` in `self`. """
-        return self.value[1](*args, scan_state=self, **kwargs)
+        return self.value[1](*args, **kwargs)
 
     @property
     def scan_name(self) -> str:
