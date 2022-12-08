@@ -30,7 +30,7 @@ class ScanTuple(NamedTuple):
 
 class TimeOrderedData:
     """
-    Class for handling of time ordered data as provided by `katdal`.
+    Class for handling time ordered data coming from `katdal`.
     """
 
     def __init__(self,
@@ -42,7 +42,7 @@ class TimeOrderedData:
                  force_load_from_correlator_data: bool = False,
                  do_create_cache: bool = True):
         """
-        Initialize
+        Initialise
         :param block_name: name of the observation block
         :param receivers: list of receivers to load the data of
         :param token: to access the data, usage of `token` is prioritized over `data_folder`
