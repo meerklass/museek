@@ -35,39 +35,42 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
     def set_requirements(self):
         """ Set the requirements. """
-        self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+        self.requirements = [Requirement(location=ResultEnum.DATA, variable='all_data'),
+                             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
-    def run(self, data: TimeOrderedData, output_path: str):
+    def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str):
         """
         Runs the observation sanity check.
         Produces a selection of plots and runs a couple of checks.
-        :param data: the `TimeOrderedData` object to check
+        :param scan_data: the `TimeOrderedData` object referring to the scanning part
+        :param all_data: the `TimeOrderedData` object referring to the complete observation
         :param output_path: the path to store the results and plots
         """
         self.output_path = output_path
         report_writer = ReportWriter(output_path=output_path,
                                      report_name=self.report_file_name,
-                                     data_name=data.name,
+                                     data_name=scan_data.name,
                                      plugin_name=self.name)
         self.report_writer = report_writer
 
-        frequencies = data.frequencies
-        timestamp_dates = data.timestamp_dates
+        frequencies = scan_data.frequencies
+        timestamp_dates = scan_data.timestamp_dates
         mega = 1e6
 
         # start
-        report_writer.print_to_report(data)
-        report_writer.print_to_report(data.obs_script_log)
-        report_writer.print_to_report([f'Number of available antennas: {len(data.all_antennas)}',
-                                       f'dump period: {data.dump_period}',
-                                       f'Frequencies from {frequencies.get(freq=0).full / mega:.1f} ',
-                                       f'\t \t to {frequencies.get(freq=-1).full / mega:.1f} MHz',
+        report_writer.print_to_report(scan_data)
+        report_writer.print_to_report(scan_data.obs_script_log)
+        report_writer.print_to_report([f'Number of available antennas: {len(scan_data.all_antennas)}',
+                                       f'dump period: {scan_data.dump_period}',
+                                       f'Frequencies from {frequencies.get(freq=0).squeeze / mega:.1f} ',
+                                       f'\t \t to {frequencies.get(freq=-1).squeeze / mega:.1f} MHz',
                                        f'Observation start time: {timestamp_dates[0]}\n ',
                                        f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
 
-        self.check_elevation(data=data, report_writer=report_writer)
-        self.create_plots(data=data)
+        self.check_elevation(data=scan_data, report_writer=report_writer)
+        self.create_plots_of_complete_observation(data=all_data)
+        self.create_plots_of_scan_data(data=scan_data)
 
     def savefig(self, description: str = 'description'):
         """ Save a figure and embed it in the report with `description`. """
@@ -101,9 +104,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         the mean over all dishes.
         """
         result: list[Antenna] = []
-        antenna_mean_elevation = data.elevation.mean(axis=-1).scan
+        antenna_mean_elevation = data.elevation.mean(axis=-1).squeeze
         for i_antenna, antenna in enumerate(data.antennas):
-            antenna_elevation = data.elevation.get(recv=i_antenna).scan
+            antenna_elevation = data.elevation.get(recv=i_antenna).squeeze
             square_diff = (antenna_elevation - antenna_mean_elevation) ** 2
             if np.sum(square_diff) > self.elevation_sum_square_difference_threshold:
                 result.append(antenna)
@@ -115,21 +118,46 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         """ Returns a `list` of `Antenna`s which do not have constant elevation individually`. """
         result: list[Antenna] = []
         for i_antenna, antenna in enumerate(data.antennas):
-            antenna_elevation = data.elevation.get(recv=i_antenna).scan
+            antenna_elevation = data.elevation.get(recv=i_antenna).squeeze
             standard_deviation = np.std(antenna_elevation)
             if standard_deviation > self.elevation_antenna_standard_deviation_threshold:
                 result.append(antenna)
         return result
 
-    def create_plots(self, data: TimeOrderedData):
-        """ Create all observation diagnostic plots for `data` and embed them in the report. """
-
-        timestamp_dates = data.timestamp_dates
+    def create_plots_of_complete_observation(self, data: TimeOrderedData):
+        """ DOC """
         reference_receiver = data.receivers[self.reference_receiver_index]
         reference_antenna = data.antenna(receiver=reference_receiver)
 
-        sky_coordinates = coordinates.SkyCoord(data.azimuth.get_array() * units.deg,
-                                               data.elevation.get_array() * units.deg,
+        plt.figure(figsize=(8, 4))
+        plt.plot(data.right_ascension.get(recv=self.reference_receiver_index).squeeze,
+                 data.declination.get(recv=self.reference_receiver_index).squeeze,
+                 '.-')
+        plt.xlabel('ra')
+        plt.ylabel('dec')
+        self.savefig(description=f'Scanning route of entire observation. '
+                                 f'Reference antenna {reference_antenna.name}.')
+
+        plt.figure(figsize=(8, 5))
+        plt.subplot(311)
+        plt.plot(data.timestamp_dates.squeeze, data.temperature.squeeze)
+        plt.ylabel('temperature')
+        plt.subplot(312)
+        plt.plot(data.timestamp_dates.squeeze, data.humidity.squeeze)
+        plt.ylabel('humidity')
+        plt.subplot(313)
+        plt.plot(data.timestamp_dates.squeeze, data.pressure.squeeze)
+        plt.xlabel('time')
+        plt.ylabel('pressure')
+        self.savefig('Weather')
+
+    def create_plots_of_scan_data(self, data: TimeOrderedData):
+        """ Create all observation diagnostic plots for `data` and embed them in the report. """
+
+        timestamp_dates = data.timestamp_dates
+
+        sky_coordinates = coordinates.SkyCoord(data.azimuth.squeeze * units.deg,
+                                               data.elevation.squeeze * units.deg,
                                                frame='altaz')
 
         # mean over dishes
@@ -141,17 +169,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         # reference coordinates
         reference_elevation = data.elevation.get(recv=self.reference_receiver_index)
         reference_azimuth = data.azimuth.get(recv=self.reference_receiver_index)
-        reference_right_ascension = data.right_ascension.get(recv=self.reference_receiver_index)
-        reference_declination = data.declination.get(recv=self.reference_receiver_index)
-
-        plt.figure(figsize=(8, 4))
-        plt.plot(reference_right_ascension.full,
-                 reference_declination.full,
-                 '.-')
-        plt.xlabel('ra')
-        plt.ylabel('dec')
-        self.savefig(description=f'Scanning route of entire observation. '
-                                 f'Reference antenna {reference_antenna.name}.')
 
         plt.figure(figsize=(8, 4))
         plt.plot(sky_coordinates.az, sky_coordinates.alt, '.-')
@@ -163,11 +180,11 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.figure(figsize=(8, 4))
         plt.subplots_adjust(hspace=.2)
         plt.subplot(211)
-        plt.plot(timestamp_dates.scan, reference_azimuth.scan, '.')
+        plt.plot(timestamp_dates.squeeze, reference_azimuth.squeeze, '.')
         plt.ylabel('az [deg]')
         plt.subplot(212)
-        plt.plot(timestamp_dates.scan,
-                 reference_elevation.scan,
+        plt.plot(timestamp_dates.squeeze,
+                 reference_elevation.squeeze,
                  '.')
         plt.xlabel('time')
         plt.ylabel('el [deg]')
@@ -177,45 +194,32 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.subplots_adjust(hspace=.5)
         plt.subplot(411)
         for i_antenna in range(len(data.antennas)):
-            plt.plot(timestamp_dates.scan,
-                     data.azimuth.get(recv=i_antenna).scan - dish_mean_azimuth.scan)
+            plt.plot(timestamp_dates.squeeze,
+                     data.azimuth.get(recv=i_antenna).squeeze - dish_mean_azimuth.squeeze)
             plt.ylabel('az [deg]')
             plt.xlabel('time')
 
         plt.subplot(412)
         for i_antenna in range(len(data.antennas)):
-            plt.plot(timestamp_dates.scan,
-                     data.elevation.get(recv=i_antenna).scan - dish_mean_elevation.scan)
+            plt.plot(timestamp_dates.squeeze,
+                     data.elevation.get(recv=i_antenna).squeeze - dish_mean_elevation.squeeze)
         plt.ylabel('el - mean')
         plt.xlabel('time')
 
         plt.subplot(413)
         for i_antenna in range(len(data.antennas)):
-            plt.plot(timestamp_dates.scan, data.right_ascension.get(recv=i_antenna).scan - dish_mean_ra.scan)
+            plt.plot(timestamp_dates.squeeze, data.right_ascension.get(recv=i_antenna).squeeze - dish_mean_ra.squeeze)
         plt.xlabel('time')
         plt.ylabel('ra - mean')
 
         plt.subplot(414)
         for i_antenna in range(len(data.antennas)):
-            plt.plot(timestamp_dates.scan, data.declination.get(recv=i_antenna).scan - dish_mean_dec.scan)
+            plt.plot(timestamp_dates.squeeze, data.declination.get(recv=i_antenna).squeeze - dish_mean_dec.squeeze)
         plt.xlabel('time')
         plt.ylabel('dec - mean')
 
         self.savefig('All coordinates minus their mean with time. All dishes.')
 
-        plt.hist(data.elevation.scan.flatten(), bins=200)
+        plt.hist(data.elevation.squeeze.flatten(), bins=200)
         plt.xlabel('elevation')
         self.savefig(description='Elevation histogram of all dishes during scan.')
-
-        plt.figure(figsize=(8, 5))
-        plt.subplot(311)
-        plt.plot(timestamp_dates.full, data.temperature.full)
-        plt.ylabel('temperature')
-        plt.subplot(312)
-        plt.plot(timestamp_dates.full, data.humidity.full)
-        plt.ylabel('humidity')
-        plt.subplot(313)
-        plt.plot(timestamp_dates.full, data.pressure.full)
-        plt.xlabel('time')
-        plt.ylabel('pressure')
-        self.savefig('Weather')
