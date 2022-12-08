@@ -9,7 +9,6 @@ class DataElement:
     Class to access an 'element' of time ordered data, e.g. the visibility data, or temperature values.
     All elements are internally stored with shape `(n_dump, n_frequency, n_receiver)`. If one of these axes only
     contains copies, e.g. the temperature is the same for all frequencies, then the corresponding shape is `1`.
-    The elements should be accessed using one of the properties and manipulated with the public methods.
     """
 
     def __init__(self, array: np.ndarray):

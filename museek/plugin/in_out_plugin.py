@@ -1,10 +1,12 @@
 import os
+from copy import deepcopy
 from datetime import datetime
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from ivory.utils.struct import Struct
 from museek.enum.result_enum import ResultEnum
+from museek.enum.scan_state_enum import ScanStateEnum
 from museek.noise_diode_data import NoiseDiodeData
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
