@@ -1,26 +1,25 @@
 import numpy as np
 
-from museek.time_ordered_data import TimeOrderedData
+from museek.data_element import DataElement
 
 
 class NoiseDiode:
-    def __init__(self, data: TimeOrderedData):
+    def __init__(self, dump_period: float, observation_log: list[str]):
         """
-        :param data: `TimeOrderedData` object
+        Initialise with `dump_period` and the MeerKAT observation script log `observation_log`.
         """
-        self.data = data
+        self._dump_period = dump_period
+        self._observation_log = observation_log
         duration, period, first_set_at = self._get_noise_diode_settings()
         self.duration = duration
         self.period = period
         self.first_set_at = first_set_at
 
-    def get_noise_diode_off_scan_dumps(self) -> np.ndarray:
-        """ Returns a `list` of integer timestamp indices where the noise diode is off. """
-        timestamps = self.data.timestamps.scan
+    def get_noise_diode_off_scan_dumps(self, timestamps: DataElement) -> np.ndarray:
+        """ Returns a `list` of integer indices of `timestamps` where the noise diode is off. """
         noise_diode_cycle_start_times = self._get_noise_diode_cycle_start_times(timestamps)
         noise_diode_off = self._get_where_noise_diode_is_off(timestamps=timestamps,
-                                                             noise_diode_cycle_starts=noise_diode_cycle_start_times,
-                                                             dump_period=self.data.dump_period)
+                                                             noise_diode_cycle_starts=noise_diode_cycle_start_times)
         return noise_diode_off
 
     def _get_noise_diode_settings(self) -> tuple[float, float, float]:
@@ -33,7 +32,7 @@ class NoiseDiode:
         """
         duration, period, first_set_at = self._get_noise_diode_settings_from_obs_script()
         if duration is None or period is None or first_set_at is None:
-            raise NotImplementedError('')
+            raise NotImplementedError('Noise diode settings could not be read from the observation script log.')
         return duration, period, first_set_at
 
     def _get_noise_diode_settings_from_obs_script(self) -> tuple[float | None, float | None, float | None]:
@@ -47,7 +46,7 @@ class NoiseDiode:
         noise_diode_set_at: float | None = None
         noise_diode_on_duration: float | None = None
         noise_diode_period: float | None = None
-        for observation_log_line in self.data.obs_script_log:
+        for observation_log_line in self._observation_log:
             if 'INFO' in observation_log_line:
                 if (search_string_1 := 'Repeat noise diode pattern every ') in observation_log_line:
                     if (search_string_2 := ' sec on') in observation_log_line:
@@ -65,24 +64,22 @@ class NoiseDiode:
 
     def _get_where_noise_diode_is_off(
             self,
-            timestamps: np.ndarray,
+            timestamps: DataElement,
             noise_diode_cycle_starts: np.ndarray,
-            dump_period: float
     ) -> np.ndarray:
         """
         Returns the timestamp indices where the noise diode is entirely off.
         :param timestamps: the output indices are relative to these timestamps
         :param noise_diode_cycle_starts: `array` of noise diode cycle starting timestamps
-        :param dump_period: timestamp duration
         :return: `array` on integer timestamp indices where the noise diode is off
         """
         noise_diode_ratios = self._get_noise_diode_ratios(timestamps=timestamps,
                                                           noise_diode_cycle_starts=noise_diode_cycle_starts,
-                                                          dump_period=dump_period)
+                                                          dump_period=self._dump_period)
         return np.where(noise_diode_ratios == 0)[0]
 
     def _get_noise_diode_ratios(self,
-                                timestamps: np.ndarray,
+                                timestamps: DataElement,
                                 noise_diode_cycle_starts: np.ndarray,
                                 dump_period: float) \
             -> np.ndarray:
@@ -93,26 +90,27 @@ class NoiseDiode:
         :param dump_period: timestamp duration
         :return: an array of floats of the same length as `timestamps`
         """
-        noise_diode_ratios = np.zeros_like(timestamps, dtype=float)
+        timestamp_array = timestamps.squeeze
+        noise_diode_ratios = np.zeros_like(timestamp_array, dtype=float)
 
         for noise_diode_cycle_start_time in noise_diode_cycle_starts:
-            gap_list = abs(noise_diode_cycle_start_time - timestamps)
+            gap_list = abs(noise_diode_cycle_start_time - timestamp_array)
             dump_closest_timestamp = np.argmin(gap_list)
             gap_closest_timestamp = gap_list[dump_closest_timestamp]
 
             if gap_closest_timestamp <= dump_period / 2.:
-                timestamp_edge = timestamps[dump_closest_timestamp] + dump_period / 2
+                timestamp_edge = timestamp_array[dump_closest_timestamp] + dump_period / 2
                 cycle_start_to_timestamp_edge = timestamp_edge - noise_diode_cycle_start_time
                 if cycle_start_to_timestamp_edge >= self.duration:  # diode in one dump
                     noise_diode_ratios[dump_closest_timestamp] = self.duration / dump_period
                 elif cycle_start_to_timestamp_edge < self.duration:  # diode in two dumps
                     noise_diode_ratios[dump_closest_timestamp] = cycle_start_to_timestamp_edge / dump_period
-                    if dump_closest_timestamp + 1 < len(timestamps):
+                    if dump_closest_timestamp + 1 < len(timestamp_array):
                         noise_diode_ratios[dump_closest_timestamp + 1] = self.duration / dump_period \
                                                                          - noise_diode_ratios[dump_closest_timestamp]
         return noise_diode_ratios
 
-    def _get_noise_diode_cycle_start_times(self, timestamps: np.ndarray) -> np.ndarray:
+    def _get_noise_diode_cycle_start_times(self, timestamps: DataElement) -> np.ndarray:
         """
         Returns an array with the timestamps of each cycle's start within the array `timestamps`.
         :raise ValueError: if `self.first_set_at` is after the end of `timestamps`

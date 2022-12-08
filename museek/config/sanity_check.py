@@ -15,7 +15,8 @@ InOutPlugin = ConfigSection(
     output_folder=None,  # directory to store results, if `None`, a 'results/' is chosen
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
-    do_save_visibility_to_disc=True
+    do_save_visibility_to_disc=True,
+    do_use_noise_diode=False
 )
 
 SanityCheckObservationPlugin = ConfigSection(
