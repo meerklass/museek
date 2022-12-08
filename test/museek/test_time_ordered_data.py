@@ -13,7 +13,7 @@ class TestTimeOrderedData(unittest.TestCase):
     @patch.object(TimeOrderedData, '_correlator_products_indices')
     @patch.object(TimeOrderedData, '_get_data')
     def setUp(self,
-              mock_load_data,
+              mock_get_data,
               mock_correlator_products_indices,
               mock_get_data_element_factory):
         self.mock_katdal_data = MagicMock()
