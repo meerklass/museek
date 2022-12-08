@@ -10,8 +10,8 @@ InOutPlugin = ConfigSection(
     # block_name='1632760885',  # observation time stamp
     block_name='1631379874',  # observation time stamp
     # receiver_list=['m000h', 'm049h', 'm050h', 'm061h', 'm057h', 'm058h', 'm059h'],
-    receiver_list=None,
-    # receiver_list=['m000h'],
+    # receiver_list=None,
+    receiver_list=['m000h'],
     do_use_noise_diode=True,
     token=None,  # archive token
     data_folder='/idia/projects/hi_im/SCI-20210212-MS-01/',  # only relevant if `token` is `None`
@@ -22,4 +22,5 @@ InOutPlugin = ConfigSection(
 )
 ZebraPlugin = ConfigSection(
     zebra_channel=488  # corresponds to 958 MHz
+    # zebra_channel=3000  # corresponds to 958 MHz
 )
