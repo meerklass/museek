@@ -1,7 +1,5 @@
-from typing import Optional
-
+from museek.enum.scan_state_enum import ScanStateEnum
 from museek.noise_diode import NoiseDiode
-from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 
 
@@ -11,27 +9,25 @@ class NoiseDiodeData(TimeOrderedData):
     Timestamps with non-zero noise diode contribution are hidden by default but accessible if needed
     for RFI mitigation or gain calibration.
     """
-    def __init__(self,
-                 block_name: str,
-                 receivers: list[Receiver],
-                 token: Optional[str],
-                 data_folder: Optional[str],
-                 force_load_from_correlator_data: bool = False,
-                 do_create_cache: bool = True):
+
+    def __init__(self, *args, **kwargs):
         """
-        Initialize
-        :param block_name: name of the observation block
-        :param receivers: list of receivers to load the data of
-        :param token: to access the data, usage of `token` is prioritized over `data_folder`
-        :param data_folder: folder where data is stored
-        :param force_load_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
-        :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
-                                already present
+        Forwards `args` and `kwargs` to the super class.
+        Sets an additional attribute `noise_diode` and restricts the dumps of the scan state `SCAN` to
+        those with zero noise diode contribution.
         """
-        super().__init__(block_name=block_name,
-                         receivers=receivers,
-                         token=token,
-                         data_folder=data_folder,
-                         force_load_from_correlator_data=force_load_from_correlator_data,
-                         do_create_cache=do_create_cache)
-        self.scan_dumps = [self.scan_dumps[i] for i in NoiseDiode(data=self).get_noise_diode_off_scan_dumps()]
+        self.noise_diode: NoiseDiode | None = None
+        super().__init__(*args, **kwargs)
+        self.noise_diode = NoiseDiode(dump_period=self.dump_period, observation_log=self.obs_script_log)
+        if self.scan_state == ScanStateEnum.SCAN:
+            self.set_data_elements(scan_state=self.scan_state)
+
+    def _dumps(self) -> list[int]:
+        """
+        Returns the dump indices which have zero noise doide contribution and belong to the `scan_sate` `SCAN`.
+        """
+        dumps_of_scan_state = self._dumps_of_scan_state()
+        if self.scan_state != ScanStateEnum.SCAN or self.noise_diode is None:
+            return dumps_of_scan_state
+        return [i for i in dumps_of_scan_state
+                if i in self.noise_diode.get_noise_diode_off_scan_dumps(timestamps=self.timestamps)]
