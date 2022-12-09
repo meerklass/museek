@@ -273,23 +273,33 @@ class ZebraPlugin(AbstractPlugin):
         satellite_channels = range(1350, 2100)
         rfi_free_channels = range(2500, 3000)
 
-        plt.imshow(visibility.T, aspect='auto')
-        for color, channels in zip(['black', 'red', 'green'], [zebra_channels, satellite_channels, rfi_free_channels]):
-            plt.axhline(channels[0], color=color)
-            plt.axhline(channels[-1], color=color)
-        plt.axvline(start_index, color='blue')
+        zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
+        satellite_frequencies = [frequencies[channel] for channel in satellite_channels]
+        rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
+
+        plt.imshow(visibility.T,
+                   aspect='auto',
+                   extent=[data.timestamps.squeeze[0],
+                           data.timestamps.squeeze[-1],
+                           frequencies[-1] / 1e6,
+                           frequencies[0] / 1e6],
+                   interpolation='none')
+        for color, plot_frequencies in zip(['black', 'red', 'green'],
+                                           [zebra_frequencies, satellite_frequencies, rfi_free_frequencies]):
+            plt.axhline(plot_frequencies[0]/1e6, color=color)
+            plt.axhline(plot_frequencies[-1]/1e6, color=color)
+        plt.axvline(data.timestamps.squeeze[start_index], color='blue')
+        plt.ylabel('frequency [MHz]')
+        plt.xlabel('time [s]')
         plt.show()
 
         zebra_visibility = data.visibility.get(freq=zebra_channels).squeeze
-        zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
         zebra_power = np.trapz(zebra_visibility, x=zebra_frequencies, axis=1)
 
         rfi_free_visibility = data.visibility.get(freq=rfi_free_channels).squeeze
-        rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
         rfi_free_power = np.trapz(rfi_free_visibility, x=rfi_free_frequencies, axis=1)
 
         satellite_visibility = data.visibility.get(freq=satellite_channels).squeeze
-        satellite_frequencies = [frequencies[channel] for channel in satellite_channels]
         satellite_power = np.trapz(satellite_visibility, x=satellite_frequencies, axis=1)
 
         zebra_power_ratio = zebra_power / total_power
@@ -300,14 +310,14 @@ class ZebraPlugin(AbstractPlugin):
 
         plt.scatter(rfi_free_power[start_index:end_index],
                     # zebra_power_ratio[start_index:end_index],
-                    total_power[start_index:end_index],
+                    zebra_power[start_index:end_index],
                     color='black',
                     s=0.1)
-        plt.xlabel(f'Power integrated from {zebra_frequencies[0]/1e6:.0f} to {zebra_frequencies[-1]/1e6:.0f} MHz')
-        plt.ylabel('Total power from all frequencies')
+        plt.ylabel(f'Power integrated from {zebra_frequencies[0] / 1e6:.0f} to {zebra_frequencies[-1] / 1e6:.0f} MHz')
+        plt.xlabel(f'Power from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
+                   f' MHz, mostly RFI free')
         plt.show()
 
-        plt.figure(figsize=(12,6))
         # plt.scatter(rfi_free_power[:start_index],
         #             satellite_power[:start_index] + zebra_power[:start_index],
         #             color='black',
@@ -317,11 +327,12 @@ class ZebraPlugin(AbstractPlugin):
                     # satellite_power_ratio[:start_index] + zebra_power_ratio[:start_index],
                     color='black',
                     s=0.1)
-        plt.xlabel('RFI free power')
+        plt.xlabel(f'Power from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
+                   f' MHz, mostly RFI free')
         plt.ylabel('Total power')
         # plt.xscale('log')
-        plt.xlim((2.12e10, 2.2e10))
-        plt.ylim((0., 0.5e12))
+        plt.xlim((2.12e10, 2.5e10))
+        plt.ylim((0., 2.5e12))
         plt.show()
 
         plt.imshow(satellite_visibility.T, aspect='auto')
