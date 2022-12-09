@@ -1,10 +1,12 @@
 import os
+from copy import deepcopy
 from datetime import datetime
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from ivory.utils.struct import Struct
 from museek.enum.result_enum import ResultEnum
+from museek.enum.scan_state_enum import ScanStateEnum
 from museek.noise_diode_data import NoiseDiodeData
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
@@ -36,20 +38,25 @@ class InOutPlugin(AbstractPlugin):
             data_class = NoiseDiodeData
         else:
             data_class = TimeOrderedData
-        data = data_class(token=self.config.token,
-                          data_folder=self.config.data_folder,
-                          block_name=self.config.block_name,
-                          receivers=receivers,
-                          force_load_from_correlator_data=self.config.force_load_from_correlator_data,
-                          do_create_cache=self.config.do_save_visibility_to_disc)
+        all_data = data_class(
+            token=self.config.token,
+            data_folder=self.config.data_folder,
+            block_name=self.config.block_name,
+            receivers=receivers,
+            force_load_from_correlator_data=self.config.force_load_from_correlator_data,
+            do_create_cache=self.config.do_save_visibility_to_disc,
+        )
+        scan_data = deepcopy(all_data)
+        scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
 
         output_path = os.path.join(self.output_folder, f'{self.config.block_name}/')
         os.makedirs(output_path, exist_ok=True)
 
-        timestamp = int(data.name.split('_')[0])
-        observation_date = datetime.fromtimestamp(timestamp)
+        # observation data from file name
+        observation_date = datetime.fromtimestamp(int(all_data.name.split('_')[0]))
 
-        self.set_result(result=Result(location=ResultEnum.DATA, result=data))
+        self.set_result(result=Result(location=ResultEnum.DATA, result=all_data))
+        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=output_path))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))

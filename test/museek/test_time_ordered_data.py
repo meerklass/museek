@@ -9,18 +9,17 @@ from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
 
 class TestTimeOrderedData(unittest.TestCase):
 
-    @patch('museek.time_ordered_data.TimeOrderedDataElement')
-    @patch.object(TimeOrderedData, '_set_scan_state_dumps')
+    @patch.object(TimeOrderedData, '_get_data_element_factory')
     @patch.object(TimeOrderedData, '_correlator_products_indices')
-    @patch.object(TimeOrderedData, 'load_data')
+    @patch.object(TimeOrderedData, '_get_data')
     def setUp(self,
-              mock_load_data,
+              mock_get_data,
               mock_correlator_products_indices,
-              mock_set_scan_state_dumps,
-              mock_time_ordered_data_element):
+              mock_get_data_element_factory):
         self.mock_katdal_data = MagicMock()
         self.mock_correlator_products_indices = mock_correlator_products_indices
-        mock_load_data.return_value = self.mock_katdal_data
+        self.mock_get_data_element_factory = mock_get_data_element_factory
+        mock_get_data.return_value = self.mock_katdal_data
         mock_block_name = Mock()
         mock_receiver_list = [Mock(), Mock()]
         mock_data_folder = Mock()
@@ -34,29 +33,63 @@ class TestTimeOrderedData(unittest.TestCase):
         self.mock_katdal_data.select.assert_called_once_with(
             corrprods=self.mock_correlator_products_indices.return_value
         )
-        self.assertIsNone(self.time_ordered_data.scan_dumps)
-        self.assertIsNone(self.time_ordered_data.track_dumps)
-        self.assertIsNone(self.time_ordered_data.slew_dumps)
-        self.assertIsNone(self.time_ordered_data.stop_dumps)
 
     def test_str(self):
         expect = str(self.mock_katdal_data)
         self.assertEqual(str(self.time_ordered_data), expect)
 
-    @patch('museek.time_ordered_data.katdal.open')
-    def test_load_data_when_data_folder(self, mock_open):
-        block_name = 'block'
-        self.time_ordered_data.load_data(block_name=block_name, token=None, data_folder='')
-        mock_open.assert_called_once_with(f'{block_name}/{block_name}/{block_name}_sdp_l0.full.rdb')
+    def test_set_data_elements(self):
+        mock_scan_state = Mock()
+        mock_data = MagicMock()
+        self.time_ordered_data.set_data_elements(scan_state=mock_scan_state, data=mock_data)
+        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
+        self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._element_factory)
+        expect = mock_scan_state.factory().create.return_value
+        self.assertEqual(expect, self.time_ordered_data.timestamps)
+        self.assertEqual(expect, self.time_ordered_data.timestamp_dates)
+        self.assertEqual(expect, self.time_ordered_data.frequencies)
+        self.assertEqual(expect, self.time_ordered_data.azimuth)
+        self.assertEqual(expect, self.time_ordered_data.elevation)
+        self.assertEqual(expect, self.time_ordered_data.declination)
+        self.assertEqual(expect, self.time_ordered_data.right_ascension)
+        self.assertEqual(expect, self.time_ordered_data.temperature)
+        self.assertEqual(expect, self.time_ordered_data.humidity)
+        self.assertEqual(expect, self.time_ordered_data.pressure)
 
-    @patch('museek.time_ordered_data.katdal.open')
-    def test_load_data_when_token(self, mock_open):
-        block_name = 'block'
-        token = 'token'
-        self.time_ordered_data.load_data(block_name=block_name, token=token, data_folder=None)
-        mock_open.assert_called_once_with(
-            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
-        )
+    @patch.object(TimeOrderedData, '_select')
+    @patch.object(TimeOrderedData, '_get_data')
+    def test_set_data_elements_when_data_is_none(self, mock_get_data, mock_select):
+        mock_scan_state = Mock()
+        self.time_ordered_data.set_data_elements(scan_state=mock_scan_state, data=None)
+        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
+        mock_get_data.assert_called_once()
+        mock_select.assert_called_once_with(data=mock_get_data.return_value)
+
+    @patch.object(TimeOrderedData, '_visibility_flags_weights')
+    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights):
+        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
+        self.time_ordered_data.load_visibility_flags_weights()
+        self.assertEqual(self.time_ordered_data.visibility,
+                         self.mock_get_data_element_factory.return_value.create.return_value)
+        self.assertEqual(self.time_ordered_data.flags,
+                         [self.mock_get_data_element_factory.return_value.create.return_value])
+        self.assertEqual(self.time_ordered_data.weights,
+                         self.mock_get_data_element_factory.return_value.create.return_value)
+
+    @patch.object(TimeOrderedData, '_visibility_flags_weights')
+    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights):
+        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
+        self.time_ordered_data.load_visibility_flags_weights()
+        self.assertEqual(self.time_ordered_data.visibility,
+                         self.mock_get_data_element_factory.return_value.create.return_value)
+        self.assertEqual(self.time_ordered_data.flags,
+                         [self.mock_get_data_element_factory.return_value.create.return_value])
+        self.assertEqual(self.time_ordered_data.weights,
+                         self.mock_get_data_element_factory.return_value.create.return_value)
+        self.time_ordered_data.delete_visibility_flags_weights()
+        self.assertIsNone(self.time_ordered_data.visibility)
+        self.assertIsNone(self.time_ordered_data.flags)
+        self.assertIsNone(self.time_ordered_data.weights)
 
     def test_antenna(self):
         mock_receiver = MagicMock()
@@ -85,27 +118,69 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_antenna.assert_called_once()
         self.assertIsNone(antenna_index)
 
-    @patch.object(TimeOrderedData, '_element')
-    @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_element):
-        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
-        self.time_ordered_data.load_visibility_flags_weights()
-        self.assertEqual(self.time_ordered_data.visibility, mock_element.return_value)
-        self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
-        self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
+    @patch.object(TimeOrderedData, 'set_data_elements')
+    @patch.object(TimeOrderedData, '_select')
+    @patch('museek.time_ordered_data.katdal.open')
+    def test_load_data_when_data_folder(self, mock_open, mock_select, mock_set_data_elements):
+        block_name = 'block'
+        token = None
+        data_folder = 'folder'
+        mock_receiver_list = [Mock(), Mock()]
 
-    @patch.object(TimeOrderedData, '_element')
-    @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_element):
-        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
-        self.time_ordered_data.load_visibility_flags_weights()
-        self.assertEqual(self.time_ordered_data.visibility, mock_element.return_value)
-        self.assertEqual(self.time_ordered_data.flags, [mock_element.return_value])
-        self.assertEqual(self.time_ordered_data.weights, mock_element.return_value)
-        self.time_ordered_data.delete_visibility_flags_weights()
-        self.assertIsNone(self.time_ordered_data.visibility)
-        self.assertIsNone(self.time_ordered_data.flags)
-        self.assertIsNone(self.time_ordered_data.weights)
+        TimeOrderedData(block_name=block_name,
+                        receivers=mock_receiver_list,
+                        token=token,
+                        data_folder=data_folder)
+        mock_open.assert_called_once_with(f'{data_folder}/{block_name}/{block_name}/{block_name}_sdp_l0.full.rdb')
+        mock_select.assert_called_once()
+        mock_set_data_elements.assert_called_once()
+
+    @patch.object(TimeOrderedData, 'set_data_elements')
+    @patch.object(TimeOrderedData, '_select')
+    @patch('museek.time_ordered_data.katdal.open')
+    def test_load_data_when_token(self, mock_open, mock_select, mock_set_data_elements):
+        block_name = 'block'
+        token = 'token'
+        mock_receiver_list = [Mock(), Mock()]
+
+        TimeOrderedData(block_name=block_name,
+                        receivers=mock_receiver_list,
+                        token=token,
+                        data_folder=None)
+        mock_open.assert_called_once_with(
+            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
+        )
+        mock_select.assert_called_once()
+        mock_set_data_elements.assert_called_once()
+
+    def test_dumps_of_scan_state(self):
+        mock_scan_state = Mock(state='2')
+        mock_scan_tuple_list = [Mock(state='mock'),
+                                Mock(state=mock_scan_state, dumps=[Mock()]),
+                                Mock(state='mock')]
+        self.time_ordered_data._scan_tuple_list = mock_scan_tuple_list
+        self.time_ordered_data.scan_state = mock_scan_state
+        dumps = self.time_ordered_data._dumps_of_scan_state()
+        expect = mock_scan_tuple_list[1].dumps
+        self.assertListEqual(expect, dumps)
+
+    def test_dumps_of_scan_state_when_scan_state_is_none(self):
+        self.assertIsNone(self.time_ordered_data._dumps_of_scan_state())
+
+    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
+    def test_dumps(self, mock_dumps_of_scan_state):
+        self.time_ordered_data._dumps()
+        mock_dumps_of_scan_state.assert_called_once()
+
+    @patch('museek.time_ordered_data.DataElementFactory')
+    def test_get_data_element_factory(self, mock_factory):
+        mock_scan_state = Mock()
+        self.time_ordered_data.scan_state = mock_scan_state
+        self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._get_data_element_factory())
+
+    @patch('museek.time_ordered_data.DataElementFactory')
+    def test_get_data_element_factory_when_scan_state_is_none(self, mock_factory):
+        self.assertEqual(mock_factory(), self.time_ordered_data._get_data_element_factory())
 
     @patch.object(TimeOrderedData, '_select')
     @patch('museek.time_ordered_data.np')
@@ -139,43 +214,6 @@ class TestTimeOrderedData(unittest.TestCase):
         np.testing.assert_array_equal(np.asarray([[[0]]]), flags)
         np.testing.assert_array_equal(np.asarray([[[0]]]), weights)
 
-    @patch.object(TimeOrderedData, '__setattr__')
-    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
-    def test_set_scan_state_dumps(self, mock_dumps_of_scan_state, mock_setattr):
-        self.time_ordered_data._set_scan_state_dumps()
-        mock_dumps_of_scan_state.assert_has_calls(calls=[call(scan_state=ScanStateEnum.SCAN),
-                                                         call(scan_state=ScanStateEnum.TRACK),
-                                                         call(scan_state=ScanStateEnum.SLEW),
-                                                         call(scan_state=ScanStateEnum.STOP)])
-        mock_setattr.assert_has_calls(
-            calls=[call('scan_dumps', mock_dumps_of_scan_state.return_value),
-                   call('track_dumps', mock_dumps_of_scan_state.return_value),
-                   call('slew_dumps', mock_dumps_of_scan_state.return_value),
-                   call('stop_dumps', mock_dumps_of_scan_state.return_value)]
-        )
-
-    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
-    def test_set_scan_state_dumps_when_force_false_expect_dumps_unchanged(self, mock_dumps_of_scan_state):
-        self.time_ordered_data.scan_dumps = [1]
-        self.time_ordered_data._set_scan_state_dumps(force=False)
-        mock_dumps_of_scan_state.assert_has_calls(calls=[call(scan_state=ScanStateEnum.SCAN),
-                                                         call(scan_state=ScanStateEnum.TRACK),
-                                                         call(scan_state=ScanStateEnum.SLEW),
-                                                         call(scan_state=ScanStateEnum.STOP)])
-        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.track_dumps)
-        self.assertEqual([1], self.time_ordered_data.scan_dumps)
-
-    @patch.object(TimeOrderedData, '_dumps_of_scan_state')
-    def test_set_scan_state_dumps_when_force_true_expect_dumps_changed(self, mock_dumps_of_scan_state):
-        self.time_ordered_data.scan_dumps = [1]
-        self.time_ordered_data._set_scan_state_dumps(force=True)
-        mock_dumps_of_scan_state.assert_has_calls(calls=[call(scan_state=ScanStateEnum.SCAN),
-                                                         call(scan_state=ScanStateEnum.TRACK),
-                                                         call(scan_state=ScanStateEnum.SLEW),
-                                                         call(scan_state=ScanStateEnum.STOP)])
-        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.track_dumps)
-        self.assertEqual(mock_dumps_of_scan_state.return_value, self.time_ordered_data.scan_dumps)
-
     def test_correlator_products_indices(self):
         all_correlator_products = np.asarray([('a', 'a'), ('b', 'b'), ('c', 'c'), ('d', 'd')])
         self.time_ordered_data.correlator_products = np.asarray([('c', 'c'), ('a', 'a')])
@@ -197,24 +235,6 @@ class TestTimeOrderedData(unittest.TestCase):
                           self.time_ordered_data._correlator_products_indices,
                           all_correlator_products=all_correlator_products)
 
-    def test_dumps_of_scan_state(self):
-        self.time_ordered_data._scan_tuple_list = [
-            ScanTuple(dumps=[0], state=ScanStateEnum.SCAN, index=0, target=Mock()),
-            ScanTuple(dumps=[1], state=ScanStateEnum.TRACK, index=1, target=Mock())]
-        self.assertEqual([0], self.time_ordered_data._dumps_of_scan_state(scan_state=ScanStateEnum.SCAN))
-        self.assertEqual([1], self.time_ordered_data._dumps_of_scan_state(scan_state=ScanStateEnum.TRACK))
-
-    def test_get_scan_tuple_list(self):
-        mock_target = Mock()
-        mock_scans = MagicMock(return_value=[(0, 'scan', mock_target),
-                                             (1, 'track', mock_target)])
-        mock_data = MagicMock(scans=mock_scans)
-        scan_tuple_list = self.time_ordered_data._get_scan_tuple_list(data=mock_data)
-        expect_list = [ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.SCAN, index=0, target=mock_target),
-                       ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.TRACK, index=1, target=mock_target)]
-        for expect, scan_tuple in zip(expect_list, scan_tuple_list):
-            self.assertTupleEqual(expect, scan_tuple)
-
     def test_get_correlator_products(self):
         self.time_ordered_data.receivers = [Receiver(antenna_number=0, polarisation=Polarisation.v),
                                             Receiver(antenna_number=0, polarisation=Polarisation.h),
@@ -233,13 +253,6 @@ class TestTimeOrderedData(unittest.TestCase):
             all_correlator_products=self.mock_katdal_data.corr_products
         )
 
-    @patch('museek.time_ordered_data.TimeOrderedDataElement')
-    def test_element(self, mock_time_ordered_data_element):
-        mock_array = Mock()
-        element = self.time_ordered_data._element(array=mock_array)
-        mock_time_ordered_data_element.assert_called_once_with(array=mock_array, parent=self.time_ordered_data)
-        self.assertEqual(mock_time_ordered_data_element(), element)
-
     def test_get_receivers_if_receivers_given(self):
         mock_receivers = [MagicMock()]
         self.assertEqual(mock_receivers, self.time_ordered_data._get_receivers(receivers=mock_receivers,
@@ -255,3 +268,14 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_from_string.assert_has_calls(calls=[call(receiver_string='1'),
                                                  call(receiver_string='2'),
                                                  call(receiver_string='3')])
+
+    def test_get_scan_tuple_list(self):
+        mock_target = Mock()
+        mock_scans = MagicMock(return_value=[(0, 'scan', mock_target),
+                                             (1, 'track', mock_target)])
+        mock_data = MagicMock(scans=mock_scans)
+        scan_tuple_list = self.time_ordered_data._get_scan_tuple_list(data=mock_data)
+        expect_list = [ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.SCAN, index=0, target=mock_target),
+                       ScanTuple(dumps=mock_data.dumps, state=ScanStateEnum.TRACK, index=1, target=mock_target)]
+        for expect, scan_tuple in zip(expect_list, scan_tuple_list):
+            self.assertTupleEqual(expect, scan_tuple)

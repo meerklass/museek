@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Optional, NamedTuple
+from typing import Optional, NamedTuple, Any
 
 import katdal
 import numpy as np
@@ -8,9 +8,10 @@ from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Target, Antenna
 
+from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
+from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
 from museek.receiver import Receiver
-from museek.time_ordered_data_element import TimeOrderedDataElement
 
 MODULE_ROOT = os.path.dirname(__file__)
 
@@ -29,7 +30,7 @@ class ScanTuple(NamedTuple):
 
 class TimeOrderedData:
     """
-    Class for handling of time ordered data as provided by `katdal`.
+    Class for handling time ordered data coming from `katdal`.
     """
 
     def __init__(self,
@@ -37,27 +38,31 @@ class TimeOrderedData:
                  receivers: list[Receiver],
                  token: Optional[str],
                  data_folder: Optional[str],
+                 scan_state: ScanStateEnum | None = None,
                  force_load_from_correlator_data: bool = False,
                  do_create_cache: bool = True):
         """
-        Initialize
+        Initialise
         :param block_name: name of the observation block
         :param receivers: list of receivers to load the data of
         :param token: to access the data, usage of `token` is prioritized over `data_folder`
         :param data_folder: folder where data is stored
+        :param scan_state: optional `ScanStateEnum` defining the scan state name. If it is given, only timestamps for
+                           that scan state are loaded.
         :param force_load_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
         """
-        self.scan_dumps: list[int] | None = None  # TODO(amadeus): make these immutable or at least private
-        self.track_dumps: list[int] | None = None
-        self.slew_dumps: list[int] | None = None
-        self.stop_dumps: list[int] | None = None
-
         # these can consume a lot of memory, so they are only loaded when needed
-        self.visibility: TimeOrderedDataElement | None = None
-        self.flags: TimeOrderedDataElement | None = None
-        self.weights: TimeOrderedDataElement | None = None
+        self.visibility: DataElement | None = None
+        self.flags: list[DataElement] | None = None
+        self.weights: DataElement | None = None
+
+        self._block_name = block_name
+        self._token = token
+        self._data_folder = data_folder
+        if self._token is None and self._data_folder is None:
+            raise ValueError('Either `token` or `data_folder` must be given and not `None`!')
 
         # to be able to load the katdal data again if needed
         self._katdal_open_argument: Optional[str] = None
@@ -65,7 +70,7 @@ class TimeOrderedData:
         self._force_load_from_correlator_data = force_load_from_correlator_data
         self._do_save_to_disc = do_create_cache
 
-        data = self.load_data(block_name=block_name, data_folder=data_folder, token=token)
+        data = self._get_data()
         self.receivers = self._get_receivers(receivers=receivers, data=data)
         self.correlator_products = self._get_correlator_products()
         self.all_antennas = data.ants
@@ -80,44 +85,71 @@ class TimeOrderedData:
         self.antennas = data.ants
         self._antenna_name_list = [antenna.name for antenna in self.antennas]
 
-        self._scan_tuple_list = self._get_scan_tuple_list(data=data)
-        self._set_scan_state_dumps()
+        self.scan_state: ScanStateEnum | None = None
+        self._element_factory: AbstractDataElementFactory | None = None
 
-        # data elements
-        self.timestamps = self._element(array=data.timestamps[:, np.newaxis, np.newaxis])
-        self.timestamp_dates = self._element(
-            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
-        )
-        self.frequencies = self._element(array=data.freqs[np.newaxis, :, np.newaxis])
-
+        self.timestamps: DataElement | None = None
+        self.timestamp_dates: DataElement | None = None
+        self.frequencies: DataElement | None = None
         # sky coordinates
-        self.azimuth = self._element(array=data.az[:, np.newaxis, :])
-        self.elevation = self._element(array=data.el[:, np.newaxis, :])
-        self.declination = self._element(array=data.dec[:, np.newaxis, :])
-        self.right_ascension = self._element(array=data.ra[:, np.newaxis, :])
+        self.azimuth: DataElement | None = None
+        self.elevation: DataElement | None = None
+        self.declination: DataElement | None = None
+        self.right_ascension: DataElement | None = None
 
         # climate
-        self.temperature = self._element(array=data.temperature[:, np.newaxis, np.newaxis])
-        self.humidity = self._element(array=data.humidity[:, np.newaxis, np.newaxis])
-        self.pressure = self._element(array=data.pressure[:, np.newaxis, np.newaxis])
+        self.temperature: DataElement | None = None
+        self.humidity: DataElement | None = None
+        self.pressure: DataElement | None = None
+
+        self._scan_tuple_list = self._get_scan_tuple_list(data=data)
+        self.set_data_elements(data=data, scan_state=scan_state)
 
     def __str__(self):
         """ Returns the same `str` as `katdal`. """
         return self._data_str
 
-    def load_data(self, block_name: str, token: Optional[str], data_folder: Optional[str]) -> DataSet:
+    def set_data_elements(self, scan_state: ScanStateEnum | None, data: DataSet | None = None):
         """
-        Loads the data from `katdal` for `block_name` using either `token` or if it is `None`, the `data_folder`.
+        Initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
+        :param scan_state: the scan state as a `ScanStateEnum`, this is set as an attribute to `self`
+        :param data: a `DataSet` object from `katdal`, can be `None`
         """
-        if token is not None:
-            katdal_open_argument = f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
-        elif data_folder is not None:
-            katdal_open_argument = os.path.join(data_folder,
-                                                f'{block_name}/{block_name}/{block_name}_sdp_l0.full.rdb')
-        else:
-            raise ValueError('Either `token` or `data_folder` must be given and not `None`!')
-        self._katdal_open_argument = katdal_open_argument
-        return katdal.open(self._katdal_open_argument)
+        if data is None:
+            data = self._get_data()
+            self._select(data=data)
+        self.scan_state = scan_state
+        self._element_factory = self._get_data_element_factory()
+
+        self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
+        self.timestamp_dates = self._element_factory.create(
+            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
+        )
+        self.frequencies = self._element_factory.create(array=data.freqs[np.newaxis, :, np.newaxis])
+
+        # sky coordinates
+        self.azimuth = self._element_factory.create(array=data.az[:, np.newaxis, :])
+        self.elevation = self._element_factory.create(array=data.el[:, np.newaxis, :])
+        self.declination = self._element_factory.create(array=data.dec[:, np.newaxis, :])
+        self.right_ascension = self._element_factory.create(array=data.ra[:, np.newaxis, :])
+
+        # climate
+        self.temperature = self._element_factory.create(array=data.temperature[:, np.newaxis, np.newaxis])
+        self.humidity = self._element_factory.create(array=data.humidity[:, np.newaxis, np.newaxis])
+        self.pressure = self._element_factory.create(array=data.pressure[:, np.newaxis, np.newaxis])
+
+    def load_visibility_flags_weights(self):
+        """ Load visibility, flag and weights and set them as attributes to `self`. """
+        visibility, flags, weights = self._visibility_flags_weights()
+        self.visibility = self._element_factory.create(array=visibility)
+        self.flags = [self._element_factory.create(array=flags)]  # this will contain all kinds of flags
+        self.weights = self._element_factory.create(array=weights)
+
+    def delete_visibility_flags_weights(self):
+        """ Delete large arrays from memory, i.e. replace them with `None`. """
+        self.visibility = None
+        self.flags = None
+        self.weights = None
 
     def antenna(self, receiver) -> Antenna:
         """ Returns the `Antenna` object belonging to `receiver`. """
@@ -130,18 +162,45 @@ class TimeOrderedData:
         except ValueError:
             return
 
-    def load_visibility_flags_weights(self):
-        """ Load visibility, flag and weights and set them as attributes to `self`. """
-        visibility, flags, weights = self._visibility_flags_weights()
-        self.visibility = self._element(array=visibility)
-        self.flags = [self._element(array=flags)]  # this will contain all kinds of flags
-        self.weights = self._element(array=weights)
+    def _get_data(self) -> DataSet:
+        """
+        Loads and returns the data from `katdal` for `self._block_name` using either `self._token`
+        or if it is `None`, the `self._data_folder`.
+        """
+        if self._token is not None:
+            katdal_open_argument = f'https://archive-gw-1.kat.ac.za/' \
+                                   f'{self._block_name}/{self._block_name}_sdp_l0.full.rdb?{self._token}'
+        else:
+            katdal_open_argument = os.path.join(
+                self._data_folder,
+                f'{self._block_name}/{self._block_name}/{self._block_name}_sdp_l0.full.rdb'
+            )
+        self._katdal_open_argument = katdal_open_argument
+        return katdal.open(self._katdal_open_argument)
 
-    def delete_visibility_flags_weights(self):
-        """ Delete large arrays from memory, i.e. replace them with `None`. """
-        self.visibility = None
-        self.flags = None
-        self.weights = None
+    def _dumps_of_scan_state(self) -> list[int] | None:
+        """
+        Returns the dump indices that belong to `self.scan_sate`. If the scan state is `None`, `None` is returned.
+        """
+        if self.scan_state is None:
+            return
+        result = []
+        for scan_tuple in self._scan_tuple_list:
+            if scan_tuple.state == self.scan_state:
+                result.extend(scan_tuple.dumps)
+        return result
+
+    def _dumps(self) -> list[int]:
+        return self._dumps_of_scan_state()
+
+    def _get_data_element_factory(self) -> AbstractDataElementFactory:
+        """
+        Returns the `DataElementFactory` taken from `self.scan_state`. If `self.scan_state` is None,
+        a default factory instance is returned.
+        """
+        if self.scan_state is None:
+            return DataElementFactory()
+        return self.scan_state.factory(scan_dumps=self._dumps())
 
     def _visibility_flags_weights(self, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -197,19 +256,7 @@ class TimeOrderedData:
                             out=[visibility, flags, weights])
         return visibility, flags, weights
 
-    def _set_scan_state_dumps(self, force: bool = False):
-        """
-        Sets the dumps for each scan state defined in `ScanStateEnum`.
-        For examle, the dumps for state `scan` will be set to `self.scan_dumps`.
-        :param force: if `True`, the dumps are overwritten
-        """
-        for scan_state_enum in ScanStateEnum:
-            scan_dumps = self._dumps_of_scan_state(scan_state=scan_state_enum)
-            attribute_name = f'{scan_state_enum.value}_dumps'
-            if self.__getattribute__(attribute_name) is None or force:
-                self.__setattr__(attribute_name, scan_dumps)
-
-    def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> list[int]:
+    def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> Any:
         """
         Returns the indices belonging to the autocorrelation of the input receivers
         relative to `all_correlator_products`.
@@ -222,23 +269,6 @@ class TimeOrderedData:
         result = np.atleast_1d(np.squeeze(result)).tolist()
         return result
 
-    def _dumps_of_scan_state(self, scan_state: ScanStateEnum) -> list[int]:
-        """ Returns the dump indices that belong to a certain `scan_sate`. """
-        result = []
-        for scan_tuple in self._scan_tuple_list:
-            if scan_tuple.state == scan_state:
-                result.extend(scan_tuple.dumps)
-        return result
-
-    @staticmethod
-    def _get_scan_tuple_list(data: DataSet) -> list[ScanTuple]:
-        """ Returns a `list` containing all `ScanTuple`s for `data`. """
-        scan_tuple_list: list[ScanTuple] = []
-        for index, state, target in data.scans():
-            scan_tuple = ScanTuple(dumps=data.dumps, state=ScanStateEnum(state), index=index, target=target)
-            scan_tuple_list.append(scan_tuple)
-        return scan_tuple_list
-
     def _get_correlator_products(self) -> list[list[str, str]]:
         """
         Returns a `list` containing a `list` with the same element twice, namely the `receiver` name,
@@ -250,10 +280,6 @@ class TimeOrderedData:
         """ Run `data._select()` on the correlator products in `self`. """
         data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
 
-    def _element(self, array: np.ndarray) -> TimeOrderedDataElement:
-        """ Initialises and returns a `TimeOrderedDataElement` with `array` and `self` as parent. """
-        return TimeOrderedDataElement(array=array, parent=self)
-
     @staticmethod
     def _get_receivers(receivers: list[Receiver] | None, data: DataSet) -> list[Receiver]:
         """ Returns `receivers` unmodified if it is not `None`, otherwise it returns all receivers in `data`. """
@@ -261,3 +287,12 @@ class TimeOrderedData:
             return receivers
         all_receiver_names = np.unique(data.corr_products.flatten())
         return [Receiver.from_string(receiver_string=name) for name in all_receiver_names]
+
+    @staticmethod
+    def _get_scan_tuple_list(data: DataSet) -> list[ScanTuple]:
+        """ Returns a `list` containing all `ScanTuple`s for `data`. """
+        scan_tuple_list: list[ScanTuple] = []
+        for index, state, target in data.scans():
+            scan_tuple = ScanTuple(dumps=data.dumps, state=ScanStateEnum.get_enum(state), index=index, target=target)
+            scan_tuple_list.append(scan_tuple)
+        return scan_tuple_list
