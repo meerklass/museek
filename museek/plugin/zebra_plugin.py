@@ -22,7 +22,7 @@ class ZebraPlugin(AbstractPlugin):
         self.zebra_channel = self.config.zebra_channel
 
     def set_requirements(self):
-        self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+        self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, data: TimeOrderedData, output_path: str):
@@ -67,13 +67,13 @@ class ZebraPlugin(AbstractPlugin):
     def create_turnaround_plots(self, data: TimeOrderedData, output_path: str):
 
         for antenna_index, antenna in enumerate(data.antennas):
-            azimuth = data.azimuth.get(recv=antenna_index).scan
-            d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.scan, azimuth=azimuth)
+            azimuth = data.azimuth.get(recv=antenna_index).squeeze
+            d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.squeeze, azimuth=azimuth)
             turn_around_dumps = self.get_turn_around_dumps(d_azimuth_d_time=d_azimuth_d_time)
             plt.figure(figsize=(12, 4))
-            plt.plot(data.timestamp_dates.scan, azimuth)
+            plt.plot(data.timestamp_dates.squeeze, azimuth)
             for dump in turn_around_dumps:
-                plt.axvline(data.timestamp_dates.scan[dump])
+                plt.axvline(data.timestamp_dates.squeeze[dump])
             plt.savefig(os.path.join(output_path, f'zebra_{antenna.name}_azimuth_swing_turnaround.png'))
             plt.close()
 
@@ -94,8 +94,8 @@ class ZebraPlugin(AbstractPlugin):
 
             for receiver_index, receiver in enumerate(data.receivers):
                 antenna_index = data.antenna_index_of_receiver(receiver=receiver)
-                azimuth = data.azimuth.get(recv=antenna_index).scan
-                d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.scan, azimuth=azimuth)
+                azimuth = data.azimuth.get(recv=antenna_index).squeeze
+                d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.squeeze, azimuth=azimuth)
                 turn_around_dumps = self.get_turn_around_dumps(d_azimuth_d_time=d_azimuth_d_time)
 
                 start = turn_around_dumps[start_index]
@@ -106,7 +106,7 @@ class ZebraPlugin(AbstractPlugin):
                 swing_direction = self.get_swing_direction(d_azimuth_d_time=d_azimuth_d_time, index=start)
 
                 swing_visibility = data.visibility.get(freq=reference_channel,
-                                                       recv=receiver_index).scan[start: end]
+                                                       recv=receiver_index).squeeze[start: end]
                 swing_azimuth = azimuth[start: end]
                 plt.subplot(311)
                 plt.plot(swing_azimuth, swing_visibility / np.mean(swing_visibility), label=receiver.name)
@@ -133,7 +133,7 @@ class ZebraPlugin(AbstractPlugin):
                 plt.axvline(peak, color='black', ls=':')
 
             plt.legend()
-            plt.title(f'Swings {swing_direction}, starting at {data.timestamp_dates.scan[start]}')
+            plt.title(f'Swings {swing_direction}, starting at {data.timestamp_dates.squeeze[start]}')
             plt.ylabel('visibility')
             plt.xlabel('az')
             plt.savefig(
@@ -143,16 +143,16 @@ class ZebraPlugin(AbstractPlugin):
             plt.close()
 
     def get_n_turn_around(self, data: TimeOrderedData) -> int:
-        azimuth = data.azimuth.get(recv=0).scan
-        d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.scan, azimuth=azimuth)
+        azimuth = data.azimuth.get(recv=0).squeeze
+        d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.squeeze, azimuth=azimuth)
         return len(self.get_turn_around_dumps(d_azimuth_d_time=d_azimuth_d_time))
 
     def create_visibility_fft_plot(self, receiver: Receiver, data: TimeOrderedData, output_path: str):
         antenna_index = data.antenna_index_of_receiver(receiver=receiver)
         receiver_index = data.receivers.index(receiver)
-        visibility = data.visibility.get(recv=receiver_index).scan
-        azimuth = data.azimuth.get(recv=antenna_index).scan
-        d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.scan, azimuth=azimuth)
+        visibility = data.visibility.get(recv=receiver_index).squeeze
+        azimuth = data.azimuth.get(recv=antenna_index).squeeze
+        d_azimuth_d_time = self.get_d_azimuth_d_time(timestamps=data.timestamps.squeeze, azimuth=azimuth)
         turn_around_dumps = self.get_turn_around_dumps(d_azimuth_d_time=d_azimuth_d_time)
 
         count = itertools.count()
@@ -262,12 +262,11 @@ class ZebraPlugin(AbstractPlugin):
         """
         DOC
         """
-        time_dumps = data.scan_dumps
         start_index = 2000
         end_index = -10
 
-        visibility = data.visibility.get_array(recv=0, time=time_dumps)
-        frequencies = data.frequencies.get_array()
+        visibility = data.visibility.get(recv=0).squeeze
+        frequencies = data.frequencies.squeeze
         total_power = np.trapz(visibility, x=frequencies, axis=1)
 
         zebra_channels = range(350, 498)
@@ -281,22 +280,22 @@ class ZebraPlugin(AbstractPlugin):
         plt.axvline(start_index, color='blue')
         plt.show()
 
-        zebra_visibility = data.visibility.get_array(freq=zebra_channels, time=time_dumps)
+        zebra_visibility = data.visibility.get(freq=zebra_channels).squeeze
         zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
         zebra_power = np.trapz(zebra_visibility, x=zebra_frequencies, axis=1)
 
-        rfi_free_visibility = data.visibility.get_array(freq=rfi_free_channels, time=time_dumps)
+        rfi_free_visibility = data.visibility.get(freq=rfi_free_channels).squeeze
         rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
         rfi_free_power = np.trapz(rfi_free_visibility, x=rfi_free_frequencies, axis=1)
 
-        satellite_visibility = data.visibility.get_array(freq=satellite_channels, time=time_dumps)
+        satellite_visibility = data.visibility.get(freq=satellite_channels).squeeze
         satellite_frequencies = [frequencies[channel] for channel in satellite_channels]
         satellite_power = np.trapz(satellite_visibility, x=satellite_frequencies, axis=1)
 
         zebra_power_ratio = zebra_power / total_power
         satellite_power_ratio = satellite_power / total_power
 
-        plt.plot(data.timestamp_dates.get_array(time=time_dumps), zebra_power / total_power)
+        plt.plot(data.timestamp_dates.squeeze, zebra_power / total_power)
         plt.show()
 
         plt.scatter(rfi_free_power[start_index:end_index],
@@ -338,12 +337,12 @@ class ZebraPlugin(AbstractPlugin):
             abs(rfi_free_power[start_index:end_index] - mean_rfi_free))
 
         plt.figure(figsize=(16, 6))
-        plt.plot(data.timestamp_dates.get_array(time=time_dumps), rfi_free_normalized, label='mostly rfi free power')
-        plt.plot(data.timestamp_dates.get_array(time=time_dumps),
+        plt.plot(data.timestamp_dates.squeeze, rfi_free_normalized, label='mostly rfi free power')
+        plt.plot(data.timestamp_dates.squeeze,
                  zebra_ratio_normalized,
                  label='power from 958 MHz RFI / total power')
-        plt.xlim((data.timestamp_dates.get_array(time=time_dumps)[start_index],
-                  data.timestamp_dates.get_array(time=time_dumps)[end_index]))
+        plt.xlim((data.timestamp_dates.squeeze[start_index],
+                  data.timestamp_dates.squeeze[end_index]))
         plt.ylim((-1.2, 1.2))
         plt.legend()
         plt.show()
