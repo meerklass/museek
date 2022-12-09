@@ -118,7 +118,7 @@ class ZebraPlugin(AbstractPlugin):
                 plt.subplot(312)
                 plt.plot(fft_freq[2:], np.abs(fft_visibility[2:]), label=receiver.name)
                 plt.axvline(1 / zebra_scale, color='black', ls=':')
-                plt.scatter(1/zebra_scale, zebra_index, marker='x', color='black')
+                plt.scatter(1 / zebra_scale, zebra_index, marker='x', color='black')
                 plt.xlabel('~1/az')
                 plt.ylabel('fft')
 
@@ -262,98 +262,93 @@ class ZebraPlugin(AbstractPlugin):
         """
         DOC
         """
-        # times = range(1600, len(data.timestamps.scan))
-        times = data.scan_dumps
+        time_dumps = data.scan_dumps
+        start_index = 2000
+        end_index = -10
 
-        visibility = data.visibility.get_array(recv=0, time=times)
+        visibility = data.visibility.get_array(recv=0, time=time_dumps)
         frequencies = data.frequencies.get_array()
-        frequency_bin_width = frequencies[1] - frequencies[0]
         total_power = np.trapz(visibility, x=frequencies, axis=1)
 
-        # zebra_channels = range(475, 498)
         zebra_channels = range(350, 498)
-        # satelite_channels = range(1350, 2100)
+        satellite_channels = range(1350, 2100)
         rfi_free_channels = range(2500, 3000)
 
-        zebra_visibility = data.visibility.get_array(freq=zebra_channels, time=times)
+        plt.imshow(visibility.T, aspect='auto')
+        for color, channels in zip(['black', 'red', 'green'], [zebra_channels, satellite_channels, rfi_free_channels]):
+            plt.axhline(channels[0], color=color)
+            plt.axhline(channels[-1], color=color)
+        plt.axvline(start_index, color='blue')
+        plt.show()
+
+        zebra_visibility = data.visibility.get_array(freq=zebra_channels, time=time_dumps)
         zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
         zebra_power = np.trapz(zebra_visibility, x=zebra_frequencies, axis=1)
 
-        rfi_free_visibility = data.visibility.get_array(freq=rfi_free_channels, time=times)
+        rfi_free_visibility = data.visibility.get_array(freq=rfi_free_channels, time=time_dumps)
         rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
         rfi_free_power = np.trapz(rfi_free_visibility, x=rfi_free_frequencies, axis=1)
 
-        zebra_frequency_fraction = (frequencies[zebra_channels[-1]] - frequencies[zebra_channels[0]]) / (
-                frequencies[-1] - frequencies[0])
+        satellite_visibility = data.visibility.get_array(freq=satellite_channels, time=time_dumps)
+        satellite_frequencies = [frequencies[channel] for channel in satellite_channels]
+        satellite_power = np.trapz(satellite_visibility, x=satellite_frequencies, axis=1)
 
-        # plt.semilogy(data.timestamp_dates.scan, total_power)
-        # plt.semilogy(data.timestamp_dates.scan, zebra_power)
+        zebra_power_ratio = zebra_power / total_power
+        satellite_power_ratio = satellite_power / total_power
 
-        plt.plot(data.timestamp_dates.get_array(time=times), zebra_power / total_power)
+        plt.plot(data.timestamp_dates.get_array(time=time_dumps), zebra_power / total_power)
         plt.show()
 
+        plt.scatter(rfi_free_power[start_index:end_index],
+                    # zebra_power_ratio[start_index:end_index],
+                    total_power[start_index:end_index],
+                    color='black',
+                    s=0.1)
+        plt.xlabel(f'Power integrated from {zebra_frequencies[0]/1e6:.0f} to {zebra_frequencies[-1]/1e6:.0f} MHz')
+        plt.ylabel('Total power from all frequencies')
+        plt.show()
 
-        start_index = 2000
-        end_index = -10
-        mean_zebra = np.mean(zebra_power[start_index:end_index])
-        mean_total = np.mean(total_power[start_index:end_index])
+        plt.figure(figsize=(12,6))
+        # plt.scatter(rfi_free_power[:start_index],
+        #             satellite_power[:start_index] + zebra_power[:start_index],
+        #             color='black',
+        #             s=0.1)
+        plt.scatter(rfi_free_power[:start_index],
+                    total_power[:start_index],
+                    # satellite_power_ratio[:start_index] + zebra_power_ratio[:start_index],
+                    color='black',
+                    s=0.1)
+        plt.xlabel('RFI free power')
+        plt.ylabel('Total power')
+        # plt.xscale('log')
+        plt.xlim((2.12e10, 2.2e10))
+        plt.ylim((0., 0.5e12))
+        plt.show()
+
+        plt.imshow(satellite_visibility.T, aspect='auto')
+        plt.show()
+
         mean_rfi_free = np.mean(rfi_free_power[start_index:end_index])
-        zebra_power_ratio = zebra_power / total_power
-        zebra_power_ratio_mean = np.mean(zebra_power_ratio[start_index:end_index])
+        mean_zebra_power_ratio = np.mean(zebra_power_ratio[start_index:end_index])
 
-        zebra_normalized = (zebra_power - mean_zebra) / np.max(zebra_power[start_index:end_index] - mean_zebra)
-
-        total_normalized = (total_power - mean_total) / np.max(total_power[start_index:end_index] - mean_total)
-        zebra_ratio_normalized = (zebra_power_ratio - zebra_power_ratio_mean) / (
-            np.max(zebra_power_ratio[start_index:end_index] - zebra_power_ratio_mean)
+        zebra_ratio_normalized = (zebra_power_ratio - mean_zebra_power_ratio) / (
+            np.max(zebra_power_ratio[start_index:end_index] - mean_zebra_power_ratio)
         )
-        # rfi_free_normalized = rfi_free_power / np.max(rfi_free_power[start_index:end_index])
         rfi_free_normalized = (rfi_free_power - mean_rfi_free) / np.max(
             abs(rfi_free_power[start_index:end_index] - mean_rfi_free))
-        # rfi_free_normalized *= np.max(zebra_power_ratio[start_index:end_index])
-        # rfi_free_normalized = rfi_free_normalized + np.mean
 
         plt.figure(figsize=(16, 6))
-        # plt.plot(data.timestamp_dates.get_array(time=times),zebra_normalized,label='zebra power')
-        # plt.plot(data.timestamp_dates.get_array(time=times),total_normalized,label='total power')
-        plt.plot(data.timestamp_dates.get_array(time=times), rfi_free_normalized, label='mostly rfi free power')
-        plt.plot(data.timestamp_dates.get_array(time=times),
+        plt.plot(data.timestamp_dates.get_array(time=time_dumps), rfi_free_normalized, label='mostly rfi free power')
+        plt.plot(data.timestamp_dates.get_array(time=time_dumps),
                  zebra_ratio_normalized,
                  label='power from 958 MHz RFI / total power')
-        plt.xlim((data.timestamp_dates.get_array(time=times)[start_index],
-                  data.timestamp_dates.get_array(time=times)[end_index]))
+        plt.xlim((data.timestamp_dates.get_array(time=time_dumps)[start_index],
+                  data.timestamp_dates.get_array(time=time_dumps)[end_index]))
         plt.ylim((-1.2, 1.2))
-        # plt.ylim((0.0, 0.3))
         plt.legend()
         plt.show()
 
-        plt.scatter(rfi_free_power[start_index:end_index], zebra_power_ratio[start_index:end_index], color='black', s=0.1)
-        plt.xlabel('RFI free power')
-        plt.ylabel('Fraction of total power from channels around 958 MHz')
-        # plt.xlim((2.1e10, 2.3e10))
-        plt.show()
-
-        import scipy
-
-        correlation = scipy.signal.correlate(rfi_free_power[start_index:end_index],
-                                             zebra_power_ratio[start_index + 100:start_index + 300], 'valid')
-        lags = scipy.signal.correlation_lags(len(rfi_free_power[start_index:end_index]),
-                                             len(zebra_power_ratio[start_index + 100:end_index + 300]), 'valid')
-        correlation /= max(correlation)
-        plt.plot(lags, correlation)
-        plt.show()
-
-        plt.imshow(data.visibility.get_array(time=times).T, aspect='auto', norm='log')
-        plt.axhline(zebra_channels[0], color='black')
-        plt.axhline(zebra_channels[-1], color='black')
-        plt.show()
-
-        test_channels = range(370, 500)
-        plt.imshow(data.visibility.get_array(time=times, freq=test_channels).T, aspect='auto', norm='log', cmap='gray')
-
     @staticmethod
     def zebra_index(fft, freq, inverse_zebra_scale) -> float:
-        arg_min = np.argmin(abs(freq-inverse_zebra_scale))
+        arg_min = np.argmin(abs(freq - inverse_zebra_scale))
         return abs(fft[arg_min])
-
-    
