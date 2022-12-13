@@ -8,7 +8,6 @@ from scipy.fft import rfft, rfftfreq
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from ivory.utils.struct import Struct
 from museek.enum.result_enum import ResultEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
@@ -17,9 +16,13 @@ from museek.time_ordered_data import TimeOrderedData
 class ZebraPlugin(AbstractPlugin):
     suspected_zebra_peaks = [102.5, 105, 107.5, 110.25]
 
-    def __init__(self, ctx: Struct):
-        super().__init__(ctx=ctx)
-        self.zebra_channel = self.config.zebra_channel
+    def __init__(self, zebra_channel: int):
+        """
+        Initialise the plugin.
+        :param zebra_channel:
+        """
+        super().__init__()
+        self.zebra_channel = zebra_channel
 
     def set_requirements(self):
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='data'),
@@ -40,7 +43,7 @@ class ZebraPlugin(AbstractPlugin):
 
         self.create_plots_integrated_power(data=data,
                                            output_path=output_path,
-                                           zebra_channel=self.config.zebra_channel)
+                                           zebra_channel=self.zebra_channel)
 
     @staticmethod
     def get_turn_around_dumps(d_azimuth_d_time: np.ndarray) -> np.ndarray:
@@ -286,8 +289,8 @@ class ZebraPlugin(AbstractPlugin):
                    interpolation='none')
         for color, plot_frequencies in zip(['black', 'red', 'green'],
                                            [zebra_frequencies, satellite_frequencies, rfi_free_frequencies]):
-            plt.axhline(plot_frequencies[0]/1e6, color=color)
-            plt.axhline(plot_frequencies[-1]/1e6, color=color)
+            plt.axhline(plot_frequencies[0] / 1e6, color=color)
+            plt.axhline(plot_frequencies[-1] / 1e6, color=color)
         plt.axvline(data.timestamps.squeeze[start_index], color='blue')
         plt.ylabel('frequency [MHz]')
         plt.xlabel('time [s]')
