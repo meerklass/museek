@@ -19,19 +19,33 @@ class SanityCheckObservationPlugin(AbstractPlugin):
     The scope is the production of plots and tests of the scanning route.
     """
 
-    def __init__(self, ctx: Struct | None):
-        super().__init__(ctx=ctx)
+    def __init__(self,
+                 reference_receiver_index: int,
+                 elevation_sum_square_difference_threshold: float,
+                 elevation_square_difference_threshold: float,
+                 elevation_antenna_standard_deviation_threshold=1e-2):
+        """
+        Initialise the plugin.
+        :param reference_receiver_index: index of the receiver to use primarily for the sanity check
+        :param elevation_sum_square_difference_threshold: threshold on the total sum of squared differences between
+                                                          antenna pointing elevations and the mean
+        :param elevation_square_difference_threshold: threshold on the squared difference between one antenna's
+                                                      pointing elevation and the overall mean
+        :param elevation_antenna_standard_deviation_threshold: threshold on the standard deviation
+                                                               on antenna pointing elevation
+        """
+        super().__init__()
 
         self.output_path = None
         self.plot_name_template = 'plot_sanity_check_observation_{plot_count}.png'
         self.report_file_name = 'sanity_check_observation_report.md'
-        self.reference_receiver_index = self.config.reference_receiver_index
+        self.reference_receiver_index = reference_receiver_index
         self.plot_count = itertools.count()
         self.report_writer = None
 
-        self.elevation_sum_square_difference_threshold = self.config.elevation_sum_square_difference_threshold
-        self.elevation_square_difference_threshold = self.config.elevation_square_difference_threshold
-        self.elevation_antenna_standard_deviation_threshold = self.config.elevation_antenna_standard_deviation_threshold
+        self.elevation_sum_square_difference_threshold = elevation_sum_square_difference_threshold
+        self.elevation_square_difference_threshold = elevation_square_difference_threshold
+        self.elevation_antenna_standard_deviation_threshold = elevation_antenna_standard_deviation_threshold
 
     def set_requirements(self):
         """ Set the requirements. """

@@ -10,15 +10,23 @@ from museek.enum.demo_enum import DemoEnum
 class DemoFlipPlugin(AbstractPlugin):
     """ For demonstration. Flips right and left in an image. """
 
+    def __init__(self,
+                 do_flip_right_left: bool,
+                 do_flip_top_bottom: bool):
+        super().__init__()
+
+        self.do_flip_right_left = do_flip_right_left
+        self.do_flip_top_bottom = do_flip_top_bottom
+
     def set_requirements(self):
         self.requirements = [Requirement(location=DemoEnum.ASTRONAUT_RIDING_HORSE_IN_SPACE,
                                          variable='astronaut_image')]
 
     def run(self, astronaut_image: Image):
-        if self.config.do_flip_right_left:
+        if self.do_flip_right_left:
             print('Flipping right left...')
             astronaut_image = self._flip_right_left(image=astronaut_image)
-        if self.config.do_flip_top_bottom:
+        if self.do_flip_top_bottom:
             print('Flipping top bottom...')
             astronaut_image = self._flip_top_bottom(image=astronaut_image)
         self.set_result(result=Result(location=DemoEnum.ASTRONAUT_RIDING_HORSE_IN_SPACE_FLIPPED,
