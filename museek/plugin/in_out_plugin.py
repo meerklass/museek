@@ -4,7 +4,6 @@ from datetime import datetime
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
-from ivory.utils.struct import Struct
 from museek.enum.result_enum import ResultEnum
 from museek.enum.scan_state_enum import ScanStateEnum
 from museek.noise_diode_data import NoiseDiodeData
@@ -17,13 +16,40 @@ PLUGIN_ROOT = os.path.dirname(__file__)
 class InOutPlugin(AbstractPlugin):
     """ Plugin to load data and to set output paths. """
 
-    def __init__(self, ctx: Struct | None):
-        super().__init__(ctx=ctx)
-        self.output_folder = self.config.output_folder
+    def __init__(self,
+                 block_name: str,
+                 receiver_list: list[int] | None,
+                 token: str | None,
+                 data_folder: str | None,
+                 output_folder: str | None,
+                 force_load_from_correlator_data: bool,
+                 do_save_visibility_to_disc: bool,
+                 do_use_noise_diode: bool):
+        """
+        Initialise the plugin.
+        :param block_name:
+        :param receiver_list:
+        :param token:
+        :param data_folder:
+        :param output_folder:
+        :param force_load_from_correlator_data:
+        :param do_save_visibility_to_disc:
+        :param do_use_noise_diode:
+        """
+        super().__init__()
+
+        self.block_name = block_name
+        self.receiver_list = receiver_list
+        self.token = token
+        self.data_folder = data_folder
+        self.output_folder = output_folder
         if self.output_folder is None:
             self.output_folder = os.path.join(PLUGIN_ROOT, '../../results/')
+
+        self.force_load_from_correlator_data = force_load_from_correlator_data
         self.check_output_folder_exists()
-        self._do_use_noise_diode = self.config.do_use_noise_diode
+        self.do_save_visibility_to_disc = do_save_visibility_to_disc
+        self._do_use_noise_diode = do_use_noise_diode
 
     def set_requirements(self):
         """ First plugin, no requirements. """
@@ -32,24 +58,24 @@ class InOutPlugin(AbstractPlugin):
     def run(self):
         """ Loads the data as `TimeOrderedData` and sets it as a result. """
         receivers = None
-        if self.config.receiver_list is not None:
-            receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.config.receiver_list]
+        if self.receiver_list is not None:
+            receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.receiver_list]
         if self._do_use_noise_diode:
             data_class = NoiseDiodeData
         else:
             data_class = TimeOrderedData
         all_data = data_class(
-            token=self.config.token,
-            data_folder=self.config.data_folder,
-            block_name=self.config.block_name,
+            token=self.token,
+            data_folder=self.data_folder,
+            block_name=self.block_name,
             receivers=receivers,
-            force_load_from_correlator_data=self.config.force_load_from_correlator_data,
-            do_create_cache=self.config.do_save_visibility_to_disc,
+            force_load_from_correlator_data=self.force_load_from_correlator_data,
+            do_create_cache=self.do_save_visibility_to_disc,
         )
         scan_data = deepcopy(all_data)
         scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
 
-        output_path = os.path.join(self.output_folder, f'{self.config.block_name}/')
+        output_path = os.path.join(self.output_folder, f'{self.block_name}/')
         os.makedirs(output_path, exist_ok=True)
 
         # observation data from file name
