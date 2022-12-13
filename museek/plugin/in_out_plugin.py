@@ -27,14 +27,14 @@ class InOutPlugin(AbstractPlugin):
                  do_use_noise_diode: bool):
         """
         Initialise the plugin.
-        :param block_name:
-        :param receiver_list:
-        :param token:
-        :param data_folder:
-        :param output_folder:
-        :param force_load_from_correlator_data:
-        :param do_save_visibility_to_disc:
-        :param do_use_noise_diode:
+        :param block_name: the name of the block, usually an integer timestamp as string
+        :param receiver_list: the list of receivers to consider, if `None`, all available receivers are used
+        :param token: token to access the SARAO archive
+        :param data_folder: if `token` is `None`, data will be loaded from a local `data_folder`
+        :param output_folder: folder to store ouputs
+        :param force_load_from_correlator_data: if this is `True` the cache files are ignored
+        :param do_save_visibility_to_disc: if `True` the visibilities, flags and weights are stored to disc as cache
+        :param do_use_noise_diode: if `True` the data is assumed to have periodic noise diode firings
         """
         super().__init__()
 
