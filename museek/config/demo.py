@@ -4,9 +4,8 @@ Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.demo.demo_load_plugin',
         'museek.plugin.demo.demo_flip_plugin',
-        'museek.plugin.demo.demo_plot_plugin',
-        'ivory.plugin.disc_storage_plugin'
-    ]
+        'museek.plugin.demo.demo_plot_plugin'
+    ],
 )
 
 DemoLoadPlugin = ConfigSection(
