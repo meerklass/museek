@@ -53,9 +53,9 @@ class DataElement:
 
     def get(self,
             *,  # force named parameters
-            time: int | list[int] | slice | None = None,
-            freq: int | list[int] | slice | None = None,
-            recv: int | list[int] | slice | None = None,
+            time: int | list[int] | slice | range | None = None,
+            freq: int | list[int] | slice | range | None = None,
+            recv: int | list[int] | slice | range | None = None,
             ) -> 'DataElement':
         """
         Simplified indexing
