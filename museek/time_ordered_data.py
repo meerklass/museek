@@ -219,6 +219,7 @@ class TimeOrderedData:
                 self._select(data=data)
             visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
             if self._do_save_to_disc:
+                print(f'Creating cache file for {self.name}...')
                 np.savez_compressed(cache_file,
                                     visibility=visibility,
                                     flags=flags,
@@ -232,7 +233,6 @@ class TimeOrderedData:
                     all_correlator_products=correlator_products
                 )
             except ValueError:
-                print(f'Recreating cache file for {self.name}...')
                 self._force_load_from_correlator_data = True
                 self._do_save_to_disc = True
                 return self._visibility_flags_weights(data=data)
