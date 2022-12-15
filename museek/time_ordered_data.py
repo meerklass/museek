@@ -11,6 +11,7 @@ from katpoint import Target, Antenna
 from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
+from museek.flag_element import FlagElement
 from museek.receiver import Receiver
 
 MODULE_ROOT = os.path.dirname(__file__)
@@ -55,7 +56,7 @@ class TimeOrderedData:
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
-        self.flags: list[DataElement] | None = None
+        self.flags: FlagElement | None = None
         self.weights: DataElement | None = None
 
         self._block_name = block_name
@@ -142,7 +143,11 @@ class TimeOrderedData:
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         visibility, flags, weights = self._visibility_flags_weights()
         self.visibility = self._element_factory.create(array=visibility)
-        self.flags = [self._element_factory.create(array=flags)]  # this will contain all kinds of flags
+        if self.flags is not None:
+            print('Overwriting existing flags.')
+        self.flags = FlagElement(flags=[self._element_factory.create(array=flags)])
+        if self.weights is not None:
+            print('Overwriting existing weights.')
         self.weights = self._element_factory.create(array=weights)
 
     def delete_visibility_flags_weights(self):
@@ -219,6 +224,7 @@ class TimeOrderedData:
                 self._select(data=data)
             visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
             if self._do_save_to_disc:
+                print(f'Creating cache file for {self.name}...')
                 np.savez_compressed(cache_file,
                                     visibility=visibility,
                                     flags=flags,
@@ -232,7 +238,6 @@ class TimeOrderedData:
                     all_correlator_products=correlator_products
                 )
             except ValueError:
-                print(f'Recreating cache file for {self.name}...')
                 self._force_load_from_correlator_data = True
                 self._do_save_to_disc = True
                 return self._visibility_flags_weights(data=data)

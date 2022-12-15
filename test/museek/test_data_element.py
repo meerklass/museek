@@ -38,6 +38,17 @@ class TestDataElement(unittest.TestCase):
         self.assertEqual(mock_np.squeeze.return_value, self.element[0, 1, 2])
         mock_np.squeeze.assert_called_once_with(5)
 
+    def test_str(self):
+        self.assertEqual(str(self.element.get_array()), str(self.element))
+
+    def test_eq_when_true(self):
+        self.assertEqual(self.element, self.element.get())
+
+    def test_eq_when_false(self):
+        array = np.resize(np.arange(27, 54), (3, 3, 3))
+        element = DataElement(array=array)
+        self.assertNotEqual(element, self.element)
+
     @patch.object(np, 'squeeze')
     @patch.object(DataElement, 'get_array')
     def test_squeeze(self, mock_get_array, mock_np_squeeze):
@@ -121,3 +132,20 @@ class TestDataElement(unittest.TestCase):
         result = element.get_array()
         self.assertIsInstance(result, np.ndarray)
         np.testing.assert_array_equal(np.zeros(shape_), result)
+
+    def test_min(self):
+        self.assertEqual(0, self.element.min())
+
+    def test_max(self):
+        self.assertEqual(26, self.element.max())
+
+    def test_channel_iterator(self):
+        for i, channel in enumerate(DataElement.channel_iterator(data_element=self.element)):
+            self.assertEqual(self.element.get(freq=i), channel)
+
+    def test_channel_iterator_when_one_channel(self):
+        array = np.resize(np.arange(9), (3, 1, 3))
+        element = DataElement(array=array)
+        for i, channel in enumerate(DataElement.channel_iterator(data_element=element)):
+            self.assertLess(i, 1)
+            self.assertEqual(element.get(freq=i), channel)
