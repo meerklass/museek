@@ -39,6 +39,14 @@ class DataElement:
         """ Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`. """
         return np.squeeze(self._array[index])
 
+    def __str__(self):
+        """ Return the string of the underlying array. """
+        return str(self._array)
+
+    def __eq__(self, other: 'DataElement'):
+        """ Return `True` if the underlying arrays are equal. """
+        return (self._array == other._array).all()
+
     @property
     def squeeze(self) -> np.ndarray:
         """ Returns a `numpy` `array` containing the all dumps of `self` without redundant dimensions. """
@@ -89,3 +97,17 @@ class DataElement:
         :param kwargs: passed on to `self.get()`
         """
         return self.get(**kwargs)._array
+
+    def min(self):
+        """ Wrapper of `numpy.min()`. """
+        return self.squeeze.min()
+
+    def max(self):
+        """ Wrapper of `numpy.max(). """
+        return self.squeeze.max()
+
+    @classmethod
+    def channel_iterator(cls, data_element: 'DataElement'):
+        """ Iterate through the frequency channels of `data_element`. """
+        for channel in np.moveaxis(data_element._array, 1, 0):
+            yield cls(array=channel[:, np.newaxis, :])
