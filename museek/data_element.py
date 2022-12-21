@@ -19,7 +19,6 @@ class DataElement:
         if len(array.shape) != 3:
             raise ValueError(f'Input `array` needs to be 3-dimensional, got shape {array.shape}')
         self._array = array
-        self.shape = array.shape
 
     def __mul__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
         """
@@ -44,7 +43,12 @@ class DataElement:
         return str(self._array)
 
     def __eq__(self, other: 'DataElement'):
-        """ Return `True` if the underlying arrays are equal. """
+        """
+        Return `True` if the underlying arrays are equal.
+        This means their `shape` and content must be equal.
+        """
+        if self.shape != other.shape:
+            return False
         return (self._array == other._array).all()
 
     @property
@@ -54,6 +58,11 @@ class DataElement:
         if array.shape == (1, 1, 1):  # squeeze behaves weirdly in this case
             return array[0, 0, 0]
         return np.squeeze(array)
+
+    @property
+    def shape(self) -> tuple[int, int, int]:
+        """ Returns the shape of the underlying numpy array. """
+        return self._array.shape
 
     def mean(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the mean of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
