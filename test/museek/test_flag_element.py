@@ -12,6 +12,28 @@ class TestFlagElement(unittest.TestCase):
         flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(3)]
         self.flag_element = FlagElement(flags=flags)
 
+    def test_len(self):
+        self.assertEqual(3, len(self.flag_element))
+
+    def test_eq(self):
+        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(3)]
+        self.assertEqual(self.flag_element, FlagElement(flags=flags))
+
+    def test_eq_when_not_equal(self):
+        flags = [DataElement(array=np.ones((3, 3, 3))) for _ in range(3)]
+        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+
+    def test_eq_when_more_flags_expect_not_equal(self):
+        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(4)]
+        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+
+    def test_eq_when_different_shape_expect_not_equal(self):
+        flags = [DataElement(array=np.zeros((3, 4, 3))) for _ in range(3)]
+        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+
+    def test_shape(self):
+        self.assertTupleEqual((3, 3, 3), self.flag_element.shape)
+
     def test_add_flag(self):
         self.flag_element.add_flag(flag=DataElement(array=np.zeros((3, 3, 3))))
         flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(4)]
