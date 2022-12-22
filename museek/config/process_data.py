@@ -19,4 +19,7 @@ InOutPlugin = ConfigSection(
     do_use_noise_diode=True
 )
 
-MapMakerPlugin = ConfigSection()
+ZebraRemoverPlugin = ConfigSection(
+    reference_channel=3000,
+    zebra_channels=range(350, 498),
+)

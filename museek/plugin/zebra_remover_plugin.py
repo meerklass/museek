@@ -1,23 +1,25 @@
-import os
-
-from astropy import units
-from astropy.coordinates import SkyCoord
+import numpy as np
+from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from museek.enum.result_enum import ResultEnum
-from museek.katcali_visualiser import plot_data
-from museek.mask import point_mask_list
+from museek.flag_factory import FlagFactory
 from museek.time_ordered_data import TimeOrderedData
-from matplotlib import pyplot as plt
-import healpy
-import numpy as np
+from museek.visualiser import plot_time_ordered_data_map
 
 
 class ZebraRemoverPlugin(AbstractPlugin):
-    def __init__(self):
+    def __init__(self, reference_channel: int, zebra_channels: range | list[int]):
+        """
+        Initialise
+        :param reference_channel: the index of the reference channel, should be mostly rfi free before flagging
+        :param zebra_channels: `list` or `range` of channel indices affected by the emission from the vanwyksvlei tower
+        """
         super().__init__()
+        self.reference_channel = reference_channel
+        self.zebra_channels = zebra_channels
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -25,116 +27,114 @@ class ZebraRemoverPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, scan_data: TimeOrderedData, output_path: str):
-        channel = 3000
+        scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
+
+        # mask point sources
+        point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
+                                                                right_ascension=scan_data.right_ascension,
+                                                                declination=scan_data.declination)
+        scan_data.flags.add_flag(point_source_mask)
+
+        # set rfi free channels
+        rfi_free_channels = [3000, 3001]
+
+        # manually remove the satellites:
         start_index = 1500
         end_index = len(timestamp_dates)
         times = range(start_index, end_index)
-        scan_data.load_visibility_flags_weights()
 
-        # visibility = scan_data.visibility.get(recv=0).squeeze
-        # plt.imshow(visibility.T, aspect='auto')
-        # plt.axhline(channel, xmin=times[0] / len(timestamp_dates), xmax=1)
-        # plt.show()
+        channel_visibility = scan_data.visibility.get(recv=0, time=times, freq=self.reference_channel)
+        right_ascension = scan_data.right_ascension.get(recv=0, time=times)
+        declination = scan_data.declination.get(recv=0, time=times)
+        flags = scan_data.flags.get(recv=0, time=times, freq=self.reference_channel)
 
-        channel_visibility = scan_data.visibility.get(recv=0, time=times, freq=channel).squeeze
-        right_ascension = scan_data.right_ascension.get(recv=0, time=times).squeeze
-        declination = scan_data.declination.get(recv=0, time=times).squeeze
-
-        point_sources = np.loadtxt(os.path.join(os.path.dirname(__file__), '../../data/radio_point_sources.txt'))
-        data_points = SkyCoord(right_ascension * units.deg, declination * units.deg, frame='icrs')
-        angle_threshold = .5
-        point_source_mask_list = point_mask_list(mask_points=point_sources,
-                                                 data_points=data_points,
-                                                 angle_threshold=angle_threshold)
-
-        point_source_mask = np.zeros_like(channel_visibility, dtype=bool)
-        point_source_mask[point_source_mask_list] = True
-
-        zebra_channels = range(350, 498)
         frequencies = scan_data.frequencies.squeeze
-        zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
-        zebra_visibility = scan_data.visibility.get(freq=zebra_channels).squeeze
-        zebra_power = np.trapz(zebra_visibility, x=zebra_frequencies, axis=1)
+        zebra_frequencies = [frequencies[channel] for channel in self.zebra_channels]
+        zebra_visibility = scan_data.visibility.get(freq=self.zebra_channels, time=times)
+        zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
+        zebra_power_max = np.max(zebra_power)
 
-        rfi_free_channels = range(2500, 3000)
-        rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels).squeeze
+        rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times)
         rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
-        rfi_free_power = np.trapz(rfi_free_visibility, x=rfi_free_frequencies, axis=1)
 
-        fit = curve_fit(self.straight_line,
-                        zebra_power[start_index:end_index]*1e-10,
-                        rfi_free_power[start_index:end_index]*1e-10,
+        plt.imshow(scan_data.visibility.get(recv=0).squeeze.T, aspect='auto')
+        plt.axhline(self.reference_channel, xmin=times[0] / len(timestamp_dates), xmax=1)
+        plt.axhline(rfi_free_channels[0], xmin=times[0] / len(timestamp_dates), xmax=1)
+        plt.axhline(rfi_free_channels[-1], xmin=times[0] / len(timestamp_dates), xmax=1)
+        plt.show()
+
+        # fit a straight line to the scatter plot
+        def fitting_function(parameter, offset, gradient_):
+            return self.straight_line_fitting_wrapper(parameter=parameter,
+                                                      offset=offset,
+                                                      gradient=gradient_,
+                                                      repetitions=rfi_free_visibility.shape[1]).flatten()
+
+        fit = curve_fit(f=fitting_function,
+                        xdata=zebra_power / zebra_power_max,
+                        ydata=rfi_free_visibility.squeeze.flatten(),
                         p0=[1., 1.])
-        line_ = self.straight_line(zebra_power[start_index:end_index]*1e-10, *fit[0])*1e10
+        line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
+        normalized_line = line_ / line_[np.argmin(zebra_power)]  # divide by the lowest rfi power value
+        if any(normalized_line < 1):
+            print('WARNING, zebra cleaning seems to add new power to the signal.')
 
-        plt.scatter(zebra_power[start_index:end_index],
-                    rfi_free_power[start_index:end_index],
-                    color='black',
-                    s=0.1)
-        plt.plot(zebra_power[start_index:end_index], line_, color='black')
+        for i in range(rfi_free_visibility.shape[1]):
+            plt.scatter(zebra_power,
+                        rfi_free_visibility.squeeze[:, i],
+                        color='black',
+                        s=0.01)
+        plt.plot(zebra_power, line_, color='black', label='uncorrected')
+
+        for i in range(rfi_free_visibility.shape[1]):
+            plt.scatter(zebra_power,
+                        rfi_free_visibility.squeeze[:, i] / normalized_line,
+                        color='red',
+                        s=0.1)
+        plt.plot(zebra_power, line_ / normalized_line, color='red', label='excess power removed')
         plt.xlabel(f'Power integrated from {zebra_frequencies[0] / 1e6:.0f} to {zebra_frequencies[-1] / 1e6:.0f} MHz')
-        plt.ylabel(f'Power from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
+        plt.ylabel(f'Raw signal from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
                    f' MHz, mostly RFI free')
+        plt.legend()
         plt.show()
 
-        plt.scatter(zebra_power[start_index:end_index],
-                    rfi_free_power[start_index:end_index]/line_,
-                    color='black',
-                    s=0.1)
-        plt.plot(zebra_power[start_index:end_index], line_/line_, color='black')
-        plt.xlabel(f'Power integrated from {zebra_frequencies[0] / 1e6:.0f} to {zebra_frequencies[-1] / 1e6:.0f} MHz')
-        plt.ylabel(f'Power from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
-                   f' MHz, mostly RFI free')
-        plt.show()
+        killed_zebra = channel_visibility * (1 / normalized_line[:, np.newaxis, np.newaxis])
 
-        killed_zebra = channel_visibility/line_
-        killed_zebra *= np.mean(channel_visibility)/np.mean(killed_zebra)
-
-        plt.figure(figsize=(6,12))
-        plt.subplot(2,1,1)
-        plot_data(right_ascension, declination, killed_zebra, flags=[point_source_mask])
-        plt.title('linear zebra model gain multiplier')
-        plt.subplot(2,1,2)
-        plot_data(right_ascension, declination, channel_visibility, flags=[point_source_mask])
+        plt.figure(figsize=(6, 12))
+        plt.subplot(2, 1, 1)
+        plot_time_ordered_data_map(right_ascension=right_ascension,
+                                   declination=declination,
+                                   visibility=killed_zebra,
+                                   flags=flags)
+        plt.title('linear zebra model correction')
+        plt.subplot(2, 1, 2)
+        plot_time_ordered_data_map(right_ascension=right_ascension,
+                                   declination=declination,
+                                   visibility=channel_visibility,
+                                   flags=flags)
         plt.title('raw visibility')
-
         plt.show()
 
-
-
-        # for i, gradient in enumerate(np.linspace(fit[0][1]*0.1, fit[0][1]*3)):
-        #     line_ = self.straight_line(zebra_power[start_index:end_index] * 1e-10, fit[0][0], gradient) * 1e10
-        #     killed_zebra = channel_visibility / line_
-        #     killed_zebra *= np.mean(channel_visibility) / np.mean(killed_zebra)
+        # for i, gradient in enumerate(np.linspace(fit[0][1] * 0.1, fit[0][1] * 3)):
+        #     line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
+        #     normalized_line = line_ / line_[np.argmin(zebra_power)]
         #
-        #     plot_data(right_ascension, declination, killed_zebra, flags=[point_source_mask])
-        #     plt.title(f'line gradient {gradient}')
+        #     killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
+        #     plot_time_ordered_data_map(right_ascension=right_ascension,
+        #                                declination=declination,
+        #                                visibility=killed_zebra,
+        #                                flags=flags)
+        #     plt.title(f'line gradient {gradient:.3f}')
         #     plot_name = f'zebra_removal_{i}.png'
+        #     import os
         #     plt.savefig(os.path.join(output_path, plot_name))
         #     plt.close()
-
-    def ra_dec_to_index(self, declination, right_ascension, nside):
-        return healpy.pixelfunc.ang2pix(nside,
-                                        self.declination_to_phi(declination),
-                                        self.right_ascension_to_theta(right_ascension))
-
-    @staticmethod
-    def declination_to_phi(declination):
-        return np.radians(-declination + 90.)
-
-    @staticmethod
-    def right_ascension_to_theta(right_ascension):
-        return np.radians(360. - right_ascension)
-
-    @staticmethod
-    def longitude_range(right_ascension, margin=1):
-        return [360 - max(right_ascension) - margin, 360 - min(right_ascension) + margin]
-
-    @staticmethod
-    def latitude_range(declination, margin=1):
-        return [min(declination) - margin, max(declination) + margin]
 
     @staticmethod
     def straight_line(parameter, offset, gradient):
         return offset + gradient * parameter
+
+    def straight_line_fitting_wrapper(self, parameter, offset, gradient, repetitions: int):
+        line_ = self.straight_line(parameter=parameter, offset=offset, gradient=gradient)
+        return np.tile(line_[:, np.newaxis], (1, repetitions))
