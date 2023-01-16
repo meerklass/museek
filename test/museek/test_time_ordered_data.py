@@ -65,25 +65,31 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_get_data.assert_called_once()
         mock_select.assert_called_once_with(data=mock_get_data.return_value)
 
+    @patch('museek.time_ordered_data.FlagElement')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights):
+    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_flag_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
+        mock_flag_element.assert_called_once_with(
+            flags=[self.mock_get_data_element_factory.return_value.create.return_value]
+        )
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
-        self.assertEqual(self.time_ordered_data.flags,
-                         [self.mock_get_data_element_factory.return_value.create.return_value])
+        self.assertEqual(self.time_ordered_data.flags, mock_flag_element.return_value)
         self.assertEqual(self.time_ordered_data.weights,
                          self.mock_get_data_element_factory.return_value.create.return_value)
 
+    @patch('museek.time_ordered_data.FlagElement')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights):
+    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_flag_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
+        mock_flag_element.assert_called_once_with(
+            flags=[self.mock_get_data_element_factory.return_value.create.return_value]
+        )
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
-        self.assertEqual(self.time_ordered_data.flags,
-                         [self.mock_get_data_element_factory.return_value.create.return_value])
+        self.assertEqual(self.time_ordered_data.flags, mock_flag_element.return_value)
         self.assertEqual(self.time_ordered_data.weights,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.time_ordered_data.delete_visibility_flags_weights()
