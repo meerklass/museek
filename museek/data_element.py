@@ -19,7 +19,6 @@ class DataElement:
         if len(array.shape) != 3:
             raise ValueError(f'Input `array` needs to be 3-dimensional, got shape {array.shape}')
         self._array = array
-        self.shape = array.shape
 
     def __mul__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
         """
@@ -39,6 +38,19 @@ class DataElement:
         """ Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`. """
         return np.squeeze(self._array[index])
 
+    def __str__(self):
+        """ Return the string of the underlying array. """
+        return str(self._array)
+
+    def __eq__(self, other: 'DataElement'):
+        """
+        Return `True` if the underlying arrays are equal.
+        This means their `shape` and content must be equal.
+        """
+        if self.shape != other.shape:
+            return False
+        return (self._array == other._array).all()
+
     @property
     def squeeze(self) -> np.ndarray:
         """ Returns a `numpy` `array` containing the all dumps of `self` without redundant dimensions. """
@@ -47,15 +59,20 @@ class DataElement:
             return array[0, 0, 0]
         return np.squeeze(array)
 
+    @property
+    def shape(self) -> tuple[int, int, int]:
+        """ Returns the shape of the underlying numpy array. """
+        return self._array.shape
+
     def mean(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the mean of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
 
     def get(self,
             *,  # force named parameters
-            time: int | list[int] | slice | None = None,
-            freq: int | list[int] | slice | None = None,
-            recv: int | list[int] | slice | None = None,
+            time: int | list[int] | slice | range | None = None,
+            freq: int | list[int] | slice | range | None = None,
+            recv: int | list[int] | slice | range | None = None,
             ) -> 'DataElement':
         """
         Simplified indexing
@@ -89,3 +106,17 @@ class DataElement:
         :param kwargs: passed on to `self.get()`
         """
         return self.get(**kwargs)._array
+
+    def min(self):
+        """ Wrapper of `numpy.min()`. """
+        return self.squeeze.min()
+
+    def max(self):
+        """ Wrapper of `numpy.max(). """
+        return self.squeeze.max()
+
+    @classmethod
+    def channel_iterator(cls, data_element: 'DataElement'):
+        """ Iterate through the frequency channels of `data_element`. """
+        for channel in np.moveaxis(data_element._array, 1, 0):
+            yield cls(array=channel[:, np.newaxis, :])
