@@ -5,9 +5,10 @@ import numpy as np
 from astropy import coordinates, units
 from katpoint import Antenna
 
+from ivory.enum.context_storage_enum import ContextStorageEnum
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from ivory.utils.struct import Struct
+from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
@@ -86,6 +87,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
+        self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
+        self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
+
     def savefig(self, description: str = 'description'):
         """ Save a figure and embed it in the report with `description`. """
         count = next(self.plot_count)
@@ -149,7 +153,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                  '.-')
         plt.xlabel('ra')
         plt.ylabel('dec')
-        self.savefig(description=f'Scanning route of entire observation. '
+        self.savefig(description=f'Pointing route of entire observation. '
                                  f'Reference antenna {reference_antenna.name}.')
 
         plt.figure(figsize=(8, 5))
@@ -184,11 +188,20 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         reference_elevation = data.elevation.get(recv=self.reference_receiver_index)
         reference_azimuth = data.azimuth.get(recv=self.reference_receiver_index)
 
+        reference_receiver = data.receivers[self.reference_receiver_index]
+        plt.plot(data.right_ascension.get(recv=self.reference_receiver_index).squeeze,
+                 data.declination.get(recv=self.reference_receiver_index).squeeze,
+                 '.-')
+        plt.xlabel('ra')
+        plt.ylabel('dec')
+        self.savefig(description=f'Pointing route of entire scan. '
+                                 f'Reference antenna {data.antenna(receiver=reference_receiver).name}.')
+
         plt.figure(figsize=(8, 4))
         plt.plot(sky_coordinates.az, sky_coordinates.alt, '.-')
         plt.xlabel('az')
         plt.ylabel('el')
-        self.savefig(description=f'Scanning route of entire observation. '
+        self.savefig(description=f'Entire scanning route. '
                                  f'All antennas.')
 
         plt.figure(figsize=(8, 4))
