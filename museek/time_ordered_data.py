@@ -174,7 +174,7 @@ class TimeOrderedData:
         """
         if self._token is not None:
             katdal_open_argument = f'https://archive-gw-1.kat.ac.za/' \
-                                   f'{self._block_name}/{self._block_name}_sdp_l0.full.rdb?{self._token}'
+                                   f'{self._block_name}/{self._block_name}_sdp_l0.full.rdb?token={self._token}'
         else:
             katdal_open_argument = os.path.join(
                 self._data_folder,
