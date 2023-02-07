@@ -94,7 +94,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
             fit = curve_fit(f=fitting_function,
                             xdata=zebra_power / zebra_power_max,
                             ydata=rfi_free_visibility.squeeze.flatten(),
-                            p0=[1., 1.])
+                            p0=[0., 5.])
             line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
             normalized_line = line_ / line_[np.argmin(zebra_power)]  # divide by the lowest rfi power value
             if any(normalized_line < 1):
