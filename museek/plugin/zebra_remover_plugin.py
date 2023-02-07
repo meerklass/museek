@@ -168,19 +168,19 @@ class ZebraRemoverPlugin(AbstractPlugin):
                     )
                     plt.close()
 
-            # for i, gradient in enumerate(np.linspace(0, 1)):
-            #     line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
-            #     normalized_line = line_ / line_[np.argmin(zebra_power)]
-            #
-            #     killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
-            #     plot_time_ordered_data_map(right_ascension=right_ascension,
-            #                                declination=declination,
-            #                                visibility=killed_zebra,
-            #                                flags=flags)
-            #     plt.title(f'line gradient {gradient:.3f}')
-            #     plot_name = f'zebra_removal_{i}.png'
-            #     plt.savefig(os.path.join(receiver_path, plot_name))
-            #     plt.close()
+            for i, gradient in enumerate(np.linspace(0, fit[0][1]*3)):
+                line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
+                normalized_line = line_ / line_[np.argmin(zebra_power)]
+
+                killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
+                plot_time_ordered_data_map(right_ascension=right_ascension,
+                                           declination=declination,
+                                           visibility=killed_zebra,
+                                           flags=flags)
+                plt.title(f'line gradient {gradient:.3f}')
+                plot_name = f'zebra_removal_{i}.png'
+                plt.savefig(os.path.join(receiver_path, plot_name))
+                plt.close()
 
             azimuth = scan_data.azimuth.get(recv=i_antenna, time=times).squeeze
             plt.figure(figsize=(18, 12))
