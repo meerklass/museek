@@ -8,9 +8,9 @@ Pipeline = ConfigSection(
 )
 
 InOutPlugin = ConfigSection(
-    # block_name='1631379874',  # observation time stamp
+    block_name='1631379874',  # observation time stamp
     # block_name='1632184922',  # observation time stamp
-    block_name='1631552188',  # observation time stamp   DATA NOT DOWNLOADED PROPERLY
+    # block_name='1631552188',  # observation time stamp   DATA NOT DOWNLOADED PROPERLY
     # block_name='1632760885',  # observation time stamp  DATA NOT DOWNLOADED PROPERLY
     receiver_list=['m000h', 'm000v', 'm007v','m007h'],
     token=None,  # archive token
@@ -32,6 +32,7 @@ ZebraRemoverPlugin = ConfigSection(
         '1632760885': (1500, 'end'),
         '1631552188': (0, 'end'),
         '1638898468': (0, 1500),
-        '1637354605': (0, 1500)
+        '1637354605': (0, 1500),
+        '1631667564': (0, 'end')
     }
 )

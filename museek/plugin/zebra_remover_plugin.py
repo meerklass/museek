@@ -81,13 +81,25 @@ class ZebraRemoverPlugin(AbstractPlugin):
             rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times, recv=i_receiver)
             rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
 
-            plt.imshow(scan_data.visibility.get(recv=i_receiver).squeeze.T, aspect='auto')
-            plt.axhline(self.reference_channel, xmin=times[0] / len(timestamp_dates),
+            extent = [scan_data.timestamps[0],
+                      scan_data.timestamps[-1],
+                      scan_data.frequencies.get(freq=-1).squeeze / mega,
+                      scan_data.frequencies.get(freq=0).squeeze / mega]
+
+            plt.imshow(scan_data.visibility.get(recv=i_receiver).squeeze.T,
+                       aspect='auto',
+                       extent=extent)
+            plt.axhline(scan_data.frequencies.get(freq=self.reference_channel).squeeze / mega,
+                        xmin=times[0] / len(timestamp_dates),
                         xmax=times[-1] / len(timestamp_dates))
-            plt.axhline(rfi_free_channels[0], xmin=times[0] / len(timestamp_dates),
+            plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[0]).squeeze / mega,
+                        xmin=times[0] / len(timestamp_dates),
                         xmax=times[-1] / len(timestamp_dates))
-            plt.axhline(rfi_free_channels[-1], xmin=times[0] / len(timestamp_dates),
+            plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[-1]).squeeze / mega,
+                        xmin=times[0] / len(timestamp_dates),
                         xmax=times[-1] / len(timestamp_dates))
+            plt.xlabel('timestamp [s]')
+            plt.ylabel('frequency [MHz]')
             plt.savefig(os.path.join(receiver_path, f'waterfall.png'))
             plt.close()
 
