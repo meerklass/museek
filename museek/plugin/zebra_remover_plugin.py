@@ -81,8 +81,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
             rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times, recv=i_receiver)
             rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
 
-            extent = [scan_data.timestamps[0],
-                      scan_data.timestamps[-1],
+            extent = [0,
+                      len(scan_data.timestamps.squeeze),
                       scan_data.frequencies.get(freq=-1).squeeze / mega,
                       scan_data.frequencies.get(freq=0).squeeze / mega]
 
@@ -98,7 +98,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[-1]).squeeze / mega,
                         xmin=times[0] / len(timestamp_dates),
                         xmax=times[-1] / len(timestamp_dates))
-            plt.xlabel('timestamp [s]')
+            plt.xlabel('dump index')
             plt.ylabel('frequency [MHz]')
             plt.savefig(os.path.join(receiver_path, f'waterfall.png'))
             plt.close()
