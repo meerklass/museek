@@ -172,6 +172,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                                visibility=scan_data.visibility.get(freq=channel,
                                                                                    time=times,
                                                                                    recv=i_receiver),
+                                               grid_size=(30, 30),
                                                flags=flags)
 
                     plt.savefig(os.path.join(
