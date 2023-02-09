@@ -132,7 +132,9 @@ class TimeOrderedData:
         self.azimuth = self._element_factory.create(array=data.az[:, np.newaxis, :])
         self.elevation = self._element_factory.create(array=data.el[:, np.newaxis, :])
         self.declination = self._element_factory.create(array=data.dec[:, np.newaxis, :])
-        self.right_ascension = self._element_factory.create(array=data.ra[:, np.newaxis, :])
+        self.right_ascension = self._element_factory.create(
+            array=self._convert_right_ascension(right_ascension=data.ra)[:, np.newaxis, :]
+        )
 
         # climate
         self.temperature = self._element_factory.create(array=data.temperature[:, np.newaxis, np.newaxis])
@@ -301,3 +303,9 @@ class TimeOrderedData:
             scan_tuple = ScanTuple(dumps=data.dumps, state=ScanStateEnum.get_enum(state), index=index, target=target)
             scan_tuple_list.append(scan_tuple)
         return scan_tuple_list
+
+    @staticmethod
+    def _convert_right_ascension(right_ascension: np.ndarray) -> np.ndarray:
+        return np.asarray([[timestamp_ra if timestamp_ra < 180 else timestamp_ra - 360
+                            for timestamp_ra in dish_ra]
+                           for dish_ra in right_ascension])
