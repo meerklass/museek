@@ -11,7 +11,7 @@ InOutPlugin = ConfigSection(
     # block_name='1631379874',  # observation time stamp
     # block_name='1632184922',  # observation time stamp
     block_name='1632760885',  # observation time stamp
-    receiver_list=['m000h', 'm000v', 'm007v','m007h'],
+    receiver_list=['m000h', 'm000v', 'm007v', 'm007h'],
     token=None,  # archive token
     data_folder='/idia/projects/hi_im/SCI-20210212-MS-01/',  # only relevant if `token` is `None`
     output_folder=None,  # directory to store results, if `None`, a 'results/' is chosen
@@ -25,7 +25,8 @@ ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,
     zebra_channels=range(379, 498),
     do_create_maps_of_frequency=False,
-    satellite_free_dump_dict = {
+    grid_size=(30, 30),
+    satellite_free_dump_dict={
         '1631379874': (1500, 'end'),
         '1632184922': (0, 500),
         '1632760885': (1500, 'end'),

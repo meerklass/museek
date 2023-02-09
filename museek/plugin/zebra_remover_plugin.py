@@ -18,7 +18,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                  reference_channel: int,
                  zebra_channels: range | list[int],
                  do_create_maps_of_frequency: bool,
-                 satellite_free_dump_dict: dict):
+                 satellite_free_dump_dict: dict,
+                 grid_size: tuple[int, int] = (60, 60)):
         """
         Initialise
         :param reference_channel: the index of the reference channel, should be mostly rfi free before flagging
@@ -29,6 +30,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
         self.zebra_channels = zebra_channels
         self.do_create_maps_of_frequency = do_create_maps_of_frequency
         self.satellite_free_dump_dict = satellite_free_dump_dict
+        self.grid_size = grid_size
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -138,13 +140,15 @@ class ZebraRemoverPlugin(AbstractPlugin):
             # plot_time_ordered_data_map(right_ascension=right_ascension,
             #                            declination=declination,
             #                            visibility=killed_zebra,
-            #                            flags=flags)
+            #                            flags=flags,
+            #                            grid_size=self.grid_size)
             # plt.title('linear zebra model correction')
             # plt.subplot(2, 1, 2)
             # plot_time_ordered_data_map(right_ascension=right_ascension,
             #                            declination=declination,
             #                            visibility=channel_visibility,
-            #                            flags=flags)
+            #                            flags=flags,
+            #                            grid_size=self.grid_size)
             # plt.title('raw visibility')
             # plt.show()
 
@@ -172,7 +176,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                                visibility=scan_data.visibility.get(freq=channel,
                                                                                    time=times,
                                                                                    recv=i_receiver),
-                                               grid_size=(30, 30),
+                                               grid_size=self.grid_size,
                                                flags=flags)
 
                     plt.savefig(os.path.join(
@@ -188,7 +192,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plot_time_ordered_data_map(right_ascension=right_ascension,
                                        declination=declination,
                                        visibility=DataElement(array=zebra_power[:, np.newaxis, np.newaxis]),
-                                       flags=flags)
+                                       flags=flags,
+                                       grid_size=self.grid_size)
 
             plt.subplot(2, 3, 2)
             plt.plot(azimuth, zebra_power)
@@ -216,14 +221,16 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plot_time_ordered_data_map(right_ascension=right_ascension,
                                        declination=declination,
                                        visibility=channel_visibility,
-                                       flags=flags)
+                                       flags=flags,
+                                       grid_size=self.grid_size)
             plt.title('raw visibility')
 
             plt.subplot(2, 3, 5)
             plot_time_ordered_data_map(right_ascension=right_ascension,
                                        declination=declination,
                                        visibility=killed_zebra,
-                                       flags=flags)
+                                       flags=flags,
+                                       grid_size=self.grid_size)
             plt.title(f'linear model correction offset {fit[0][0]:.2f} gradient {fit[0][1]:.2f}')
 
             plt.subplot(2, 3, 6)
@@ -257,7 +264,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                 plot_time_ordered_data_map(right_ascension=right_ascension,
                                            declination=declination,
                                            visibility=killed_zebra,
-                                           flags=flags)
+                                           flags=flags,
+                                           grid_size=self.grid_size)
                 plt.title(f'line gradient {gradient:.3f}')
                 plot_name = f'zebra_removal_{i}.png'
                 plt.savefig(os.path.join(receiver_path, plot_name))
