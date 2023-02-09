@@ -54,6 +54,17 @@ class TestNoiseDiode(unittest.TestCase):
         self.assertEqual(1, period)
         self.assertEqual(3, set_at)
 
+    def test_get_noise_diode_settings_from_2019_obs_script(self):
+        mock_obs_script_log = [
+            'INFO Request noise diode pattern to repeat every 20.0 sec, with 1.8 sec on and apply pattern to all',
+            'WARNING Set noise diode pattern to activate at 1556120503.0, with 5.0 sec lead time'
+        ]
+        self.noise_diode._observation_log = mock_obs_script_log
+        duration, period, set_at = self.noise_diode._get_noise_diode_settings_from_2019_obs_script()
+        self.assertEqual(1.8, duration)
+        self.assertEqual(20.0, period)
+        self.assertEqual(1556120503.0, set_at)
+
     @patch.object(NoiseDiode, '_get_noise_diode_ratios')
     def test_get_where_noise_diode_is_off(self, mock_get_noise_diode_ratios):
         mock_get_noise_diode_ratios.return_value = np.array([0, 0.1, 0.5])
