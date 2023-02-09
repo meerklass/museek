@@ -32,6 +32,7 @@ ZebraRemoverPlugin = ConfigSection(
         '1638898468': (0, 1500),
         '1637354605': (0, 1500),
         '1631667564': (2000, 'end'),
-        '1556120503': (0, 'end')
+        '1556120503': (0, 'end'),  # satellites all the way through
+        '1555775533': (0, 'end')
     }
 )
