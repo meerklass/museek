@@ -39,6 +39,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
     def run(self, scan_data: TimeOrderedData, output_path: str):
         mega = 1e6
+        best_fit_gradient = 0.582
         scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
 
@@ -122,11 +123,6 @@ class ZebraRemoverPlugin(AbstractPlugin):
                             ydata=rfi_free_visibility.squeeze.flatten(),
                             p0=[174.1521948, 1.0, 10., 0.85],
                             bounds=([0, 0, 0, 0.5], [1000, 20, 30, 1]))
-
-            # np.savez(os.path.join(receiver_path, 'gain_model_fit_data'),
-            #          xdata=zebra_power / zebra_power_max,
-            #          ydata=rfi_free_visibility.squeeze.flatten(),
-            #          zebra_power_max=zebra_power_max)
 
             # line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
             line_ = self.two_lines(zebra_power / zebra_power_max, *fit[0])
@@ -283,20 +279,22 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.savefig(os.path.join(receiver_path, f'zebra_correction_matrix_plot.png'))
             plt.close()
 
-            # for i, gradient in enumerate(np.linspace(0, 1.5)):
-            #     line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
-            #     normalized_line = line_ / line_[np.argmin(zebra_power)]
-            #
-            #     killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
-            #     plot_time_ordered_data_map(right_ascension=right_ascension,
-            #                                declination=declination,
-            #                                visibility=killed_zebra,
-            #                                flags=flags,
-            #                                grid_size=self.grid_size)
-            #     plt.title(f'line gradient {gradient:.3f}')
-            #     plot_name = f'zebra_removal_{i}.png'
-            #     plt.savefig(os.path.join(receiver_path, plot_name))
-            #     plt.close()
+            for i, gradient in enumerate(np.linspace(0.5, 5)):
+                line_ = self.two_lines(zebra_power / zebra_power_max, fit[0][0], best_fit_gradient, gradient, fit[0][3])
+
+                # line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
+                normalized_line = line_ / line_[np.argmin(zebra_power)]
+
+                killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
+                plot_time_ordered_data_map(right_ascension=right_ascension,
+                                           declination=declination,
+                                           visibility=killed_zebra,
+                                           flags=flags,
+                                           grid_size=self.grid_size)
+                plt.title(f'line gradient {gradient:.3f}')
+                plot_name = f'zebra_removal_{i}.png'
+                plt.savefig(os.path.join(receiver_path, plot_name))
+                plt.close()
 
     @staticmethod
     def straight_line(parameter, offset, gradient):
