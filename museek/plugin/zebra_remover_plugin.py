@@ -279,7 +279,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.savefig(os.path.join(receiver_path, f'zebra_correction_matrix_plot.png'))
             plt.close()
 
-            for i, gradient in enumerate(np.linspace(0.5, 5)):
+            for i, gradient in enumerate(np.linspace(5, 20)):
                 line_ = self.two_lines(zebra_power / zebra_power_max, fit[0][0], best_fit_gradient, gradient, fit[0][3])
 
                 # line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
