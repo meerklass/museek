@@ -109,6 +109,12 @@ class ZebraRemoverPlugin(AbstractPlugin):
                             xdata=zebra_power / zebra_power_max,
                             ydata=rfi_free_visibility.squeeze.flatten(),
                             p0=[0., 5.])
+
+            np.savez(os.path.join(receiver_path, 'gain_model_fit_data'),
+                     xdata=zebra_power / zebra_power_max,
+                     ydata=rfi_free_visibility.squeeze.flatten(),
+                     zebra_power_max=zebra_power_max)
+
             line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
             normalized_line = line_ / line_[np.argmin(zebra_power)]  # divide by the lowest rfi power value
             if any(normalized_line < 1):
