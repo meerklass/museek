@@ -39,7 +39,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
     def run(self, scan_data: TimeOrderedData, output_path: str):
         mega = 1e6
-        best_fit_gradient = 0.582
+        best_fit_gradient = 5.6
         scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
 
@@ -247,7 +247,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        visibility=killed_zebra,
                                        flags=flags,
                                        grid_size=self.grid_size)
-            plt.title(f'linear model correction offset {fit[0][0]:.2f} gradient {fit[0][1]:.2f}')
+            plt.title(f'linear model correction offset {fit[0][0]:.2f} '
+                      f'gradient {fit[0][1]:.2f} gradient 2 {fit[0][2]:.2f} and pivot {fit[0][3]:.2f}')
 
             zebra_power_sort_args = np.argsort(zebra_power)
             plt.subplot(2, 3, 6)
