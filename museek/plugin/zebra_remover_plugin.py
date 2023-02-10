@@ -64,6 +64,14 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                                       gradient=gradient_,
                                                       repetitions=rfi_free_visibility.shape[1]).flatten()
 
+        def fitting_function_two_lines(parameter, offset1, gradient1, gradient2, pivot):
+            return self.two_straight_lines_fitting_wrapper(parameter=parameter,
+                                                           offset1=offset1,
+                                                           gradient1=gradient1,
+                                                           pivot=pivot,
+                                                           gradient2=gradient2,
+                                                           repetitions=2).flatten()
+
         for i_receiver, receiver in enumerate(scan_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
@@ -105,17 +113,23 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.savefig(os.path.join(receiver_path, f'waterfall.png'))
             plt.close()
 
-            fit = curve_fit(f=fitting_function,
+            # fit = curve_fit(f=fitting_function,
+            #                 xdata=zebra_power / zebra_power_max,
+            #                 ydata=rfi_free_visibility.squeeze.flatten(),
+            #                 p0=[0., 5.])
+            fit = curve_fit(f=fitting_function_two_lines,
                             xdata=zebra_power / zebra_power_max,
                             ydata=rfi_free_visibility.squeeze.flatten(),
-                            p0=[0., 5.])
+                            p0=[174.1521948, 1.0, 10., 0.85],
+                            bounds=([0, 0, 0, 0.5], [1000, 20, 30, 1]))
 
-            np.savez(os.path.join(receiver_path, 'gain_model_fit_data'),
-                     xdata=zebra_power / zebra_power_max,
-                     ydata=rfi_free_visibility.squeeze.flatten(),
-                     zebra_power_max=zebra_power_max)
+            # np.savez(os.path.join(receiver_path, 'gain_model_fit_data'),
+            #          xdata=zebra_power / zebra_power_max,
+            #          ydata=rfi_free_visibility.squeeze.flatten(),
+            #          zebra_power_max=zebra_power_max)
 
-            line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
+            # line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
+            line_ = self.two_lines(zebra_power / zebra_power_max, *fit[0])
             normalized_line = line_ / line_[np.argmin(zebra_power)]  # divide by the lowest rfi power value
             if any(normalized_line < 1):
                 print('WARNING, zebra cleaning seems to add new power to the signal.')
@@ -239,20 +253,27 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        grid_size=self.grid_size)
             plt.title(f'linear model correction offset {fit[0][0]:.2f} gradient {fit[0][1]:.2f}')
 
+            zebra_power_sort_args = np.argsort(zebra_power)
             plt.subplot(2, 3, 6)
             for i in range(rfi_free_visibility.shape[1]):
                 plt.scatter(zebra_power,
                             rfi_free_visibility.squeeze[:, i],
                             color='black',
                             s=0.01)
-            plt.plot(zebra_power, line_, color='black', label='uncorrected')
+            plt.plot(zebra_power[zebra_power_sort_args],
+                     line_[zebra_power_sort_args],
+                     color='black',
+                     label='uncorrected')
 
             for i in range(rfi_free_visibility.shape[1]):
                 plt.scatter(zebra_power,
                             rfi_free_visibility.squeeze[:, i] / normalized_line,
                             color='red',
                             s=0.1)
-            plt.plot(zebra_power, line_ / normalized_line, color='red', label='excess power removed')
+            plt.plot(zebra_power[zebra_power_sort_args],
+                     line_[zebra_power_sort_args] / normalized_line[zebra_power_sort_args],
+                     color='red',
+                     label='excess power removed')
             plt.xlabel(
                 f'Power integrated from {zebra_frequencies[0] / 1e6:.0f} to {zebra_frequencies[-1] / 1e6:.0f} MHz')
             plt.ylabel(f'Raw signal from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}'
@@ -262,20 +283,20 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.savefig(os.path.join(receiver_path, f'zebra_correction_matrix_plot.png'))
             plt.close()
 
-            for i, gradient in enumerate(np.linspace(0, 1.5)):
-                line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
-                normalized_line = line_ / line_[np.argmin(zebra_power)]
-
-                killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
-                plot_time_ordered_data_map(right_ascension=right_ascension,
-                                           declination=declination,
-                                           visibility=killed_zebra,
-                                           flags=flags,
-                                           grid_size=self.grid_size)
-                plt.title(f'line gradient {gradient:.3f}')
-                plot_name = f'zebra_removal_{i}.png'
-                plt.savefig(os.path.join(receiver_path, plot_name))
-                plt.close()
+            # for i, gradient in enumerate(np.linspace(0, 1.5)):
+            #     line_ = self.straight_line(zebra_power * 1e-10, fit[0][0], gradient)
+            #     normalized_line = line_ / line_[np.argmin(zebra_power)]
+            #
+            #     killed_zebra = channel_visibility * (1 / normalized_line)[:, np.newaxis, np.newaxis]
+            #     plot_time_ordered_data_map(right_ascension=right_ascension,
+            #                                declination=declination,
+            #                                visibility=killed_zebra,
+            #                                flags=flags,
+            #                                grid_size=self.grid_size)
+            #     plt.title(f'line gradient {gradient:.3f}')
+            #     plot_name = f'zebra_removal_{i}.png'
+            #     plt.savefig(os.path.join(receiver_path, plot_name))
+            #     plt.close()
 
     @staticmethod
     def straight_line(parameter, offset, gradient):
@@ -284,3 +305,19 @@ class ZebraRemoverPlugin(AbstractPlugin):
     def straight_line_fitting_wrapper(self, parameter, offset, gradient, repetitions: int):
         line_ = self.straight_line(parameter=parameter, offset=offset, gradient=gradient)
         return np.tile(line_[:, np.newaxis], (1, repetitions))
+
+    def two_straight_lines_fitting_wrapper(self, parameter, offset1, gradient1, gradient2, pivot, repetitions: int):
+        line_ = self.two_lines(parameter=parameter, offset1=offset1, gradient1=gradient1, gradient2=gradient2,
+                               pivot=pivot)
+        return np.tile(line_[:, np.newaxis], (1, repetitions))
+
+    @staticmethod
+    def two_lines(parameter, offset1, gradient1, gradient2, pivot=0.85):
+        offset2 = (gradient1 - gradient2) * pivot + offset1
+        result = [
+            ZebraRemoverPlugin.straight_line(parameter=param, offset=offset1, gradient=gradient1)
+            if param <= pivot
+            else ZebraRemoverPlugin.straight_line(parameter=param, offset=offset2, gradient=gradient2)
+            for param in parameter
+        ]
+        return np.asarray(result)
