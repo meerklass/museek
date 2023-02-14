@@ -141,6 +141,9 @@ class TimeOrderedData:
 
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
+        if self.flags is not None and self.weights is not None and self.visibility is not None:
+            print('Visibility, flag and weight data is already loaded.')
+            return
         visibility, flags, weights = self._visibility_flags_weights()
         self.visibility = self._element_factory.create(array=visibility)
         if self.flags is not None:
