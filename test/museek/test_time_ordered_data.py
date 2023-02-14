@@ -80,6 +80,17 @@ class TestTimeOrderedData(unittest.TestCase):
                          self.mock_get_data_element_factory.return_value.create.return_value)
 
     @patch('museek.time_ordered_data.FlagElement')
+    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_element):
+        self.time_ordered_data.visibility = 1
+        self.time_ordered_data.flags = 1
+        self.time_ordered_data.weights = 1
+        self.time_ordered_data.load_visibility_flags_weights()
+        mock_flag_element.assert_not_called()
+        self.assertEqual(self.time_ordered_data.visibility, 1)
+        self.assertEqual(self.time_ordered_data.flags, 1)
+        self.assertEqual(self.time_ordered_data.weights, 1)
+
+    @patch('museek.time_ordered_data.FlagElement')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_flag_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
@@ -154,7 +165,7 @@ class TestTimeOrderedData(unittest.TestCase):
                         token=token,
                         data_folder=None)
         mock_open.assert_called_once_with(
-            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
+            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?token={token}'
         )
         mock_select.assert_called_once()
         mock_set_data_elements.assert_called_once()
