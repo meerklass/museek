@@ -298,6 +298,11 @@ class ZebraRemoverPlugin(AbstractPlugin):
                 plt.savefig(os.path.join(receiver_path, plot_name))
                 plt.close()
 
+
+        context_file_name = 'zebra_remover_plugin.pickle'
+        self.store_context_to_disc(context_file_name=context_file_name,
+                                   context_directory=output_path)
+
     @staticmethod
     def straight_line(parameter, offset, gradient):
         return offset + gradient * parameter
