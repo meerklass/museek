@@ -32,6 +32,8 @@ class NoiseDiode:
         """
         duration, period, first_set_at = self._get_noise_diode_settings_from_obs_script()
         if duration is None or period is None or first_set_at is None:
+            duration, period, first_set_at = self._get_noise_diode_settings_from_2019_obs_script()
+        if duration is None or period is None or first_set_at is None:
             raise NotImplementedError('Noise diode settings could not be read from the observation script log.')
         return duration, period, first_set_at
 
@@ -59,6 +61,35 @@ class NoiseDiode:
                 elif (search_string_1 := 'Report: Switch noise-diode pattern on at ') in observation_log_line:
                     start_index = observation_log_line.index(search_string_1) + len(search_string_1)
                     string_with_one_float = observation_log_line[start_index:]
+                    noise_diode_set_at = float(string_with_one_float)
+        return noise_diode_on_duration, noise_diode_period, noise_diode_set_at
+
+    def _get_noise_diode_settings_from_2019_obs_script(self) -> tuple[float | None, float | None, float | None]:
+        """
+        Reads the noise diode settings from `data.obs_script_log` `list` of `string`s.
+        This method assumes exact wording in `data.obs_script_log` and will fail if that is not present.
+        If reading one of them fails, `None` is returned within the `tuple`.
+        :return: a `tuple` of duration of the noise diode turned on, the duration of one cycle or period, and the
+                 timestamp of it being turned on. Each can be `None`.
+        """
+        noise_diode_set_at: float | None = None
+        noise_diode_on_duration: float | None = None
+        noise_diode_period: float | None = None
+        for observation_log_line in self._observation_log:
+            if 'INFO' in observation_log_line:
+                if (search_string_1 := 'Request noise diode pattern to repeat every ') in observation_log_line:
+                    if (search_string_2 := ' sec on') in observation_log_line:
+                        start_index = observation_log_line.index(search_string_1) + len(search_string_1)
+                        end_index = observation_log_line.index(search_string_2)
+                        string_with_two_floats = observation_log_line[start_index:end_index]
+                        string_with_two_floats_split = string_with_two_floats.split(' ')
+                        noise_diode_period = float(string_with_two_floats_split[0])
+                        noise_diode_on_duration = float(string_with_two_floats_split[-1])
+            elif 'WARNING' in observation_log_line:
+                if (search_string_1 := 'Set noise diode pattern to activate at ') in observation_log_line:
+                    start_index = observation_log_line.index(search_string_1) + len(search_string_1)
+                    end_index = observation_log_line.index(', with ')
+                    string_with_one_float = observation_log_line[start_index:end_index]
                     noise_diode_set_at = float(string_with_one_float)
         return noise_diode_on_duration, noise_diode_period, noise_diode_set_at
 
