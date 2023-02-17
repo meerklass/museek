@@ -75,6 +75,9 @@ class InOutPlugin(AbstractPlugin):
         scan_data = deepcopy(all_data)
         scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
 
+        track_data = deepcopy(all_data)
+        track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
+
         output_path = os.path.join(self.output_folder, f'{self.block_name}/')
         os.makedirs(output_path, exist_ok=True)
 
@@ -83,6 +86,7 @@ class InOutPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.DATA, result=all_data))
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
+        self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=output_path))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
