@@ -3,7 +3,8 @@ from ivory.utils.config_section import ConfigSection
 Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_out_plugin',
-        'museek.plugin.zebra_remover_plugin',
+        # 'museek.plugin.zebra_remover_plugin',
+        'museek.plugin.bandpass_plugin'
     ]
 )
 
@@ -22,4 +23,9 @@ InOutPlugin = ConfigSection(
 ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,
     zebra_channels=range(350, 498),
+)
+
+BandpassPlugin = ConfigSection(
+    target_channels=range(570, 765),
+    zebra_channels=range(379, 498),
 )
