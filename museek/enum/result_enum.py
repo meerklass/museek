@@ -5,6 +5,7 @@ class ResultEnum(Enum):
     # in-out
     DATA = auto()
     SCAN_DATA = auto()
+    TRACK_DATA = auto()
     RECEIVERS = auto()
     OUTPUT_PATH = auto()
     OBSERVATION_DATE = auto()
