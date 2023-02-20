@@ -53,7 +53,10 @@ class ZebraRemoverPlugin(AbstractPlugin):
         scan_data.flags.add_flag(point_source_mask)
 
         # set rfi free channels
-        rfi_free_channels = [3000, 3001]
+        # rfi_free_channels = [3000, 3001]
+        rfi_free_channels = [600, 601]  # cosmology target
+
+        reference_frequency = scan_data.frequencies.get(freq=self.reference_channel).squeeze
 
         # manually remove the satellites:
         start_index, end_index = self.satellite_free_dump_dict[scan_data.name.split('_')[0]]
@@ -184,6 +187,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        visibility=DataElement(array=zebra_power[:, np.newaxis, np.newaxis]),
                                        flags=flags,
                                        grid_size=self.grid_size)
+            plt.xlabel('Right ascension')
+            plt.ylabel('Declination')
 
             plt.subplot(2, 3, 2)
             plt.plot(azimuth, zebra_power)
@@ -213,7 +218,9 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        visibility=channel_visibility,
                                        flags=flags,
                                        grid_size=self.grid_size)
-            plt.title('raw visibility')
+            plt.xlabel('Right ascension')
+            plt.ylabel('Declination')
+            plt.title(f'raw visibility {reference_frequency / mega :.1f} MHz')
 
             plt.subplot(2, 3, 5)
             plot_time_ordered_data_map(right_ascension=right_ascension,
@@ -221,6 +228,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        visibility=killed_zebra,
                                        flags=flags,
                                        grid_size=self.grid_size)
+            plt.xlabel('Right ascension')
+            plt.ylabel('Declination')
             plt.title(f'linear model correction offset {fit[0][0]:.2f} '
                       f'gradient {fit[0][1]:.2f}')# gradient 2 {fit[0][2]:.2f} and pivot {fit[0][3]:.2f}')
 
