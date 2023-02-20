@@ -28,14 +28,21 @@ class BandpassPlugin(AbstractPlugin):
 
     def run(self, track_data: TimeOrderedData, output_path: str):
         context_file_name = 'bandpass_plugin.pickle'
-        self.store_context_to_disc(context_file_name=context_file_name,
-                                   context_directory=output_path)
+        # self.store_context_to_disc(context_file_name=context_file_name,
+        #                            context_directory=output_path)
+        self.store_context_to_disc(context_file_name=None,
+                                   context_directory=None)
+
+        # hack to deal with context created on ilifu:
+        output_path = '/home/amadeus/git/museek/results/1638898468/'
 
         mega = 1e6
         track_data.load_visibility_flags_weights()
         timestamps = track_data.timestamps.squeeze
-        times_1 = range(len(timestamps) // 2)
-        times_2 = range(len(timestamps) // 2 + 1, len(timestamps))
+        track_1_end_index = 340
+        track_2_start_index = 345
+        times_1 = range(track_1_end_index)
+        times_2 = range(track_2_start_index, len(timestamps))
 
         for i_receiver, receiver in enumerate(track_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
@@ -50,6 +57,8 @@ class BandpassPlugin(AbstractPlugin):
             #                                                         freq=self.target_channels[0],
             #                                                         time=times_2).squeeze)
             # plt.show()
+
+            bandpasses = []
 
             for before_or_after, times in zip(['before_scan', 'after_scan'], [times_1, times_2]):
                 # # big waterfall
@@ -76,8 +85,9 @@ class BandpassPlugin(AbstractPlugin):
                                                          time=times).squeeze
 
                 # center_coord = (294.86, -63.72)
-                center_coord = ((np.min(right_ascension) + np.max(right_ascension)) / 2,
-                                (np.min(declination) + np.max(declination)) / 2)
+                center_coord = (79.95, -45.78)
+                # center_coord = ((np.min(right_ascension) + np.max(right_ascension)) / 2,
+                #                 (np.min(declination) + np.max(declination)) / 2)
                 tolerance = .1
                 center_times = np.where(
                     (abs(right_ascension - center_coord[0]) < tolerance)
@@ -130,3 +140,30 @@ class BandpassPlugin(AbstractPlugin):
 
                 plt.savefig(os.path.join(receiver_path, f'track_waterfall_clean_and_zebra_{before_or_after}.png'))
                 plt.close()
+
+
+                target_visibility = track_data.visibility.get(recv=i_receiver,
+                                                             freq=self.target_channels,
+                                                             time=track_times)
+                bandpass = target_visibility.mean(axis=0).squeeze
+                bandpasses.append(bandpass)
+
+
+            bandpass_tower_off, bandpass_tower_on = bandpasses
+            plt.figure(figsize=(6, 12))
+            plt.subplot(2, 1, 1)
+            plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega, bandpass_tower_off[1:],
+                     label='tower off')
+            plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega, bandpass_tower_on[1:],
+                     label='tower on')
+            plt.xlabel('frequency [MHz]')
+            plt.ylabel('mean bandpass')
+            plt.legend()
+
+            bandpass_diff = (bandpass_tower_on - bandpass_tower_off) / bandpass_tower_off * 100
+            plt.subplot(2, 1, 2)
+            plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega, bandpass_diff[1:])
+            plt.xlabel('frequency [MHz]')
+            plt.ylabel('bandpass (tower on - tower off) / tower off %')
+            plt.savefig(os.path.join(receiver_path, 'bandpass_during_tracking.png'))
+            plt.close()
