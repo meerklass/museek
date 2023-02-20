@@ -58,7 +58,8 @@ class BandpassPlugin(AbstractPlugin):
             #                                                         time=times_2).squeeze)
             # plt.show()
 
-            bandpasses = []
+            bandpasses = {}
+            mean_az_el = {}
 
             for before_or_after, times in zip(['before_scan', 'after_scan'], [times_1, times_2]):
                 # # big waterfall
@@ -83,6 +84,18 @@ class BandpassPlugin(AbstractPlugin):
                                                                  time=times).squeeze
                 declination = track_data.declination.get(recv=i_receiver,
                                                          time=times).squeeze
+
+                # azimuth = track_data.azimuth.get(recv=i_receiver,
+                #                                  time=times).squeeze
+                # elevation = track_data.elevation.get(recv=i_receiver,
+                #                                      time=times).squeeze
+
+                mean_azimuth = track_data.azimuth.get(recv=i_receiver,
+                                                      time=times).mean(axis=0).squeeze
+                mean_elevation = track_data.elevation.get(recv=i_receiver,
+                                                     time=times).mean(axis=0).squeeze
+
+                mean_az_el[before_or_after] = (mean_azimuth, mean_elevation)
 
                 # center_coord = (294.86, -63.72)
                 center_coord = (79.95, -45.78)
@@ -141,15 +154,14 @@ class BandpassPlugin(AbstractPlugin):
                 plt.savefig(os.path.join(receiver_path, f'track_waterfall_clean_and_zebra_{before_or_after}.png'))
                 plt.close()
 
-
                 target_visibility = track_data.visibility.get(recv=i_receiver,
-                                                             freq=self.target_channels,
-                                                             time=track_times)
+                                                              freq=self.target_channels,
+                                                              time=track_times)
                 bandpass = target_visibility.mean(axis=0).squeeze
-                bandpasses.append(bandpass)
+                bandpasses[before_or_after] = bandpass
 
-
-            bandpass_tower_off, bandpass_tower_on = bandpasses
+            bandpass_tower_off = bandpasses['before_scan']
+            bandpass_tower_on = bandpasses['after_scan']
             plt.figure(figsize=(6, 12))
             plt.subplot(2, 1, 1)
             plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega, bandpass_tower_off[1:],
