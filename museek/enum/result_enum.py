@@ -9,3 +9,4 @@ class ResultEnum(Enum):
     RECEIVERS = auto()
     OUTPUT_PATH = auto()
     OBSERVATION_DATE = auto()
+    BLOCK_NAME = auto()
