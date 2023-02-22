@@ -43,9 +43,6 @@ class ZebraRemoverPlugin(AbstractPlugin):
         scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
 
-        # hack to deal with context created on ilifu:
-        output_path = '/home/amadeus/git/museek/results/1638898468/'
-
         # mask point sources
         point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
                                                                 right_ascension=scan_data.right_ascension,
@@ -280,10 +277,6 @@ class ZebraRemoverPlugin(AbstractPlugin):
             #     plot_name = f'zebra_removal_{i}.png'
             #     plt.savefig(os.path.join(receiver_path, plot_name))
             #     plt.close()
-
-        context_file_name = 'zebra_remover_plugin.pickle'
-        self.store_context_to_disc(context_file_name=context_file_name,
-                                   context_directory=output_path)
 
     @staticmethod
     def straight_line(parameter, offset, gradient):
