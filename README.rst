@@ -62,6 +62,6 @@ More information on these are included in their class documentations.
 
 1. Demonstration plugins: `DemoFlipPlugin`, `DemoLoadPlugin` & `DemoPlotPlugin`
 
-2. `InOutPlugin`
+2. `InPlugin`
 
 3. `SanityCheckObservationPlugin`
