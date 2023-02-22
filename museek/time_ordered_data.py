@@ -234,6 +234,7 @@ class TimeOrderedData:
                                     weights=weights,
                                     correlator_products=data.corr_products)
         else:
+            print(f'Loading visibility, flags and weights for {self.name} from cache file...')
             data_from_cache = np.load(cache_file)
             correlator_products = data_from_cache['correlator_products']
             try:  # if this fails it means that the cache file does not contain the correlator products
