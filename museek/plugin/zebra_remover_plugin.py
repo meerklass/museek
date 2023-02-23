@@ -44,6 +44,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
         timestamp_dates = scan_data.timestamp_dates.squeeze
 
         # mask point sources
+        # the same for all dishes
         point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
                                                                 right_ascension=scan_data.right_ascension,
                                                                 declination=scan_data.declination)
@@ -86,6 +87,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
             declination = scan_data.declination.get(recv=i_antenna, time=times)
             flags = scan_data.flags.get(recv=i_receiver, time=times, freq=self.reference_channel)
 
+            print(f'{receiver.name} flag sums are {sum(flags._flags[0].squeeze)} and {sum(flags._flags[1].squeeze)}')
+
             frequencies = scan_data.frequencies.squeeze
             zebra_frequencies = [frequencies[channel] for channel in self.zebra_channels]
             zebra_visibility = scan_data.visibility.get(freq=self.zebra_channels, time=times, recv=i_receiver)
@@ -117,11 +120,11 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.savefig(os.path.join(receiver_path, f'waterfall.png'))
             plt.close()
 
-            self.plot_band_pass(i_receiver=i_receiver,
-                                scan_data=scan_data,
-                                zebra_power=zebra_power,
-                                times=times,
-                                receiver_path=receiver_path)
+            # self.plot_band_pass(i_receiver=i_receiver,
+            #                     scan_data=scan_data,
+            #                     zebra_power=zebra_power,
+            #                     times=times,
+            #                     receiver_path=receiver_path)
 
 
             fit = curve_fit(f=fitting_function,
