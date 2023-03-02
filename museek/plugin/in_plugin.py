@@ -85,9 +85,6 @@ class InPlugin(AbstractPlugin):
         track_data = deepcopy(all_data)
         track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
-        output_path = os.path.join(self.output_folder, f'{self.block_name}/')
-        os.makedirs(output_path, exist_ok=True)
-
         # observation data from file name
         observation_date = datetime.fromtimestamp(int(all_data.name.split('_')[0]))
 
