@@ -45,14 +45,16 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
         # mask point sources
         # the same for all dishes
+        # TODO: this is NOT the same for all dishes, but the point source masks must be created individually
+        #  for each dish and then added up
         point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
                                                                 right_ascension=scan_data.right_ascension,
                                                                 declination=scan_data.declination)
         scan_data.flags.add_flag(point_source_mask)
 
         # set rfi free channels
-        # rfi_free_channels = [3000, 3001]
-        rfi_free_channels = [600, 601]  # cosmology target
+        rfi_free_channels = [3000, 3001]
+        # rfi_free_channels = [600, 601]  # cosmology target
 
         reference_frequency = scan_data.frequencies.get(freq=self.reference_channel).squeeze
 
@@ -63,19 +65,20 @@ class ZebraRemoverPlugin(AbstractPlugin):
         times = range(start_index, end_index)
 
         # fit a straight line to the scatter plot
-        def fitting_function(parameter, offset, gradient_):
-            return self.straight_line_fitting_wrapper(parameter=parameter,
-                                                      offset=offset,
-                                                      gradient=gradient_,
-                                                      repetitions=rfi_free_visibility.shape[1]).flatten()
+        # def fitting_function(parameter, offset, gradient_):
+        #     return self.fitting_wrapper(parameter=parameter,
+        #                                 offset=offset,
+        #                                 gradient=gradient_,
+        #                                 repetitions=rfi_free_visibility.shape[1],
+        #                                 function=self.straight_line).flatten()
 
-        # def fitting_function_two_lines(parameter, offset1, gradient1, gradient2, pivot):
-        #     return self.two_straight_lines_fitting_wrapper(parameter=parameter,
-        #                                                    offset1=offset1,
-        #                                                    gradient1=gradient1,
-        #                                                    pivot=pivot,
-        #                                                    gradient2=gradient2,
-        #                                                    repetitions=2).flatten()
+        def fitting_function(parameter, a, b, c):
+            return self.fitting_wrapper(parameter=parameter,
+                                        function=self.half_polynomial_half_constant,
+                                        repetitions=rfi_free_visibility.shape[1],
+                                        a=a,
+                                        b=b,
+                                        c=c).flatten()
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
@@ -93,10 +96,19 @@ class ZebraRemoverPlugin(AbstractPlugin):
             zebra_frequencies = [frequencies[channel] for channel in self.zebra_channels]
             zebra_visibility = scan_data.visibility.get(freq=self.zebra_channels, time=times, recv=i_receiver)
             zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
-            zebra_power_max = np.max(zebra_power)
+            zebra_power_normalizer = 1e11
 
             rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times, recv=i_receiver)
             rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
+            rfi_free_normalizer = rfi_free_visibility.mean(axis=(0, 1)).squeeze
+
+            np.savez(os.path.join(receiver_path, 'gain_model_fit_data.npz'),
+                     zebra_power=zebra_power,
+                     rfi_free_visibility=rfi_free_visibility._array,
+                     right_ascension=right_ascension._array,
+                     declination=declination._array,
+                     flags=[flag._array for flag in flags._flags],
+                     rfi_free_frequencies=np.asarray(rfi_free_frequencies))
 
             extent = [0,
                       len(scan_data.timestamps.squeeze),
@@ -126,24 +138,17 @@ class ZebraRemoverPlugin(AbstractPlugin):
             #                     times=times,
             #                     receiver_path=receiver_path)
 
-
             fit = curve_fit(f=fitting_function,
-                            xdata=zebra_power / zebra_power_max,
-                            ydata=rfi_free_visibility.squeeze.flatten(),
-                            p0=[0., 5.])
-            # fit = curve_fit(f=fitting_function_two_lines,
-            #                 xdata=zebra_power / zebra_power_max,
-            #                 ydata=rfi_free_visibility.squeeze.flatten(),
-            #                 p0=[174.1521948, 1.0, 10., 0.85],
-            #                 bounds=([0, 0, 5, 0.5], [1000, 20, 50, 1]))
+                            xdata=zebra_power / zebra_power_normalizer,
+                            ydata=rfi_free_visibility.squeeze.flatten() / rfi_free_normalizer,
+                            p0=[333., -13., 25.])
 
-            line_ = self.straight_line(zebra_power / zebra_power_max, *fit[0])
-            # line_ = self.two_lines(zebra_power / zebra_power_max, *fit[0])
-            normalized_line = line_ / line_[np.argmin(zebra_power)]  # divide by the lowest rfi power value
-            if any(normalized_line < 1):
+            line_for_plot = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, *fit[0])
+            line_for_fix = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, 1, *fit[0][1:])
+            if any(line_for_fix < 1):
                 print('WARNING, zebra cleaning seems to add new power to the signal.')
 
-            killed_zebra = channel_visibility * (1 / normalized_line[:, np.newaxis, np.newaxis])
+            killed_zebra = channel_visibility * (1 / line_for_fix[:, np.newaxis, np.newaxis])
 
             if self.do_create_maps_of_frequency:
                 for i_channel, channel in enumerate(self.zebra_channels):
@@ -230,28 +235,28 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        grid_size=self.grid_size)
             plt.xlabel('Right ascension')
             plt.ylabel('Declination')
-            plt.title(f'linear model correction offset {fit[0][0]:.2f} '
-                      f'gradient {fit[0][1]:.2f}')# gradient 2 {fit[0][2]:.2f} and pivot {fit[0][3]:.2f}')
+            plt.title(f'model parameters {fit[0]}')
+            print(f'model parameters {fit[0]}')
 
             zebra_power_sort_args = np.argsort(zebra_power)
             plt.subplot(2, 3, 6)
             for i in range(rfi_free_visibility.shape[1]):
                 plt.scatter(zebra_power,
-                            rfi_free_visibility.squeeze[:, i],
+                            rfi_free_visibility.squeeze[:, i] / rfi_free_normalizer,
                             color='black',
                             s=0.01)
             plt.plot(zebra_power[zebra_power_sort_args],
-                     line_[zebra_power_sort_args],
+                     line_for_plot[zebra_power_sort_args],
                      color='black',
                      label='uncorrected')
 
             for i in range(rfi_free_visibility.shape[1]):
                 plt.scatter(zebra_power,
-                            rfi_free_visibility.squeeze[:, i] / normalized_line,
+                            rfi_free_visibility.squeeze[:, i] / line_for_fix / rfi_free_normalizer,
                             color='red',
                             s=0.1)
             plt.plot(zebra_power[zebra_power_sort_args],
-                     line_[zebra_power_sort_args] / normalized_line[zebra_power_sort_args],
+                     line_for_plot[zebra_power_sort_args] / line_for_fix[zebra_power_sort_args],
                      color='red',
                      label='excess power removed')
             plt.xlabel(
@@ -285,25 +290,21 @@ class ZebraRemoverPlugin(AbstractPlugin):
     def straight_line(parameter, offset, gradient):
         return offset + gradient * parameter
 
-    def straight_line_fitting_wrapper(self, parameter, offset, gradient, repetitions: int):
-        line_ = self.straight_line(parameter=parameter, offset=offset, gradient=gradient)
-        return np.tile(line_[:, np.newaxis], (1, repetitions))
-
-    def two_straight_lines_fitting_wrapper(self, parameter, offset1, gradient1, gradient2, pivot, repetitions: int):
-        line_ = self.two_lines(parameter=parameter, offset1=offset1, gradient1=gradient1, gradient2=gradient2,
-                               pivot=pivot)
+    @staticmethod
+    def fitting_wrapper(parameter, repetitions: int, function, **kwargs):
+        line_ = function(parameter=parameter, **kwargs)
         return np.tile(line_[:, np.newaxis], (1, repetitions))
 
     @staticmethod
-    def two_lines(parameter, offset1, gradient1, gradient2, pivot=0.85):
-        offset2 = (gradient1 - gradient2) * pivot + offset1
-        result = [
-            ZebraRemoverPlugin.straight_line(parameter=param, offset=offset1, gradient=gradient1)
-            if param <= pivot
-            else ZebraRemoverPlugin.straight_line(parameter=param, offset=offset2, gradient=gradient2)
-            for param in parameter
-        ]
-        return np.asarray(result)
+    def polynomial_2(parameter, a, b, c):
+        return a + b * parameter + c * parameter ** 2
+
+    def half_polynomial_half_constant(self, parameter, a, b, c):
+        result = self.polynomial_2(parameter=parameter, a=a, b=b, c=c)
+        if c != 0:
+            minimum_x = -b / c / 2
+            result[parameter <= minimum_x] = self.polynomial_2(parameter=minimum_x, a=a, b=b, c=c)
+        return result
 
     @staticmethod
     def plot_band_pass(i_receiver: int,
@@ -313,13 +314,11 @@ class ZebraRemoverPlugin(AbstractPlugin):
                        receiver_path: str):
         mega = 1e6
 
-
         turn_on_start = 710
         turn_on_end = 730
 
         zebra_mean_tower_on = np.mean(zebra_power[turn_on_end:])
-        zebra_power_high_indices = np.where(zebra_power>zebra_mean_tower_on)[0]
-
+        zebra_power_high_indices = np.where(zebra_power > zebra_mean_tower_on)[0]
 
         # clean_channels=range(2700, 3150)
         clean_channels = range(570, 765)  # cosmology target
@@ -342,14 +341,13 @@ class ZebraRemoverPlugin(AbstractPlugin):
         plt.savefig(os.path.join(receiver_path, 'waterfall_target_channels.png'))
         plt.close()
 
-
         clean_tower_off = scan_data.visibility.get(recv=i_receiver,
-                                                    freq=clean_channels,
-                                                    time=times[:turn_on_start])
+                                                   freq=clean_channels,
+                                                   time=times[:turn_on_start])
 
         clean_tower_on = scan_data.visibility.get(recv=i_receiver,
-                                                    freq=clean_channels,
-                                                    time=times[turn_on_end:])
+                                                  freq=clean_channels,
+                                                  time=times[turn_on_end:])
 
         clean_tower_high = scan_data.visibility.get(recv=i_receiver,
                                                     freq=clean_channels,
@@ -361,15 +359,17 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
         plt.figure(figsize=(6, 12))
         plt.subplot(2, 1, 1)
-        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_off[1:], label='tower off')
-        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_on[1:], label='tower on')
-        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_high[1:], label='tower extra high')
+        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_off[1:],
+                 label='tower off')
+        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_on[1:],
+                 label='tower on')
+        plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_tower_high[1:],
+                 label='tower extra high')
         plt.xlabel('frequency [MHz]')
         plt.ylabel('mean bandpass')
         plt.legend()
 
-
-        bandpass_diff = (bandpass_tower_on-bandpass_tower_off)/bandpass_tower_off*100
+        bandpass_diff = (bandpass_tower_on - bandpass_tower_off) / bandpass_tower_off * 100
         plt.subplot(2, 1, 2)
         plt.plot(scan_data.frequencies.get(freq=clean_channels).squeeze[1:] / mega, bandpass_diff[1:])
         plt.xlabel('frequency [MHz]')
