@@ -80,51 +80,72 @@ class BandpassPlugin(AbstractPlugin):
                 # plt.title('"zebra" channels')
                 # plt.show()
 
-                right_ascension = track_data.right_ascension.get(recv=i_receiver,
+                right_ascension = track_data.right_ascension.get(recv=i_receiver // 2,
                                                                  time=times).squeeze
-                declination = track_data.declination.get(recv=i_receiver,
+                declination = track_data.declination.get(recv=i_receiver // 2,
                                                          time=times).squeeze
+                azimuth = track_data.azimuth.get(recv=i_receiver // 2,
+                                                 time=times).squeeze
+                elevation = track_data.elevation.get(recv=i_receiver // 2,
+                                                     time=times).squeeze
 
-                # azimuth = track_data.azimuth.get(recv=i_receiver,
-                #                                  time=times).squeeze
-                # elevation = track_data.elevation.get(recv=i_receiver,
-                #                                      time=times).squeeze
-
-                mean_azimuth = track_data.azimuth.get(recv=i_receiver,
+                mean_azimuth = track_data.azimuth.get(recv=i_receiver // 2,
                                                       time=times).mean(axis=0).squeeze
-                mean_elevation = track_data.elevation.get(recv=i_receiver,
-                                                     time=times).mean(axis=0).squeeze
+                mean_elevation = track_data.elevation.get(recv=i_receiver // 2,
+                                                          time=times).mean(axis=0).squeeze
 
                 mean_az_el[before_or_after] = (mean_azimuth, mean_elevation)
 
-                # center_coord = (294.86, -63.72)
-                center_coord = (79.95, -45.78)
+                centre_coord = (79.95, -45.78)
+                up_coord = (79.963, -45.283)
+                right_coord = (80.680, -45.778)
                 # center_coord = ((np.min(right_ascension) + np.max(right_ascension)) / 2,
                 #                 (np.min(declination) + np.max(declination)) / 2)
                 tolerance = .1
-                center_times = np.where(
-                    (abs(right_ascension - center_coord[0]) < tolerance)
-                    & (abs(declination - center_coord[1]) < tolerance)
+                centre_times = np.where(
+                    (abs(right_ascension - centre_coord[0]) < tolerance)
+                    & (abs(declination - centre_coord[1]) < tolerance)
+                )[0]
+                up_times = np.where(
+                    (abs(right_ascension - up_coord[0]) < tolerance)
+                    & (abs(declination - up_coord[1]) < tolerance)
+                )[0]
+                right_times = np.where(
+                    (abs(right_ascension - right_coord[0]) < tolerance)
+                    & (abs(declination - right_coord[1]) < tolerance)
                 )[0]
 
                 plt.scatter(right_ascension, declination, color='black')
-                plt.scatter(right_ascension[center_times], declination[center_times], color='red')
+                plt.scatter(right_ascension[centre_times], declination[centre_times], color='red')
+                plt.scatter(right_ascension[up_times], declination[up_times], color='blue')
+                plt.scatter(right_ascension[right_times], declination[right_times], color='orange')
                 plt.savefig(os.path.join(receiver_path, f'track_pointing_{before_or_after}.png'))
                 plt.close()
 
+                plt.scatter(azimuth, elevation, color='black')
+                plt.scatter(azimuth[centre_times], elevation[centre_times], color='red')
+                plt.scatter(azimuth[up_times], elevation[up_times], color='blue')
+                plt.scatter(azimuth[right_times], elevation[right_times], color='orange')
+                plt.savefig(os.path.join(receiver_path, f'track_pointing_az_el_{before_or_after}.png'))
+                plt.close()
+
                 # track_times = [time_ for time_ in times if time_-times[0] in center_times]
-                track_times = list(np.asarray(times)[center_times])
-                track_timestamps = track_data.timestamps.get(time=track_times).squeeze
+                track_centre_times = list(np.asarray(times)[centre_times])
+                track_up_times = list(np.asarray(times)[up_times])
+                track_right_times = list(np.asarray(times)[right_times])
+                track_centre_timestamps = track_data.timestamps.get(time=track_centre_times).squeeze
+                track_up_timestamps = track_data.timestamps.get(time=track_up_times).squeeze
+                track_right_timestamps = track_data.timestamps.get(time=track_right_times).squeeze
 
                 plt.figure(figsize=(6, 12))
                 plt.subplot(2, 1, 1)
-                extent = [track_timestamps[0],
-                          track_timestamps[-1],
+                extent = [track_centre_timestamps[0],
+                          track_centre_timestamps[-1],
                           track_data.frequencies.get(freq=self.target_channels[-1]).squeeze / mega,
                           track_data.frequencies.get(freq=self.target_channels[0]).squeeze / mega]
                 image = plt.imshow(track_data.visibility.get(recv=i_receiver,
                                                              freq=self.target_channels,
-                                                             time=track_times).squeeze.T,
+                                                             time=track_centre_times).squeeze.T,
                                    aspect='auto',
                                    extent=extent,
                                    cmap='gist_ncar',
@@ -135,13 +156,13 @@ class BandpassPlugin(AbstractPlugin):
                 plt.title('"clean" channels')
 
                 plt.subplot(2, 1, 2)
-                extent = [track_timestamps[0],
-                          track_timestamps[-1],
+                extent = [track_centre_timestamps[0],
+                          track_centre_timestamps[-1],
                           track_data.frequencies.get(freq=self.zebra_channels[-1]).squeeze / mega,
                           track_data.frequencies.get(freq=self.zebra_channels[0]).squeeze / mega]
                 image = plt.imshow(track_data.visibility.get(recv=i_receiver,
                                                              freq=self.zebra_channels,
-                                                             time=track_times).squeeze.T,
+                                                             time=track_centre_times).squeeze.T,
                                    aspect='auto',
                                    extent=extent,
                                    cmap='gist_ncar',
@@ -154,11 +175,19 @@ class BandpassPlugin(AbstractPlugin):
                 plt.savefig(os.path.join(receiver_path, f'track_waterfall_clean_and_zebra_{before_or_after}.png'))
                 plt.close()
 
-                target_visibility = track_data.visibility.get(recv=i_receiver,
+                target_visibility_centre = track_data.visibility.get(recv=i_receiver,
                                                               freq=self.target_channels,
-                                                              time=track_times)
-                bandpass = target_visibility.mean(axis=0).squeeze
-                bandpasses[before_or_after] = bandpass
+                                                              time=track_centre_times)
+                target_visibility_right = track_data.visibility.get(recv=i_receiver,
+                                                              freq=self.target_channels,
+                                                              time=track_right_times)
+                target_visibility_up = track_data.visibility.get(recv=i_receiver,
+                                                              freq=self.target_channels,
+                                                              time=track_up_times)
+                # bandpass_centre = target_visibility_centre.mean(axis=0).squeeze
+                bandpass_up_minus_right = target_visibility_up.mean(axis=0).squeeze - target_visibility_right.mean(axis=0).squeeze
+                # bandpasses[before_or_after] = bandpass_centre
+                bandpasses[before_or_after] = bandpass_up_minus_right
 
             bandpass_tower_off = bandpasses['before_scan']
             bandpass_tower_on = bandpasses['after_scan']
