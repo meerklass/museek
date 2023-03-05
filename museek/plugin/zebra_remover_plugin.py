@@ -15,8 +15,8 @@ from museek.visualiser import plot_time_ordered_data_map
 
 class ZebraRemoverPlugin(AbstractPlugin):
     def __init__(self,
-                 reference_channel: int,
-                 zebra_channels: range | list[int],
+                 reference_frequency: float,
+                 gsm_downlink_range: tuple[float, float],
                  do_create_maps_of_frequency: bool,
                  satellite_free_dump_dict: dict,
                  grid_size: tuple[int, int] = (60, 60)):
@@ -26,8 +26,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
         :param zebra_channels: `list` or `range` of channel indices affected by the emission from the vanwyksvlei tower
         """
         super().__init__()
-        self.reference_channel = reference_channel
-        self.zebra_channels = zebra_channels
+        self.reference_frequency = reference_frequency
+        self.gsm_downlink_range = gsm_downlink_range
         self.do_create_maps_of_frequency = do_create_maps_of_frequency
         self.satellite_free_dump_dict = satellite_free_dump_dict
         self.grid_size = grid_size
@@ -53,10 +53,13 @@ class ZebraRemoverPlugin(AbstractPlugin):
         scan_data.flags.add_flag(point_source_mask)
 
         # set rfi free channels
-        rfi_free_channels = [3000, 3001]
+        # rfi_free_channels = [3000, 3001]
         # rfi_free_channels = [600, 601]  # cosmology target
+        rfi_free_frequency_edges = [981.390625, 981.599609375]
 
-        reference_frequency = scan_data.frequencies.get(freq=self.reference_channel).squeeze
+        # reference_frequency = scan_data.frequencies.get(freq=self.reference_channel).squeeze
+        reference_channel = self.channel_from_frequency(frequency=self.reference_frequency,
+                                                        frequencies=scan_data.frequencies)
 
         # manually remove the satellites:
         start_index, end_index = self.satellite_free_dump_dict[scan_data.name.split('_')[0]]
@@ -85,18 +88,39 @@ class ZebraRemoverPlugin(AbstractPlugin):
                 os.makedirs(receiver_path)
             antenna = scan_data.antenna(receiver=receiver)
             i_antenna = scan_data.antennas.index(antenna)
-            channel_visibility = scan_data.visibility.get(recv=i_receiver, time=times, freq=self.reference_channel)
+            channel_visibility = scan_data.visibility.get(recv=i_receiver, time=times, freq=reference_channel)
             right_ascension = scan_data.right_ascension.get(recv=i_antenna, time=times)
+
+            #############################3
+            # fix for UHF
+            def convert_right_ascension(right_ascension_: np.ndarray) -> np.ndarray:
+                return np.asarray([[timestamp_ra if 0 < timestamp_ra < 180 else timestamp_ra + 360
+                                    for timestamp_ra in dish_ra]
+                                   for dish_ra in right_ascension_])
+            right_ascension = DataElement(convert_right_ascension(right_ascension_=right_ascension.squeeze[:,np.newaxis, np.newaxis]))
+
+            #####################################
+
+
+
             declination = scan_data.declination.get(recv=i_antenna, time=times)
-            flags = scan_data.flags.get(recv=i_receiver, time=times, freq=self.reference_channel)
+            flags = scan_data.flags.get(recv=i_receiver, time=times, freq=reference_channel)
 
             print(f'{receiver.name} flag sums are {sum(flags._flags[0].squeeze)} and {sum(flags._flags[1].squeeze)}')
 
             frequencies = scan_data.frequencies.squeeze
-            zebra_frequencies = [frequencies[channel] for channel in self.zebra_channels]
-            zebra_visibility = scan_data.visibility.get(freq=self.zebra_channels, time=times, recv=i_receiver)
+            zebra_channel_a = self.channel_from_frequency(self.gsm_downlink_range[0], frequencies=scan_data.frequencies)
+            zebra_channel_b = self.channel_from_frequency(self.gsm_downlink_range[1], frequencies=scan_data.frequencies)
+            zebra_channels = range(zebra_channel_a, zebra_channel_b)
+            zebra_frequencies = [frequencies[channel] for channel in zebra_channels]
+            zebra_visibility = scan_data.visibility.get(freq=zebra_channels, time=times, recv=i_receiver)
             zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
             zebra_power_normalizer = 1e11
+
+
+            rfi_free_channel_a = self.channel_from_frequency(frequency=rfi_free_frequency_edges[0], frequencies=scan_data.frequencies)
+            rfi_free_channel_b = self.channel_from_frequency(frequency=rfi_free_frequency_edges[1], frequencies=scan_data.frequencies)
+            rfi_free_channels = list(range(rfi_free_channel_a, rfi_free_channel_b+1))
 
             rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times, recv=i_receiver)
             rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
@@ -118,7 +142,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.imshow(scan_data.visibility.get(recv=i_receiver).squeeze.T,
                        aspect='auto',
                        extent=extent)
-            plt.axhline(scan_data.frequencies.get(freq=self.reference_channel).squeeze / mega,
+            plt.axhline(scan_data.frequencies.get(freq=reference_channel).squeeze / mega,
                         xmin=times[0] / len(timestamp_dates),
                         xmax=times[-1] / len(timestamp_dates))
             plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[0]).squeeze / mega,
@@ -151,15 +175,15 @@ class ZebraRemoverPlugin(AbstractPlugin):
             killed_zebra = channel_visibility * (1 / line_for_fix[:, np.newaxis, np.newaxis])
 
             if self.do_create_maps_of_frequency:
-                for i_channel, channel in enumerate(self.zebra_channels):
+                for i_channel, channel in enumerate(zebra_channels):
                     plt.figure(figsize=(6, 12))
                     plt.subplot(2, 1, 1)
                     extent = [scan_data.timestamps[start_index],
                               scan_data.timestamps[end_index - 1],
-                              scan_data.frequencies.get(freq=self.zebra_channels[-1]).squeeze / mega,
-                              scan_data.frequencies.get(freq=self.zebra_channels[0]).squeeze / mega]
+                              scan_data.frequencies.get(freq=zebra_channels[-1]).squeeze / mega,
+                              scan_data.frequencies.get(freq=zebra_channels[0]).squeeze / mega]
                     image = plt.imshow(scan_data.visibility.get(recv=i_receiver,
-                                                                freq=self.zebra_channels,
+                                                                freq=zebra_channels,
                                                                 time=times).squeeze.T,
                                        aspect='auto',
                                        norm='log',
@@ -203,10 +227,10 @@ class ZebraRemoverPlugin(AbstractPlugin):
             plt.subplot(2, 3, 3)
             extent = [scan_data.timestamps[start_index],
                       scan_data.timestamps[end_index - 1],
-                      scan_data.frequencies.get(freq=self.zebra_channels[-1]).squeeze / mega,
-                      scan_data.frequencies.get(freq=self.zebra_channels[0]).squeeze / mega]
+                      scan_data.frequencies.get(freq=zebra_channels[-1]).squeeze / mega,
+                      scan_data.frequencies.get(freq=zebra_channels[0]).squeeze / mega]
             image = plt.imshow(scan_data.visibility.get(recv=i_receiver,
-                                                        freq=self.zebra_channels,
+                                                        freq=zebra_channels,
                                                         time=times).squeeze.T,
                                aspect='auto',
                                extent=extent,
@@ -225,7 +249,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
                                        grid_size=self.grid_size)
             plt.xlabel('Right ascension')
             plt.ylabel('Declination')
-            plt.title(f'raw visibility {reference_frequency / mega :.1f} MHz')
+            plt.title(f'raw visibility {self.reference_frequency / mega :.1f} MHz')
 
             plt.subplot(2, 3, 5)
             plot_time_ordered_data_map(right_ascension=right_ascension,
@@ -376,3 +400,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
         plt.ylabel('bandpass (tower on - tower off) / tower off %')
         plt.savefig(os.path.join(receiver_path, 'bandpass_during_scanning.png'))
         plt.close()
+
+    @staticmethod
+    def channel_from_frequency(frequency: float, frequencies: DataElement) -> int:
+        return np.atleast_1d(np.argmin(abs(frequencies.get().squeeze - frequency*1e6)))[0]
