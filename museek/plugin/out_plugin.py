@@ -1,11 +1,10 @@
 import os
 
+from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
-
-PLUGIN_ROOT = os.path.dirname(__file__)
 
 
 class OutPlugin(AbstractPlugin):
@@ -19,7 +18,7 @@ class OutPlugin(AbstractPlugin):
         super().__init__()
         self.output_folder = output_folder
         if self.output_folder is None:
-            self.output_folder = os.path.join(PLUGIN_ROOT, '../../results/')
+            self.output_folder = os.path.join(ROOT_DIR, 'results/')
         self.check_output_folder_exists()
 
     def set_requirements(self):
