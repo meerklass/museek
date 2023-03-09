@@ -51,9 +51,9 @@ PointSourceFlaggerPlugin = ConfigSection(
 )
 
 ZebraRemoverPlugin = ConfigSection(
-    # reference_channel=600,
-    reference_channel=3000,
-    zebra_channels=range(379, 498),
+    reference_frequency=981.390625,  # MHz
+    # zebra_channels=range(379, 498),
+    gsm_downlink_range=(935, 960),  # MHz
     do_create_maps_of_frequency=False,
     grid_size=(60, 60),
     satellite_free_dump_dict={
