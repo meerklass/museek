@@ -28,7 +28,9 @@ class TestFlagFactory(unittest.TestCase):
         shape = (3, 3, 3)
         mock_coordinates_mask_dumps.side_effect = [0, 1, 2]
         mock_point_source_file_path = Mock()
+        mock_receiver = MagicMock(antenna_index=MagicMock(side_effect=[0, 1, 2]))
         point_source_mask = FlagFactory().get_point_source_mask(shape=shape,
+                                                                receivers=[mock_receiver, mock_receiver, mock_receiver],
                                                                 right_ascension=Mock(),
                                                                 declination=Mock(),
                                                                 angle_threshold=Mock(),
