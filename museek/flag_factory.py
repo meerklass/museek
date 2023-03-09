@@ -3,6 +3,7 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from museek.data_element import DataElement
+from museek.receiver import Receiver
 
 
 class FlagFactory:
@@ -20,6 +21,7 @@ class FlagFactory:
 
     def get_point_source_mask(self,
                               shape: tuple[int, int, int],
+                              receivers: list[Receiver],
                               right_ascension: DataElement,
                               declination: DataElement,
                               angle_threshold: float,
@@ -28,6 +30,7 @@ class FlagFactory:
         """
         Return a `DataElement` that is `True` wherever a dump is close enough to a point source.
         :param shape: the returned `DataElement` will have this `shape`
+        :param receivers: list of `Receiver`s to get the point source masks for
         :param right_ascension: celestial coordinate right ascension
         :param declination: celestial coordinate declination
         :param angle_threshold: all points up to this angular separation (degrees) are masked
@@ -37,12 +40,15 @@ class FlagFactory:
         point_source_mask = np.zeros(shape, dtype=bool)
         mask_points = FlagFactory.point_sources_coordinate_list(point_source_file_path=point_source_file_path)
 
-        for i_recv in range(shape[-1]):
-            point_source_mask_dump_list = self._coordinates_mask_dumps(right_ascension=right_ascension.get(recv=i_recv),
-                                                                       declination=declination.get(recv=i_recv),
-                                                                       mask_points=mask_points,
-                                                                       angle_threshold=angle_threshold)
-            point_source_mask[point_source_mask_dump_list, :, i_recv] = True
+        for receiver in receivers:
+            i_receiver = receiver.antenna_index(receivers=receivers)
+            point_source_mask_dump_list = self._coordinates_mask_dumps(
+                right_ascension=right_ascension.get(recv=i_receiver),
+                declination=declination.get(recv=i_receiver),
+                mask_points=mask_points,
+                angle_threshold=angle_threshold
+            )
+            point_source_mask[point_source_mask_dump_list, :, i_receiver] = True
         return DataElement(array=point_source_mask)
 
     @staticmethod
