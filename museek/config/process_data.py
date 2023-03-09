@@ -14,7 +14,7 @@ Pipeline = ConfigSection(
 
 InPlugin = ConfigSection(
     block_name='1631379874',  # observation time stamp
-    receiver_list=['m000h', 'm008h', 'm028v'],
+    receiver_list=['m000h'],
     token=None,  # archive token
     data_folder='/idia/projects/hi_im/SCI-20210212-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
@@ -33,7 +33,6 @@ PointSourceFlaggerPlugin = ConfigSection(
     point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
     angle_threshold=0.5
 )
-
 
 ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,

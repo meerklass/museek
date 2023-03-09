@@ -5,7 +5,6 @@ from scipy.optimize import curve_fit
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from museek.enum.result_enum import ResultEnum
-from museek.flag_factory import FlagFactory
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import plot_time_ordered_data_map
 
@@ -29,12 +28,6 @@ class ZebraRemoverPlugin(AbstractPlugin):
     def run(self, scan_data: TimeOrderedData, output_path: str):
         scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
-
-        # mask point sources
-        point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
-                                                                right_ascension=scan_data.right_ascension,
-                                                                declination=scan_data.declination)
-        scan_data.flags.add_flag(point_source_mask)
 
         # set rfi free channels
         rfi_free_channels = [3000, 3001]
