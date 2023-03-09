@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch, Mock
 
 from museek.receiver import Receiver, Polarisation
 
@@ -27,6 +28,22 @@ class TestReceiver(unittest.TestCase):
 
     def test_from_string_when_invalid_receiver_string_expect_raise(self):
         self.assertRaises(ValueError, Receiver.from_string, receiver_string='r001v')
+
+    @patch.object(Receiver, 'receivers_to_antennas')
+    def test_antenna_index(self, mock_receivers_to_antennas):
+        receiver = Receiver.from_string(receiver_string='m000h')
+        mock_receivers = Mock()
+        self.assertEqual(receiver.antenna_index(receivers=mock_receivers),
+                         mock_receivers_to_antennas.return_value.index.return_value)
+        mock_receivers_to_antennas.assert_called_once_with(receivers=mock_receivers)
+
+    def test_receivers_to_antennas(self):
+        expect = ['m000', 'm001']
+        self.assertListEqual(Receiver.receivers_to_antennas(receivers=[Receiver.from_string(receiver_string='m000h'),
+                                                                       Receiver.from_string(receiver_string='m000v'),
+                                                                       Receiver.from_string(receiver_string='m001h'),
+                                                                       Receiver.from_string(receiver_string='m001v')]),
+                             expect)
 
 
 if __name__ == '__main__':
