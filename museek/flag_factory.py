@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from astropy import units
 from astropy.coordinates import SkyCoord
@@ -11,14 +9,12 @@ class FlagFactory:
     """ Class to instantiate flags, i.e. `DataElement`s with boolean entries. """
 
     @staticmethod
-    def point_sources_coordinate_list(point_sources_directory: str = None) -> list[SkyCoord]:
+    def point_sources_coordinate_list(point_source_file_path: str) -> list[SkyCoord]:
         """
         Return a `list` of `SkyCoord` coordinates of point source data
-        loaded from a file located at `point_sources_directory`.
+        loaded from a file located at `point_source_file_path`.
         """
-        if point_sources_directory is None:  # TODO: remove the default path
-            point_sources_directory = os.path.join(os.path.dirname(__file__), '../data/radio_point_sources.txt')
-        point_sources = np.loadtxt(point_sources_directory)
+        point_sources = np.loadtxt(point_source_file_path)
         result = [SkyCoord(*(point_source * units.deg), frame='icrs') for point_source in point_sources]
         return result
 
@@ -26,8 +22,8 @@ class FlagFactory:
                               shape: tuple[int, int, int],
                               right_ascension: DataElement,
                               declination: DataElement,
-                              angle_threshold: float = 0.5,
-                              point_sources_directory: str = None) \
+                              angle_threshold: float,
+                              point_source_file_path: str) \
             -> DataElement:
         """
         Return a `DataElement` that is `True` wherever a dump is close enough to a point source.
@@ -35,23 +31,25 @@ class FlagFactory:
         :param right_ascension: celestial coordinate right ascension
         :param declination: celestial coordinate declination
         :param angle_threshold: all points up to this angular separation (degrees) are masked
-        :param point_sources_directory: directory of the point source data
+        :param point_source_file_path: directory of the point source data
         :return: a `DataElement` which is `True` for all masked pixels
         """
-        mask_points = FlagFactory.point_sources_coordinate_list(point_sources_directory=point_sources_directory)
-        point_source_mask_dump_list = self._coordinates_mask_dumps(right_ascension=right_ascension,
-                                                                   declination=declination,
-                                                                   mask_points=mask_points,
-                                                                   angle_threshold=angle_threshold)
         point_source_mask = np.zeros(shape, dtype=bool)
-        point_source_mask[point_source_mask_dump_list] = True
+        mask_points = FlagFactory.point_sources_coordinate_list(point_source_file_path=point_source_file_path)
+
+        for i_recv in range(shape[-1]):
+            point_source_mask_dump_list = self._coordinates_mask_dumps(right_ascension=right_ascension.get(recv=i_recv),
+                                                                       declination=declination.get(recv=i_recv),
+                                                                       mask_points=mask_points,
+                                                                       angle_threshold=angle_threshold)
+            point_source_mask[point_source_mask_dump_list, :, i_recv] = True
         return DataElement(array=point_source_mask)
 
     @staticmethod
     def _coordinates_mask_dumps(right_ascension: DataElement,
                                 declination: DataElement,
                                 mask_points: list[SkyCoord],
-                                angle_threshold: float = 0.5) \
+                                angle_threshold: float) \
             -> list[int]:
         """
         Return a list of dump indices that are less than `angle_threshold` away from a point in `mask_points`.
