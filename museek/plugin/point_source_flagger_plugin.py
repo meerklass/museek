@@ -28,6 +28,7 @@ class PointSourceFlaggerPlugin(AbstractPlugin):
 
         scan_data.load_visibility_flags_weights()
         point_source_mask = FlagFactory().get_point_source_mask(shape=scan_data.visibility.shape,
+                                                                receivers=scan_data.receivers,
                                                                 right_ascension=scan_data.right_ascension,
                                                                 declination=scan_data.declination,
                                                                 point_source_file_path=self.point_source_file_path,
