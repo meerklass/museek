@@ -1,4 +1,3 @@
-import os
 import unittest
 from unittest.mock import patch, Mock, MagicMock
 
@@ -13,32 +12,13 @@ class TestFlagFactory(unittest.TestCase):
     @patch('museek.flag_factory.units')
     @patch.object(np, 'loadtxt')
     def test_point_sources_coordinate_list(self, mock_loadtxt, mock_units, mock_sky_coord):
-        mock_point_sources_directory = 'mock'
+        mock_point_source_file_path = 'mock'
         mock_units.deg = 1
         mock_loadtxt.return_value = [[Mock(), Mock()]]
         point_sources_coordinate_list = FlagFactory.point_sources_coordinate_list(
-            point_sources_directory=mock_point_sources_directory
+            point_source_file_path=mock_point_source_file_path
         )
-        mock_loadtxt.assert_called_once_with(mock_point_sources_directory)
-        self.assertEqual(mock_sky_coord.return_value, point_sources_coordinate_list[0])
-        mock_sky_coord.assert_called_once_with(*mock_loadtxt.return_value[0], frame='icrs')
-
-    @patch.object(os, 'path')
-    @patch('museek.flag_factory.SkyCoord')
-    @patch('museek.flag_factory.units')
-    @patch.object(np, 'loadtxt')
-    def test_point_sources_coordinate_list_when_point_sources_directory_none(self,
-                                                                             mock_loadtxt,
-                                                                             mock_units,
-                                                                             mock_sky_coord,
-                                                                             mock_path):
-        mock_point_sources_directory = None
-        mock_units.deg = 1
-        mock_loadtxt.return_value = [[Mock(), Mock()]]
-        point_sources_coordinate_list = FlagFactory.point_sources_coordinate_list(
-            point_sources_directory=mock_point_sources_directory
-        )
-        mock_loadtxt.assert_called_once_with(mock_path.join.return_value)
+        mock_loadtxt.assert_called_once_with(mock_point_source_file_path)
         self.assertEqual(mock_sky_coord.return_value, point_sources_coordinate_list[0])
         mock_sky_coord.assert_called_once_with(*mock_loadtxt.return_value[0], frame='icrs')
 
@@ -46,19 +26,31 @@ class TestFlagFactory(unittest.TestCase):
     @patch.object(FlagFactory, 'point_sources_coordinate_list')
     def test_get_point_source_mask(self, mock_point_sources_coordinate_list, mock_coordinates_mask_dumps):
         shape = (3, 3, 3)
-        mock_coordinates_mask_dumps.return_value = [1]
-        mock_point_sources_directory = Mock()
+        mock_coordinates_mask_dumps.side_effect = [0, 1, 2]
+        mock_point_source_file_path = Mock()
+        mock_receiver = MagicMock(antenna_index=MagicMock(side_effect=[0, 1, 2]))
         point_source_mask = FlagFactory().get_point_source_mask(shape=shape,
+                                                                receivers=[mock_receiver, mock_receiver, mock_receiver],
                                                                 right_ascension=Mock(),
                                                                 declination=Mock(),
                                                                 angle_threshold=Mock(),
-                                                                point_sources_directory=mock_point_sources_directory)
-        np.testing.assert_array_equal(np.zeros((3, 3), dtype=bool), point_source_mask[0])
-        np.testing.assert_array_equal(np.ones((3, 3), dtype=bool), point_source_mask[1])
-        np.testing.assert_array_equal(np.zeros((3, 3), dtype=bool), point_source_mask[2])
+                                                                point_source_file_path=mock_point_source_file_path)
+        np.testing.assert_array_equal(np.asarray([[True, False, False],
+                                                  [True, False, False],
+                                                  [True, False, False]]),
+                                      point_source_mask[0])
+        np.testing.assert_array_equal(np.asarray([[False, True, False],
+                                                  [False, True, False],
+                                                  [False, True, False]]),
+                                      point_source_mask[1])
+        np.testing.assert_array_equal(np.asarray([[False, False, True],
+                                                  [False, False, True],
+                                                  [False, False, True]]),
+                                      point_source_mask[2])
         mock_point_sources_coordinate_list.assert_called_once_with(
-            point_sources_directory=mock_point_sources_directory
+            point_source_file_path=mock_point_source_file_path
         )
+        self.assertEqual(3, mock_coordinates_mask_dumps.call_count)
 
     @patch.object(np, 'where')
     @patch('museek.flag_factory.units')
@@ -77,3 +69,7 @@ class TestFlagFactory(unittest.TestCase):
             angle_threshold=3
         )
         self.assertListEqual([0], coordinates_mask_dumps)
+
+
+if __name__ == '__main__':
+    unittest.main()

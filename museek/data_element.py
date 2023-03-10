@@ -84,11 +84,11 @@ class DataElement:
 
         array = self._array.copy()
 
-        if isinstance(time, int):
+        if isinstance(time, int | np.int64):
             time = [time]
-        if isinstance(freq, int):
+        if isinstance(freq, int | np.int64):
             freq = [freq]
-        if isinstance(recv, int):
+        if isinstance(recv, int | np.int64):
             recv = [recv]
 
         if time is not None:

@@ -8,13 +8,12 @@ from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Target, Antenna
 
+from definitions import ROOT_DIR
 from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
 from museek.flag_element import FlagElement
 from museek.receiver import Receiver
-
-MODULE_ROOT = os.path.dirname(__file__)
 
 
 class ScanTuple(NamedTuple):
@@ -218,7 +217,7 @@ class TimeOrderedData:
         :param data: optional `katdal` `DataSet`, defaults to `None`
         :return: a tuple of visibility, flags and weights as `np.ndarray` each
         """
-        cache_file_directory = os.path.join(MODULE_ROOT, '../cache')
+        cache_file_directory = os.path.join(ROOT_DIR, 'cache')
         os.makedirs(cache_file_directory, exist_ok=True)
         cache_file = os.path.join(cache_file_directory, self._cache_file_name)
         if not os.path.exists(cache_file) or self._force_load_from_correlator_data:

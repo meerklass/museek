@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 from datetime import datetime
 
+from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
@@ -9,8 +10,6 @@ from museek.enum.scan_state_enum import ScanStateEnum
 from museek.noise_diode_data import NoiseDiodeData
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
-
-PLUGIN_ROOT = os.path.dirname(__file__)
 
 
 class InPlugin(AbstractPlugin):
@@ -52,7 +51,7 @@ class InPlugin(AbstractPlugin):
 
         self.context_folder = context_folder
         if self.context_folder is None:
-            self.context_folder = os.path.join(PLUGIN_ROOT, '../../results/')
+            self.context_folder = os.path.join(ROOT_DIR, 'results/')
         self.check_context_folder_exists()
 
     def set_requirements(self):
@@ -101,7 +100,7 @@ class InPlugin(AbstractPlugin):
                                        context_directory=context_directory)
 
         self.set_result(result=Result(location=ResultEnum.DATA, result=all_data))
-        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
+        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))

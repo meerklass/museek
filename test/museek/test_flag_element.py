@@ -40,6 +40,12 @@ class TestFlagElement(unittest.TestCase):
         expect = FlagElement(flags=flags)
         self.assertEqual(expect, self.flag_element)
 
+    def test_remove_flag(self):
+        flag_element = FlagElement(flags=[DataElement(array=np.ones((3, 3, 3)) * i) for i in range(3)])
+        flag_element.remove_flag(index=1)
+        expect = FlagElement(flags=[DataElement(array=np.ones((3, 3, 3)) * i) for i in [0, 2]])
+        self.assertEqual(expect, flag_element)
+
     def test_combine_when_empty(self):
         self.assertEqual(DataElement(array=np.zeros((3, 3, 3))), self.flag_element.combine())
 
