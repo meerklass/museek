@@ -27,15 +27,6 @@ class BandpassPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, track_data: TimeOrderedData, output_path: str):
-        context_file_name = 'bandpass_plugin.pickle'
-        # self.store_context_to_disc(context_file_name=context_file_name,
-        #                            context_directory=output_path)
-        self.store_context_to_disc(context_file_name=None,
-                                   context_directory=None)
-
-        # hack to deal with context created on ilifu:
-        output_path = '/home/amadeus/git/museek/results/1638898468/'
-
         mega = 1e6
         track_data.load_visibility_flags_weights()
         timestamps = track_data.timestamps.squeeze
@@ -114,15 +105,19 @@ class BandpassPlugin(AbstractPlugin):
                     (abs(right_ascension - right_coord[0]) < tolerance)
                     & (abs(declination - right_coord[1]) < tolerance)
                 )[0]
+                all_times = np.where(
+                    (abs(right_ascension - right_coord[0]) < 5)
+                    & (abs(declination - right_coord[1]) < 5)
+                )[0]
 
-                plt.scatter(right_ascension, declination, color='black')
+                plt.scatter(right_ascension[all_times], declination[all_times], color='black')
                 plt.scatter(right_ascension[centre_times], declination[centre_times], color='red')
                 plt.scatter(right_ascension[up_times], declination[up_times], color='blue')
                 plt.scatter(right_ascension[right_times], declination[right_times], color='orange')
                 plt.savefig(os.path.join(receiver_path, f'track_pointing_{before_or_after}.png'))
                 plt.close()
 
-                plt.scatter(azimuth, elevation, color='black')
+                plt.scatter(azimuth[all_times], elevation[all_times], color='black')
                 plt.scatter(azimuth[centre_times], elevation[centre_times], color='red')
                 plt.scatter(azimuth[up_times], elevation[up_times], color='blue')
                 plt.scatter(azimuth[right_times], elevation[right_times], color='orange')
@@ -134,8 +129,6 @@ class BandpassPlugin(AbstractPlugin):
                 track_up_times = list(np.asarray(times)[up_times])
                 track_right_times = list(np.asarray(times)[right_times])
                 track_centre_timestamps = track_data.timestamps.get(time=track_centre_times).squeeze
-                track_up_timestamps = track_data.timestamps.get(time=track_up_times).squeeze
-                track_right_timestamps = track_data.timestamps.get(time=track_right_times).squeeze
 
                 plt.figure(figsize=(6, 12))
                 plt.subplot(2, 1, 1)
@@ -184,10 +177,13 @@ class BandpassPlugin(AbstractPlugin):
                 target_visibility_up = track_data.visibility.get(recv=i_receiver,
                                                               freq=self.target_channels,
                                                               time=track_up_times)
-                # bandpass_centre = target_visibility_centre.mean(axis=0).squeeze
-                bandpass_up_minus_right = target_visibility_up.mean(axis=0).squeeze - target_visibility_right.mean(axis=0).squeeze
+                bandpass_centre = target_visibility_centre.mean(axis=0).squeeze
+                # bandpass_up_minus_right = target_visibility_up.mean(axis=0).squeeze - target_visibility_right.mean(axis=0).squeeze
+                bandpass_centre_minus_right = target_visibility_centre.mean(axis=0).squeeze - target_visibility_right.mean(axis=0).squeeze
+                # bandpass_centre_minus_up = target_visibility_centre.mean(axis=0).squeeze - target_visibility_up.mean(axis=0).squeeze
                 # bandpasses[before_or_after] = bandpass_centre
-                bandpasses[before_or_after] = bandpass_up_minus_right
+                # bandpasses[before_or_after] = bandpass_centre_minus_right
+                bandpasses[before_or_after] = bandpass_centre
 
             bandpass_tower_off = bandpasses['before_scan']
             bandpass_tower_on = bandpasses['after_scan']

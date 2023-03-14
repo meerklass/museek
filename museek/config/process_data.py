@@ -6,8 +6,8 @@ from ivory.utils.config_section import ConfigSection
 Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
-        # 'museek.plugin.out_plugin',
-        # 'museek.plugin.point_source_flagger_plugin',
+        'museek.plugin.out_plugin',
+        'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.bandpass_plugin'
     ]
@@ -33,7 +33,7 @@ InPlugin = ConfigSection(
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
     do_use_noise_diode=True,
-    do_store_context=False,
+    do_store_context=True,
     context_folder=None,  # directory to store results, if `None`, a 'results/' is chosen
 )
 
