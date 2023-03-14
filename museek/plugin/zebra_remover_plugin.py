@@ -151,15 +151,20 @@ class ZebraRemoverPlugin(AbstractPlugin):
             #                     times=times,
             #                     receiver_path=receiver_path)
 
-            fit = curve_fit(f=fitting_function,
-                            xdata=zebra_power / zebra_power_normalizer,
-                            ydata=rfi_free_visibility.squeeze.flatten() / rfi_free_normalizer,
-                            p0=[333., -13., 25.])
+            try:
+                fit = curve_fit(f=fitting_function,
+                                xdata=zebra_power / zebra_power_normalizer,
+                                ydata=rfi_free_visibility.squeeze.flatten() / rfi_free_normalizer,
+                                p0=[333., -13., 25.])
 
-            line_for_plot = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, *fit[0])
-            line_for_fix = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, 1, *fit[0][1:])
-            if any(line_for_fix < 1):
-                print('WARNING, zebra cleaning seems to add new power to the signal.')
+                line_for_plot = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, *fit[0])
+                line_for_fix = self.half_polynomial_half_constant(zebra_power / zebra_power_normalizer, 1, *fit[0][1:])
+                if any(line_for_fix < 1):
+                    print('WARNING, zebra cleaning seems to add new power to the signal.')
+            except:
+                print('Gain fitting failed.')
+                fit = [None]
+                line_for_plot = line_for_fix = np.ones((reference_channel_visibility.shape[0]))
 
             killed_zebra = reference_channel_visibility * (1 / line_for_fix[:, np.newaxis, np.newaxis])
 
