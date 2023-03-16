@@ -8,7 +8,7 @@ Pipeline = ConfigSection(
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
         'museek.plugin.point_source_flagger_plugin',
-        'museek.plugin.zebra_remover_plugin',
+        'museek.plugin.aoflagger_plugin',
     ]
 )
 
@@ -37,4 +37,8 @@ PointSourceFlaggerPlugin = ConfigSection(
 ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,
     zebra_channels=range(350, 498),
+)
+
+AoflaggerPlugin = ConfigSection(
+    flag_combination_threshold=1
 )
