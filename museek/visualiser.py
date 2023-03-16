@@ -43,3 +43,20 @@ def plot_time_ordered_data_map(right_ascension: DataElement,
     plt.colorbar()
     plt.xlim(right_ascension.min(), right_ascension.max())
     plt.ylim(declination.min(), declination.max())
+
+
+def waterfall(visibility: DataElement, flags: FlagElement | None, flag_threshold: int = 1, **imshow_kwargs):
+    """
+    Function to create the waterfall plot.
+    :param visibility: visibility data to be plotted
+    :param flags: optional boolean flags
+    :param flag_threshold: flags are only used if they overlap more than this value
+    :param imshow_kwargs: keyword arguments for `plt.imshow()`
+    """
+    if flags:
+        all_flags = flags.combine(threshold=flag_threshold).squeeze
+    else:
+        all_flags = None
+    masked = np.ma.array(visibility.squeeze, mask=all_flags)
+    image = plt.imshow(masked.T, aspect='auto', **imshow_kwargs)
+    plt.colorbar(image)
