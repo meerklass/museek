@@ -1,4 +1,3 @@
-
 import os
 
 import numpy as np
@@ -39,6 +38,9 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
     def run(self, scan_data: TimeOrderedData, output_path: str):
         mega = 1e6
+        # clean_channels=range(2700, 3150)
+        clean_channels = range(570, 765)  # cosmology target
+
         best_fit_gradient = 5.6
         scan_data.load_visibility_flags_weights()
         timestamp_dates = scan_data.timestamp_dates.squeeze
@@ -82,17 +84,15 @@ class ZebraRemoverPlugin(AbstractPlugin):
             reference_channel_visibility = scan_data.visibility.get(recv=i_receiver, time=times, freq=reference_channel)
             right_ascension = scan_data.right_ascension.get(recv=i_antenna, time=times)
 
-            #############################3
-            # fix for UHF
-            def convert_right_ascension(right_ascension_: np.ndarray) -> np.ndarray:
-                return np.asarray([[timestamp_ra if 0 < timestamp_ra < 180 else timestamp_ra + 360
-                                    for timestamp_ra in dish_ra]
-                                   for dish_ra in right_ascension_])
-            right_ascension = DataElement(convert_right_ascension(right_ascension_=right_ascension.squeeze[:,np.newaxis, np.newaxis]))
-
-            #####################################
-
-
+            # #############################3
+            # # fix for UHF
+            # def convert_right_ascension(right_ascension_: np.ndarray) -> np.ndarray:
+            #     return np.asarray([[timestamp_ra if 0 < timestamp_ra < 180 else timestamp_ra + 360
+            #                         for timestamp_ra in dish_ra]
+            #                        for dish_ra in right_ascension_])
+            # right_ascension = DataElement(convert_right_ascension(right_ascension_=right_ascension.squeeze[:,np.newaxis, np.newaxis]))
+            #
+            # #####################################
 
             declination = scan_data.declination.get(recv=i_antenna, time=times)
             reference_channel_flags = scan_data.flags.get(recv=i_receiver, time=times, freq=reference_channel)
@@ -106,10 +106,11 @@ class ZebraRemoverPlugin(AbstractPlugin):
             zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
             zebra_power_normalizer = 1e11
 
-
-            rfi_free_channel_a = self.channel_from_frequency(frequency=rfi_free_frequency_edges[0], frequencies=scan_data.frequencies)
-            rfi_free_channel_b = self.channel_from_frequency(frequency=rfi_free_frequency_edges[1], frequencies=scan_data.frequencies)
-            rfi_free_channels = list(range(rfi_free_channel_a, rfi_free_channel_b+1))
+            rfi_free_channel_a = self.channel_from_frequency(frequency=rfi_free_frequency_edges[0],
+                                                             frequencies=scan_data.frequencies)
+            rfi_free_channel_b = self.channel_from_frequency(frequency=rfi_free_frequency_edges[1],
+                                                             frequencies=scan_data.frequencies)
+            rfi_free_channels = list(range(rfi_free_channel_a, rfi_free_channel_b + 1))
 
             rfi_free_visibility = scan_data.visibility.get(freq=rfi_free_channels, time=times, recv=i_receiver)
             rfi_free_frequencies = [frequencies[channel] for channel in rfi_free_channels]
@@ -128,28 +129,41 @@ class ZebraRemoverPlugin(AbstractPlugin):
                       scan_data.frequencies.get(freq=-1).squeeze / mega,
                       scan_data.frequencies.get(freq=0).squeeze / mega]
 
-            plt.imshow(scan_data.visibility.get(recv=i_receiver).squeeze.T,
-                       aspect='auto',
-                       extent=extent)
-            plt.axhline(scan_data.frequencies.get(freq=reference_channel).squeeze / mega,
-                        xmin=times[0] / len(timestamp_dates),
-                        xmax=times[-1] / len(timestamp_dates))
-            plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[0]).squeeze / mega,
-                        xmin=times[0] / len(timestamp_dates),
-                        xmax=times[-1] / len(timestamp_dates))
-            plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[-1]).squeeze / mega,
-                        xmin=times[0] / len(timestamp_dates),
-                        xmax=times[-1] / len(timestamp_dates))
+            image = plt.imshow(scan_data.visibility.get(recv=i_receiver).squeeze.T,
+                               aspect='auto',
+                               extent=extent,
+                               norm='log',
+                               cmap='gist_ncar')
+            plt.colorbar(image)
+            # plt.axhline(scan_data.frequencies.get(freq=reference_channel).squeeze / mega,
+            #             xmin=times[0] / len(timestamp_dates),
+            #             xmax=times[-1] / len(timestamp_dates))
+            # plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[0]).squeeze / mega,
+            #             xmin=times[0] / len(timestamp_dates),
+            #             xmax=times[-1] / len(timestamp_dates))
+            # plt.axhline(scan_data.frequencies.get(freq=rfi_free_channels[-1]).squeeze / mega,
+            #             xmin=times[0] / len(timestamp_dates),
+            #             xmax=times[-1] / len(timestamp_dates))
             plt.xlabel('dump index')
             plt.ylabel('frequency [MHz]')
             plt.savefig(os.path.join(receiver_path, f'waterfall.png'))
             plt.close()
 
-            # self.plot_band_pass(i_receiver=i_receiver,
-            #                     scan_data=scan_data,
-            #                     zebra_power=zebra_power,
-            #                     times=times,
-            #                     receiver_path=receiver_path)
+            self.plot_clean_channels_and_rfi_power(scan_data=scan_data,
+                                                   zebra_power=zebra_power,
+                                                   i_receiver=i_receiver,
+                                                   times=times,
+                                                   clean_channels=clean_channels)
+
+            plt.savefig(os.path.join(receiver_path, 'waterfall_target_channels.png'))
+            plt.close()
+
+            self.plot_band_pass(i_receiver=i_receiver,
+                                scan_data=scan_data,
+                                zebra_power=zebra_power,
+                                times=times,
+                                receiver_path=receiver_path,
+                                clean_channels=clean_channels)
 
             try:
                 fit = curve_fit(f=fitting_function,
@@ -329,7 +343,8 @@ class ZebraRemoverPlugin(AbstractPlugin):
                        scan_data: TimeOrderedData,
                        zebra_power: np.ndarray,
                        times: range,
-                       receiver_path: str):
+                       receiver_path: str,
+                       clean_channels: range):
         mega = 1e6
 
         turn_on_start = 710
@@ -337,27 +352,6 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
         zebra_mean_tower_on = np.mean(zebra_power[turn_on_end:])
         zebra_power_high_indices = np.where(zebra_power > zebra_mean_tower_on)[0]
-
-        # clean_channels=range(2700, 3150)
-        clean_channels = range(570, 765)  # cosmology target
-
-        extent = [scan_data.timestamps[times[0]],
-                  scan_data.timestamps[times[-1]],
-                  scan_data.frequencies.get(freq=clean_channels[-1]).squeeze / mega,
-                  scan_data.frequencies.get(freq=clean_channels[0]).squeeze / mega]
-        image = plt.imshow(scan_data.visibility.get(recv=i_receiver,
-                                                    freq=clean_channels,
-                                                    time=times).squeeze.T,
-                           aspect='auto',
-                           extent=extent,
-                           cmap='gist_ncar',
-                           norm='log')
-        plt.colorbar(image)
-        plt.xlabel('timestamp [s]')
-        plt.ylabel('frequency [MHz]')
-        plt.title('"clean" channels')
-        plt.savefig(os.path.join(receiver_path, 'waterfall_target_channels.png'))
-        plt.close()
 
         clean_tower_off = scan_data.visibility.get(recv=i_receiver,
                                                    freq=clean_channels,
@@ -397,5 +391,29 @@ class ZebraRemoverPlugin(AbstractPlugin):
 
     @staticmethod
     def channel_from_frequency(frequency: float, frequencies: DataElement) -> int:
-        return np.atleast_1d(np.argmin(abs(frequencies.get().squeeze - frequency*1e6)))[0]
+        return np.atleast_1d(np.argmin(abs(frequencies.get().squeeze - frequency * 1e6)))[0]
 
+    @staticmethod
+    def plot_clean_channels_and_rfi_power(scan_data, zebra_power, times, clean_channels, i_receiver):
+        mega = 1e6
+        fig, axs = plt.subplots(2, 1, sharex=True)
+        plt.subplots_adjust(hspace=0)
+        axs[0].semilogy(scan_data.timestamps[times], zebra_power, color='black', lw=0.4)
+        axs[0].tick_params(bottom=False, labelbottom=False)
+        axs[0].set_ylabel('GSM downlink RFI power')
+
+        extent = [scan_data.timestamps[times[0]],
+                  scan_data.timestamps[times[-1]],
+                  scan_data.frequencies.get(freq=clean_channels[-1]).squeeze / mega,
+                  scan_data.frequencies.get(freq=clean_channels[0]).squeeze / mega]
+        image = axs[1].imshow(scan_data.visibility.get(recv=i_receiver,
+                                                       freq=clean_channels,
+                                                       time=times).squeeze.T,
+                              aspect='auto',
+                              extent=extent,
+                              cmap='gist_ncar',
+                              norm='log')
+        axs[1].set_xlabel('timestamp [s]')
+        axs[1].set_ylabel('frequency [MHz]')
+
+        fig.colorbar(image, ax=axs, location='right')
