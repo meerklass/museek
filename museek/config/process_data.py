@@ -9,6 +9,7 @@ Pipeline = ConfigSection(
         'museek.plugin.out_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.zebra_remover_plugin',
+        # 'museek.plugin.bandpass_plugin'
     ]
 )
 
@@ -37,4 +38,10 @@ PointSourceFlaggerPlugin = ConfigSection(
 ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,
     zebra_channels=range(350, 498),
+)
+
+BandpassPlugin = ConfigSection(
+    target_channels=range(570, 765),
+    centre_coord=(79.95, -45.78),
+    pointing_tolerance = .1
 )
