@@ -30,4 +30,4 @@ class NoiseDiodeData(TimeOrderedData):
         if self.scan_state != ScanStateEnum.SCAN or self.noise_diode is None:
             return dumps_of_scan_state
         return [i for i in dumps_of_scan_state
-                if i in self.noise_diode.get_noise_diode_off_scan_dumps(timestamps=self.timestamps)]
+                if i in self.noise_diode.get_noise_diode_off_scan_dumps(timestamps=self.original_timestamps)]

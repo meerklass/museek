@@ -1,4 +1,5 @@
 import os
+from copy import copy
 from datetime import datetime
 from typing import Optional, NamedTuple, Any
 
@@ -89,6 +90,7 @@ class TimeOrderedData:
         self._element_factory: AbstractDataElementFactory | None = None
 
         self.timestamps: DataElement | None = None
+        self.original_timestamps: DataElement | None = None
         self.timestamp_dates: DataElement | None = None
         self.frequencies: DataElement | None = None
         # sky coordinates
@@ -104,6 +106,8 @@ class TimeOrderedData:
 
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
+
+        self.gain_solution: DataElement | None = None
 
     def __str__(self):
         """ Returns the same `str` as `katdal`. """
@@ -122,6 +126,7 @@ class TimeOrderedData:
         self._element_factory = self._get_data_element_factory()
 
         self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
+        self.original_timestamps = copy(self.timestamps)
         self.timestamp_dates = self._element_factory.create(
             array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
         )
@@ -168,6 +173,10 @@ class TimeOrderedData:
             return self.antennas.index(self.antenna(receiver=receiver))
         except ValueError:
             return
+
+    def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
+        self.gain_solution = self._element_factory.create(array=gain_solution_array)
+        self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array))
 
     def _get_data(self) -> DataSet:
         """
