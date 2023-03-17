@@ -1,27 +1,29 @@
 import os
 
+import numpy as np
+from matplotlib import pyplot as plt
+
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
-from matplotlib import pyplot as plt
-
-import numpy as np
 
 
 class BandpassPlugin(AbstractPlugin):
+    """ Example plugin to help later development """
+
     def __init__(self,
                  target_channels: range | list[int],
-                 zebra_channels: range | list[int],
                  centre_coord: tuple[float, float],
                  pointing_tolerance: float):
         """
         Initialise
-        :param target_channels: `list` or `range` of channel indices affected by the emission from the vanwyksvlei tower
+        :param target_channels: `list` or `range` of channel indices to be examined
+        :param centre_coord: calibrator coordinate in degrees right ascension and declination
+        :param pointing_tolerance: deviations up to this tolerance from the pointing are accepted
         """
         super().__init__()
         self.target_channels = target_channels
-        self.zebra_channels = zebra_channels
         self.centre_coord = centre_coord
         self.pointing_tolerance = pointing_tolerance
 
@@ -31,6 +33,10 @@ class BandpassPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, track_data: TimeOrderedData, output_path: str):
+        """
+        Split the tracking data in the centre observation parts before and after scanning
+        and plot their frequency dependence.
+        """
 
         mega = 1e6
         track_data.load_visibility_flags_weights()
@@ -67,8 +73,8 @@ class BandpassPlugin(AbstractPlugin):
 
                 track_centre_times = list(np.asarray(times)[centre_times])
                 target_visibility_centre = track_data.visibility.get(recv=i_receiver,
-                                                              freq=self.target_channels,
-                                                              time=track_centre_times)
+                                                                     freq=self.target_channels,
+                                                                     time=track_centre_times)
                 bandpass_centre = target_visibility_centre.mean(axis=0).squeeze
                 bandpasses[before_or_after] = bandpass_centre
 
@@ -83,4 +89,3 @@ class BandpassPlugin(AbstractPlugin):
             plt.ylabel('mean bandpass')
             plt.legend()
             plt.savefig(os.path.join(receiver_path, 'bandpass_during_tracking.png'))
-
