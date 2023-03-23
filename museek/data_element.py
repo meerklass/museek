@@ -34,6 +34,20 @@ class DataElement:
         if isinstance(other, np.ndarray | numbers.Number):
             return DataElement(array=self._array * other)
 
+    def __truediv__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
+        """
+        Multiplication of two `DataElement`s and of one `DataElement` with a `np.ndarray` or any `Number`.
+        :raise ValueError: if the shapes of `self` and `other` do not match
+        """
+        if not isinstance(other, numbers.Number):
+            if self.shape != other.shape:
+                raise ValueError(f'Cannot multiply instances with different shapes, '
+                                 f'got {self.shape} and {other.shape}.')
+        if isinstance(other, DataElement):
+            return DataElement(array=self._array / other._array)
+        if isinstance(other, np.ndarray | numbers.Number):
+            return DataElement(array=self._array / other)
+
     def __getitem__(self, index: int | list[int]) -> np.ndarray:
         """ Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`. """
         return np.squeeze(self._array[index])
