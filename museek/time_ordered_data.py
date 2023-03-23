@@ -126,7 +126,8 @@ class TimeOrderedData:
         self._element_factory = self._get_data_element_factory()
 
         self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
-        self.original_timestamps = copy(self.timestamps)
+        if self.original_timestamps is None:
+            self.original_timestamps = copy(self.timestamps)
         self.timestamp_dates = self._element_factory.create(
             array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
         )
@@ -177,6 +178,12 @@ class TimeOrderedData:
     def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
         self.gain_solution = self._element_factory.create(array=gain_solution_array)
         self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array))
+
+    def corrected_visibility(self) -> DataElement | None:
+        if self.gain_solution is None:
+            print('Gain solution not available.')
+            return
+        return self.visibility / self.gain_solution
 
     def _get_data(self) -> DataSet:
         """
