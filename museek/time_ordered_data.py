@@ -176,10 +176,12 @@ class TimeOrderedData:
             return
 
     def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
+        """ Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`. """
         self.gain_solution = self._element_factory.create(array=gain_solution_array)
         self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array))
 
     def corrected_visibility(self) -> DataElement | None:
+        """ Returns the gain-corrected visibility data. """
         if self.gain_solution is None:
             print('Gain solution not available.')
             return

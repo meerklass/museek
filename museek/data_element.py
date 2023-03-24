@@ -36,7 +36,7 @@ class DataElement:
 
     def __truediv__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
         """
-        Multiplication of two `DataElement`s and of one `DataElement` with a `np.ndarray` or any `Number`.
+        Division of two `DataElement`s and of one `DataElement` with a `np.ndarray` or any `Number`.
         :raise ValueError: if the shapes of `self` and `other` do not match
         """
         if not isinstance(other, numbers.Number):
