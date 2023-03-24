@@ -9,17 +9,13 @@ Pipeline = ConfigSection(
         'museek.plugin.out_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.zebra_remover_plugin',
-        # 'museek.plugin.bandpass_plugin'
+        'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.bandpass_plugin'
     ]
 )
 
 InPlugin = ConfigSection(
-    block_name='1638898468',
-    # block_name='1652898082',
-    # block_name='1677195529',
-    # block_name='1631379874',  # observation time stamp
-    # block_name='1632184922',  # observation time stamp
-    # block_name='1632760885',
+    block_name='1631379874',  # observation time stamp
     receiver_list=['m000h',
                    'm000v',
                    'm008h',
@@ -51,7 +47,7 @@ PointSourceFlaggerPlugin = ConfigSection(
     angle_threshold=0.5
 )
 
-ApplyGainSolutionPlugin = ConfigSection(
+ApplyExternalGainSolutionPlugin = ConfigSection(
     gain_file_path='/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/'
 )
 
@@ -63,5 +59,5 @@ ZebraRemoverPlugin = ConfigSection(
 BandpassPlugin = ConfigSection(
     target_channels=range(570, 765),
     centre_coord=(79.95, -45.78),
-    pointing_tolerance = .1
+    pointing_tolerance=.1
 )
