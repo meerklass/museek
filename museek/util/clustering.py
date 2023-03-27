@@ -2,33 +2,43 @@ from copy import copy
 from typing import Callable
 
 import numpy as np
+from astropy import units
+from astropy.coordinates import SkyCoord
 from sklearn.cluster import KMeans
 
 
 class Clustering:
+    """
+    Clustering related class to split samples.
+    One use-case is to split a set of calibrator observations into on-centre and the different off-centre parts,
+    i.e. up, down, right and left. The split can also be done time-wise, i.e. split at a significant time gap.
+    """
 
     def ordered_dumps_of_coherent_clusters(
             self,
             features: np.ndarray,
             n_clusters: int
     ) -> list[range, range]:
-        """ DOC """
+        """
+        Assume that clustered samples are next to each other inside `features` and return a list of the `range`s
+        from first to last index of `n_clusters` clusters.
+        """
         cluster_indices_list, _ = self.split_clusters(feature_vector=features,
                                                       n_clusters=n_clusters)
-        dumps = [range(indices[0], indices[-1] + 1) for indices in cluster_indices_list]
+        dumps = [range(min(indices), max(indices) + 1) for indices in cluster_indices_list]
         return dumps
 
     def split_clusters(self, feature_vector: np.ndarray, n_clusters: int) -> tuple[list[np.ndarray], np.ndarray]:
         """
-        Return a `list` of indices belonging to each of `n_clusters` clusters in `features_1d`.
-        The return `list` is ordered according to the clusters' first appearances in `features_1d`.
+        Return a `list` of indices belonging to each of `n_clusters` clusters in `feature_vector`.
+        The return `list` is ordered according to the clusters' first appearances in `feature_vector`.
         Uses the `KMeans` algorithm.
         """
         feature = self._atleast_2d(array=feature_vector)
         model = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(feature)
         clusters = model.predict(feature)
 
-        ordered_cluster_labels = self._get_ordered_cluster_labels(clusters=clusters)
+        ordered_cluster_labels = self._ordered_and_unique(array_or_list=clusters)
         cluster_centres = model.cluster_centers_[ordered_cluster_labels]
 
         cluster_indices_list = [np.where(clusters == cluster_label)[0] for cluster_label in ordered_cluster_labels]
@@ -58,7 +68,7 @@ class Clustering:
         feature = np.asarray([[a, b] for a, b in zip(coordinate_1, coordinate_2)])
         outlier_cluster = self._calibrator_pointings_outlier_cluster(feature_vector=feature,
                                                                      n_clusters=n_pointings,
-                                                                     metric=self._get_cluster_distances,
+                                                                     metric=self._get_separations_from_mean,
                                                                      distance_threshold=distance_threshold)
         no_outlier_indices = np.asarray([i for i, out in enumerate(outlier_cluster) if out != 1])
 
@@ -76,7 +86,7 @@ class Clustering:
             np.argmin(centre_declination),
             np.argmin(centre_right_ascension)
         ]  # clock-wise top, right, down, left
-        on_centre_cluster = np.argmin(self._get_cluster_distances(pointing_centres))
+        on_centre_cluster = np.argmin(self._get_separations_from_mean(pointing_centres))
         all_on_centre_dumps = pointing_dumps[on_centre_cluster]
         split_the_centre_dumps = self.ordered_dumps_of_coherent_clusters(
             features=timestamps[all_on_centre_dumps],
@@ -99,13 +109,13 @@ class Clustering:
         return feature
 
     @staticmethod
-    def _get_ordered_cluster_labels(clusters: np.ndarray) -> list[int]:
-        """ Return a unique set of the integers in `clusters` in the order they first appear. """
-        ordered_cluster_labels = []
-        for i in clusters:
-            if i not in ordered_cluster_labels:
-                ordered_cluster_labels.append(i)
-        return ordered_cluster_labels
+    def _ordered_and_unique(array_or_list: list[int] | np.ndarray[int]) -> list[int]:
+        """ Return unique integers in 1-D `np.ndarray` or `list` `array` in the order they first appear. """
+        ordered = []
+        for i in array_or_list:
+            if i not in ordered:
+                ordered.append(i)
+        return ordered
 
     def _calibrator_pointings_outlier_cluster(
             self,
@@ -154,8 +164,8 @@ class Clustering:
                              distance_threshold: float) \
             -> np.ndarray | None:
         """
-        Return optional binary array of same length as `feature` vector which is 1 where samples belong to an outlier cluster
-        and zero otherwise.
+        Return optional binary array of same length as `feature` vector which is 1 where samples belong to an outlier
+        cluster and zero otherwise.
         :param feature_vector: feature vector for clustering
         :param n_clusters: number of non-outlier clusters
         :param metric: distance metric for outlier identification
@@ -168,7 +178,7 @@ class Clustering:
         if cluster_distances[outlier_cluster_value] <= distance_threshold:
             return
         clusters = model.predict(feature_vector)
-        if len(np.unique(clusters)) == 1:
+        if len(np.unique(clusters)) <= 1:
             return
         result = np.zeros_like(clusters)
         result[clusters == outlier_cluster_value] = 1
@@ -184,13 +194,21 @@ class Clustering:
         :return: binary 1-D array combining all input clusters
         """
         result = cluster_list[0]
-        no_outlier_indices = np.where(result == 0)[0]
         for outlier_cluster in cluster_list[1:]:
-            new_outlier_indices = no_outlier_indices[np.where(outlier_cluster == 1)[0]]
-            result[new_outlier_indices] = 1
+            labels_are_zero = np.where(result == 0)[0]
+            labels_are_one = labels_are_zero[np.where(outlier_cluster == 1)[0]]
+            result[labels_are_one] = 1
         return result
 
     @staticmethod
-    def _get_cluster_distances(cluster_centres):
-        return np.sqrt(np.sum((np.mean(cluster_centres, axis=0) - cluster_centres) ** 2,
-                              axis=1))  # TODO this should be astropy separation
+    def _get_separations_from_mean(coordinates: np.ndarray[float]) -> np.ndarray[float]:
+        """
+        Return the separation of each element in `coordinates` from the mean of `coordinates`.
+        :param coordinates: `numpy` array with two dimensions, first axis for samples,
+                            second for coordinate one and two
+        :return: 1-D `numpy` array with separations of each point from the mean of all
+        """
+        mean = SkyCoord(*np.mean(coordinates, axis=0) * units.deg, frame='icrs')
+        coordinates = SkyCoord(coordinates * units.deg, frame='icrs')
+        separations = coordinates.separation(mean)
+        return separations.degree
