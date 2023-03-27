@@ -31,6 +31,11 @@ class FlagElement:
         self._flags.append(flag)
         self._check_flags()
 
+    def remove_flag(self, index: int):
+        """ Remove `flag` at `index` in `self.flags`. """
+        self._flags = [flag for i, flag in enumerate(self._flags) if i != index]
+        self._check_flags()
+
     def combine(self, threshold: int = 1) -> DataElement:
         """
         Combine all flags and return them as a single boolean `DataElement` after thresholding with `threshold`.

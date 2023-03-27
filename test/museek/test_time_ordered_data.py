@@ -80,6 +80,17 @@ class TestTimeOrderedData(unittest.TestCase):
                          self.mock_get_data_element_factory.return_value.create.return_value)
 
     @patch('museek.time_ordered_data.FlagElement')
+    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_element):
+        self.time_ordered_data.visibility = 1
+        self.time_ordered_data.flags = 1
+        self.time_ordered_data.weights = 1
+        self.time_ordered_data.load_visibility_flags_weights()
+        mock_flag_element.assert_not_called()
+        self.assertEqual(self.time_ordered_data.visibility, 1)
+        self.assertEqual(self.time_ordered_data.flags, 1)
+        self.assertEqual(self.time_ordered_data.weights, 1)
+
+    @patch('museek.time_ordered_data.FlagElement')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_flag_element):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
@@ -124,10 +135,30 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_antenna.assert_called_once()
         self.assertIsNone(antenna_index)
 
+    def test_set_gain_solution(self):
+        mock_gain_solution_array = MagicMock()
+        mock_gain_solution_mask_array = MagicMock()
+        mock_flags = MagicMock()
+        self.time_ordered_data.flags = mock_flags
+        self.time_ordered_data.set_gain_solution(gain_solution_array=mock_gain_solution_array,
+                                                 gain_solution_mask_array=mock_gain_solution_mask_array)
+        self.assertEqual([call(array=mock_gain_solution_array), call(array=mock_gain_solution_mask_array)],
+                         self.mock_get_data_element_factory.return_value.create.call_args_list[-2:])
+        self.assertIsNotNone(self.time_ordered_data.gain_solution)
+        mock_flags.add_flag.assert_called_once()
+
+    def test_corrected_visibility_when_no_gain_solution_expect_none(self):
+        self.assertIsNone(self.time_ordered_data.corrected_visibility())
+
+    def test_corrected_visibility(self):
+        self.time_ordered_data.visibility = 2
+        self.time_ordered_data.gain_solution = 3
+        self.assertEqual(2 / 3, self.time_ordered_data.corrected_visibility())
+
     @patch.object(TimeOrderedData, 'set_data_elements')
     @patch.object(TimeOrderedData, '_select')
     @patch('museek.time_ordered_data.katdal.open')
-    def test_load_data_when_data_folder(self, mock_open, mock_select, mock_set_data_elements):
+    def test_get_data_when_data_folder(self, mock_open, mock_select, mock_set_data_elements):
         block_name = 'block'
         token = None
         data_folder = 'folder'
@@ -144,7 +175,7 @@ class TestTimeOrderedData(unittest.TestCase):
     @patch.object(TimeOrderedData, 'set_data_elements')
     @patch.object(TimeOrderedData, '_select')
     @patch('museek.time_ordered_data.katdal.open')
-    def test_load_data_when_token(self, mock_open, mock_select, mock_set_data_elements):
+    def test_get_data_when_token(self, mock_open, mock_select, mock_set_data_elements):
         block_name = 'block'
         token = 'token'
         mock_receiver_list = [Mock(), Mock()]
@@ -154,7 +185,7 @@ class TestTimeOrderedData(unittest.TestCase):
                         token=token,
                         data_folder=None)
         mock_open.assert_called_once_with(
-            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?{token}'
+            f'https://archive-gw-1.kat.ac.za/{block_name}/{block_name}_sdp_l0.full.rdb?token={token}'
         )
         mock_select.assert_called_once()
         mock_set_data_elements.assert_called_once()

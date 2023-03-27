@@ -1,4 +1,5 @@
 import os
+from copy import copy
 from datetime import datetime
 from typing import Optional, NamedTuple, Any
 
@@ -8,13 +9,12 @@ from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Target, Antenna
 
+from definitions import ROOT_DIR
 from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
 from museek.flag_element import FlagElement
 from museek.receiver import Receiver
-
-MODULE_ROOT = os.path.dirname(__file__)
 
 
 class ScanTuple(NamedTuple):
@@ -90,6 +90,7 @@ class TimeOrderedData:
         self._element_factory: AbstractDataElementFactory | None = None
 
         self.timestamps: DataElement | None = None
+        self.original_timestamps: DataElement | None = None
         self.timestamp_dates: DataElement | None = None
         self.frequencies: DataElement | None = None
         # sky coordinates
@@ -105,6 +106,8 @@ class TimeOrderedData:
 
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
+
+        self.gain_solution: DataElement | None = None
 
     def __str__(self):
         """ Returns the same `str` as `katdal`. """
@@ -123,6 +126,8 @@ class TimeOrderedData:
         self._element_factory = self._get_data_element_factory()
 
         self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
+        if self.original_timestamps is None:
+            self.original_timestamps = copy(self.timestamps)
         self.timestamp_dates = self._element_factory.create(
             array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
         )
@@ -143,6 +148,9 @@ class TimeOrderedData:
 
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
+        if self.flags is not None and self.weights is not None and self.visibility is not None:
+            print('Visibility, flag and weight data is already loaded.')
+            return
         visibility, flags, weights = self._visibility_flags_weights()
         self.visibility = self._element_factory.create(array=visibility)
         if self.flags is not None:
@@ -168,6 +176,18 @@ class TimeOrderedData:
             return self.antennas.index(self.antenna(receiver=receiver))
         except ValueError:
             return
+
+    def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
+        """ Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`. """
+        self.gain_solution = self._element_factory.create(array=gain_solution_array)
+        self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array))
+
+    def corrected_visibility(self) -> DataElement | None:
+        """ Returns the gain-corrected visibility data. """
+        if self.gain_solution is None:
+            print('Gain solution not available.')
+            return
+        return self.visibility / self.gain_solution
 
     def _get_data(self) -> DataSet:
         """
@@ -217,7 +237,7 @@ class TimeOrderedData:
         :param data: optional `katdal` `DataSet`, defaults to `None`
         :return: a tuple of visibility, flags and weights as `np.ndarray` each
         """
-        cache_file_directory = os.path.join(MODULE_ROOT, '../cache')
+        cache_file_directory = os.path.join(ROOT_DIR, 'cache')
         os.makedirs(cache_file_directory, exist_ok=True)
         cache_file = os.path.join(cache_file_directory, self._cache_file_name)
         if not os.path.exists(cache_file) or self._force_load_from_correlator_data:
@@ -233,6 +253,7 @@ class TimeOrderedData:
                                     weights=weights,
                                     correlator_products=data.corr_products)
         else:
+            print(f'Loading visibility, flags and weights for {self.name} from cache file...')
             data_from_cache = np.load(cache_file)
             correlator_products = data_from_cache['correlator_products']
             try:  # if this fails it means that the cache file does not contain the correlator products
