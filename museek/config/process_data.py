@@ -9,7 +9,8 @@ Pipeline = ConfigSection(
         'museek.plugin.out_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.zebra_remover_plugin',
-        # 'museek.plugin.bandpass_plugin'
+        'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.bandpass_plugin'
     ]
 )
 
@@ -43,12 +44,16 @@ InPlugin = ConfigSection(
 )
 
 OutPlugin = ConfigSection(
-    output_folder = None  # this means default location is chosen
+    output_folder=None  # this means default location is chosen
 )
 
 PointSourceFlaggerPlugin = ConfigSection(
     point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
     angle_threshold=0.5
+)
+
+ApplyExternalGainSolutionPlugin = ConfigSection(
+    gain_file_path='/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/'
 )
 
 ZebraRemoverPlugin = ConfigSection(
@@ -72,6 +77,7 @@ ZebraRemoverPlugin = ConfigSection(
 
 BandpassPlugin = ConfigSection(
     target_channels=range(570, 765),
-    centre_coord=(79.95, -45.78),
-    pointing_tolerance = .1
+    pointing_threshold=5.,
+    n_pointings=5,
+    n_centre_observations=3
 )

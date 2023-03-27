@@ -9,3 +9,4 @@ six
 healpy
 astropy
 ivory
+scikit-learn
