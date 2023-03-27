@@ -58,6 +58,7 @@ ZebraRemoverPlugin = ConfigSection(
 
 BandpassPlugin = ConfigSection(
     target_channels=range(570, 765),
-    centre_coord=(79.95, -45.78),
-    pointing_tolerance=.1
+    pointing_threshold=5.,
+    n_pointings=5,
+    n_centre_observations=3
 )
