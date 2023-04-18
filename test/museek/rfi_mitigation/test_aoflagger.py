@@ -1,12 +1,11 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock, call
+from unittest.mock import patch, Mock, call
 
 import numpy as np
-import scipy
 
 from museek.factory.data_element_factory import DataElementFactory
 from museek.rfi_mitigation.aoflagger import _sum_threshold_mask, \
-    _run_sumthreshold, _apply_kernel, binary_mask_dilation, \
+    _run_sumthreshold, _apply_kernel, \
     gaussian_filter, get_rfi_mask
 
 
@@ -83,16 +82,6 @@ class TestAoflagger(unittest.TestCase):
         self.assertTupleEqual(call_args_dict['even_window_size'], (2, 2))
         for i in range(2):
             np.testing.assert_array_almost_equal(call_args_dict['kernel'][i], kernel[i])
-
-    @patch.object(scipy.ndimage, 'binary_dilation')
-    @patch.object(np, 'ones')
-    def test_binary_mask_dilation(self, mock_ones, mock_binary_dilation):
-        mock_mask = Mock()
-        mock_struct_size = MagicMock()
-        self.assertEqual(mock_binary_dilation.return_value,
-                         binary_mask_dilation(mask=mock_mask, struct_size=mock_struct_size))
-        mock_ones.assert_called_once_with((mock_struct_size[0], mock_struct_size[1]), dtype=bool)
-        mock_binary_dilation.assert_called_once_with(mock_mask, structure=mock_ones.return_value, iterations=2)
 
     def test_apply_kernel_when_unity_kernel_expect_identity(self):
         array = np.array([[0, 0, 0, 0, 0],
