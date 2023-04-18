@@ -3,7 +3,6 @@ from copy import copy
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy import ndimage
 
 from museek.data_element import DataElement
 from museek.factory.data_element_factory import DataElementFactory
@@ -56,7 +55,7 @@ def get_rfi_mask(
                                                smoothing_window_size=smoothing_window_size,
                                                smoothing_sigma=smoothing_sigma)
 
-    return DataElementFactory.create(array=sum_threshold_mask[:, :, np.newaxis])
+    return DataElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
 
 
 def gaussian_filter(array: np.ndarray,
@@ -84,17 +83,6 @@ def gaussian_filter(array: np.ndarray,
                            kernel=(kernel_0, kernel_1),
                            even_window_size=window_size)
     return result
-
-
-def binary_mask_dilation(mask: np.ndarray, struct_size: tuple[int, int]):
-    """
-    Dilate and return `mask`.
-    :param mask: original mask
-    :param struct_size: dilation struct size in axes 0 and 1
-    :return: dilated mask
-    """
-    struct = np.ones((struct_size[0], struct_size[1]), dtype=bool)
-    return ndimage.binary_dilation(mask, structure=struct, iterations=2)
 
 
 def _apply_kernel(array: np.ndarray,
@@ -256,20 +244,20 @@ def plot_moments(data, output_path: str):
     mean_time = np.mean(data, axis=0)
     std_freuqency = np.std(data, axis=1)
     mean_freuqency = np.mean(data, axis=1)
-    plt.subplot(121)
+    plt.subplot(221)
     plt.plot(mean_time)
     plt.xlabel('time')
     plt.ylabel('mean')
-    plt.subplot(122)
+    plt.subplot(222)
     plt.plot(std_time)
     plt.xlabel('time')
     plt.ylabel('std')
-    plt.show()
-    plt.subplot(121)
+    # plt.show()
+    plt.subplot(223)
     plt.plot(mean_freuqency)
     plt.xlabel('freuqency')
     plt.ylabel('mean')
-    plt.subplot(122)
+    plt.subplot(224)
     plt.plot(std_freuqency)
     plt.xlabel('freuqency')
     plt.ylabel('std')
