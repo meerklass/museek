@@ -8,6 +8,16 @@ from museek.flag_factory import FlagFactory
 
 class TestFlagFactory(unittest.TestCase):
 
+    @patch('museek.flag_factory.np')
+    @patch('museek.flag_factory.DataElementFactory')
+    def test_empty_flag(self, mock_data_element_factory, mock_np):
+        flag_factory = FlagFactory()
+        mock_shape = Mock()
+        empty_flag = flag_factory.empty_flag(shape=mock_shape)
+        mock_np.zeros.assert_called_once_with(mock_shape, dtype=bool)
+        mock_data_element_factory.return_value.create.assert_called_once_with(array=mock_np.zeros.return_value)
+        self.assertEqual(empty_flag, mock_data_element_factory.return_value.create.return_value)
+
     @patch('museek.flag_factory.SkyCoord')
     @patch('museek.flag_factory.units')
     @patch.object(np, 'loadtxt')
