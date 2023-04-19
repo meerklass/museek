@@ -40,6 +40,11 @@ class TestFlagElement(unittest.TestCase):
         expect = FlagElement(flags=flags)
         self.assertEqual(expect, self.flag_element)
 
+    def test_add_flag_when_flag_element(self):
+        mock_flags = FlagElement(flags=[DataElement(array=np.zeros((3, 3, 3)))])
+        self.flag_element.add_flag(flag=mock_flags)
+        np.testing.assert_array_equal(mock_flags._flags[0]._array, self.flag_element._flags[0]._array)
+
     def test_remove_flag(self):
         flag_element = FlagElement(flags=[DataElement(array=np.ones((3, 3, 3)) * i) for i in range(3)])
         flag_element.remove_flag(index=1)
@@ -91,6 +96,22 @@ class TestFlagElement(unittest.TestCase):
         self.assertEqual(flag_element._flags[0], flag_element.get(**kwargs)._flags[0])
         mock_flag.get.assert_called_once_with(mock='mock')
         self.assertEqual(2, mock_check_flags.call_count)
+
+    def test_insert_receiver_flag_when_flag_shape_incorrect_expect_value_error(self):
+        mock_flag = DataElement(array=np.ones((3, 3, 2)))
+        self.assertRaises(ValueError,
+                          self.flag_element.insert_receiver_flag,
+                          flag=mock_flag,
+                          i_receiver=1,
+                          index=2)
+
+    def test_insert_receiver_flag(self):
+        mock_flag = DataElement(array=np.ones((3, 3, 1), dtype=bool))
+        self.flag_element.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
+        self.assertTrue((self.flag_element._flags[0]._array == False).all())
+        self.assertTrue((self.flag_element._flags[2].get(recv=0).squeeze == False).all())
+        self.assertTrue((self.flag_element._flags[2].get(recv=2).squeeze == False).all())
+        self.assertTrue(self.flag_element._flags[2].get(recv=1).squeeze.all())
 
     @patch.object(FlagElement, '_check_flag_types')
     @patch.object(FlagElement, '_check_flag_shapes')

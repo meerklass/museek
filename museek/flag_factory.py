@@ -3,11 +3,20 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from museek.data_element import DataElement
+from museek.factory.data_element_factory import DataElementFactory
 from museek.receiver import Receiver
 
 
 class FlagFactory:
     """ Class to instantiate flags, i.e. `DataElement`s with boolean entries. """
+
+    def __init__(self):
+        """ Initialise and set the `DataElementFactory`. """
+        self._data_element_factory = DataElementFactory()
+
+    def empty_flag(self, shape: tuple[int, int, int]):
+        """ Returns an empty `DataElement` of shape `shape`. """
+        return self._data_element_factory.create(array=np.zeros(shape, dtype=bool))
 
     @staticmethod
     def point_sources_coordinate_list(point_source_file_path: str) -> list[SkyCoord]:
@@ -49,7 +58,7 @@ class FlagFactory:
                 angle_threshold=angle_threshold
             )
             point_source_mask[point_source_mask_dump_list, :, i_receiver] = True
-        return DataElement(array=point_source_mask)
+        return self._data_element_factory.create(array=point_source_mask)
 
     @staticmethod
     def _coordinates_mask_dumps(right_ascension: DataElement,

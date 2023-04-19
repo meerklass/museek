@@ -82,6 +82,10 @@ class DataElement:
         """ Return the mean of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
 
+    def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
+        return DataElement(array=np.sum(self._array, axis=axis, keepdims=True))
+
     def get(self,
             *,  # force named parameters
             time: int | list[int] | slice | range | None = None,

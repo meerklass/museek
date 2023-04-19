@@ -8,6 +8,7 @@ Pipeline = ConfigSection(
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
         'museek.plugin.point_source_flagger_plugin',
+        'museek.plugin.aoflagger_plugin',
         'museek.plugin.zebra_remover_plugin',
         'museek.plugin.apply_external_gain_solution_plugin',
         'museek.plugin.bandpass_plugin'
@@ -54,6 +55,16 @@ ApplyExternalGainSolutionPlugin = ConfigSection(
 ZebraRemoverPlugin = ConfigSection(
     reference_channel=3000,
     zebra_channels=range(350, 498),
+)
+
+AoflaggerPlugin = ConfigSection(
+    first_threshold=0.1,  # First threshold value
+    threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
+    smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
+    smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
+    struct_size=(6, 1),  # size of struct for dilation in time and frequency direction [pixels]
+    channel_flag_threshold=0.6,
+    flag_combination_threshold=1
 )
 
 BandpassPlugin = ConfigSection(

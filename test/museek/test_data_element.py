@@ -98,6 +98,15 @@ class TestDataElement(unittest.TestCase):
                                              axis=mock_axis,
                                              keepdims=True)
 
+    @patch('museek.data_element.DataElement')
+    @patch('museek.data_element.np')
+    def test_sum(self, mock_np, mock_data_element):
+        mock_axis = MagicMock()
+        mean = self.element.sum(axis=mock_axis)
+        mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
+        mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
+        self.assertEqual(mean, mock_data_element.return_value)
+
     def test_get(self):
         list_ = [1] * 9 + [2] * 9 + [3] * 9
         array = np.reshape(list_, (3, 3, 3))
