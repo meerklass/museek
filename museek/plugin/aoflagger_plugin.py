@@ -61,16 +61,13 @@ class AoflaggerPlugin(AbstractPlugin):
         scan_data.load_visibility_flags_weights()
         initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
 
-        times = range(scan_data.visibility.shape[0])
-        freqs = range(scan_data.visibility.shape[1])
-
         new_flag = FlagElement(flags=[FlagFactory().empty_flag(shape=scan_data.visibility.shape)])
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
-            visibility = scan_data.visibility.get(recv=i_receiver, time=times, freq=freqs)
-            initial_flag = initial_flags.get(recv=i_receiver, time=times, freq=freqs)
+            visibility = scan_data.visibility.get(recv=i_receiver)
+            initial_flag = initial_flags.get(recv=i_receiver)
             rfi_flag = get_rfi_mask(time_ordered=visibility,
                                     mask=initial_flag,
                                     first_threshold=self.first_threshold,
@@ -84,8 +81,8 @@ class AoflaggerPlugin(AbstractPlugin):
         scan_data.flags.add_flag(flag=new_flag)
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
 
-        waterfall(scan_data.visibility.get(recv=0, time=times, freq=freqs),
-                  scan_data.flags.get(recv=0, time=times, freq=freqs),
+        waterfall(scan_data.visibility.get(recv=0),
+                  scan_data.flags.get(recv=0),
                   cmap='gist_ncar',
                   norm='log')
         plt.savefig(os.path.join(output_path, 'rfi_mitigation_result_receiver_0.png'))
