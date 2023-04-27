@@ -297,6 +297,24 @@ class TestClustering(unittest.TestCase):
                 declination_diff = mock_declination[d] - expect_centre[1]
                 self.assertLess(np.sum(np.abs([right_ascension_diff, declination_diff])), 0.1)
 
+    @patch.object(np, 'where')
+    @patch.object(Clustering, '_iterative_outlier_cluster')
+    def test_iterative_outlier_indices(self, mock_iterative_outlier_cluster, mock_where):
+        mock_feature_vector = Mock()
+        mock_distance_threshold = Mock()
+        outlier_indices = Clustering().iterative_outlier_indices(feature_vector=mock_feature_vector,
+                                                                 distance_threshold=mock_distance_threshold)
+        self.assertEqual(mock_where.return_value[0], outlier_indices)
+        mock_iterative_outlier_cluster.assert_called_once_with(
+            feature_vector=mock_feature_vector,
+            n_clusters=2,
+            metric=Clustering()._standard_deviation_metric,
+            get_outlier=Clustering()._get_outlier_cluster_binary_majority,
+            distance_threshold=mock_distance_threshold,
+            max_iter=5
+        )
+        mock_where.assert_called_once_with(mock_iterative_outlier_cluster.return_value)
+
     @patch.object(np, 'atleast_2d')
     def test_atleast_2d(self, mock_atleast_2d):
         mock_array = MagicMock(shape=[1])
@@ -316,7 +334,7 @@ class TestClustering(unittest.TestCase):
         ordered = Clustering._ordered_and_unique(array_or_list=[1])
         self.assertListEqual([1], ordered)
 
-    def test_calibrator_pointings_outlier_cluster(self):
+    def test_iterative_outlier_cluster_wityh_get_outlier_cluster(self):
         np.random.seed(0)
         random_1 = np.random.normal(0, scale=0.1, size=10)
         random_2 = np.random.normal(0, scale=0.1, size=10)
@@ -331,15 +349,34 @@ class TestClustering(unittest.TestCase):
 
         mock_feature_vector = centre + up + right + down + left + outlier_1 + outlier_2 + outlier_3
 
-        cluster = Clustering()._calibrator_pointings_outlier_cluster(feature_vector=np.asarray(mock_feature_vector),
-                                                                     n_clusters=5,
-                                                                     metric=Clustering._get_separations_from_mean,
-                                                                     distance_threshold=2)
+        cluster = Clustering()._iterative_outlier_cluster(feature_vector=np.asarray(mock_feature_vector),
+                                                          n_clusters=5,
+                                                          metric=Clustering._separations_from_mean_metric,
+                                                          distance_threshold=2,
+                                                          get_outlier=Clustering._get_outlier_cluster)
         outlier_length = len(outlier_3) + len(outlier_2) + len(outlier_1)
         for label in cluster[-outlier_length:]:
             self.assertEqual(1, label)
         for label in cluster[:-outlier_length]:
             self.assertEqual(0, label)
+
+    def test_iterative_outlier_cluster_with_get_outlier_cluster_binary_majority(self):
+        non_outliers_list = [np.random.normal(i, scale=0.1, size=10) for i in range(6)]
+        outliers_list = [np.random.normal(i + 10, scale=0.1, size=9) for i in range(6)]
+
+        non_outliers = np.asarray(non_outliers_list).T
+        outliers = np.asarray(outliers_list).T
+        feature_vector = np.append(non_outliers, outliers).reshape((19, 6))
+        distance_threshold = 1
+        cluster = Clustering()._iterative_outlier_cluster(feature_vector=feature_vector,
+                                                          n_clusters=2,
+                                                          metric=Clustering()._standard_deviation_metric,
+                                                          get_outlier=Clustering()._get_outlier_cluster_binary_majority,
+                                                          distance_threshold=distance_threshold,
+                                                          max_iter=5)
+        expect = np.array([False, False, False, False, False, False, False, False, False, False,
+                           True, True, True, True, True, True, True, True, True])
+        np.testing.assert_array_equal(expect, cluster)
 
     @patch.object(KMeans, 'fit')
     def test_get_outlier_cluster(self, mock_fit):
@@ -348,12 +385,13 @@ class TestClustering(unittest.TestCase):
         mock_fit.return_value.predict.return_value = mock_clusters
         mock_feature_vector = Mock()
         mock_n_clusters = Mock()
-        outlier_cluster = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
-                                                          n_clusters=mock_n_clusters,
-                                                          metric=mock_metric,
-                                                          distance_threshold=1)
+        outlier_cluster, is_done = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
+                                                                   n_clusters=mock_n_clusters,
+                                                                   metric=mock_metric,
+                                                                   distance_threshold=1)
         mock_fit.assert_called_once_with(mock_feature_vector)
         np.testing.assert_array_equal(np.array([0, 1]), outlier_cluster)
+        self.assertFalse(is_done)
 
     @patch.object(KMeans, 'fit')
     def test_get_outlier_cluster_when_no_cluster(self, mock_fit):
@@ -362,10 +400,10 @@ class TestClustering(unittest.TestCase):
         mock_fit.return_value.predict.return_value = mock_clusters
         mock_feature_vector = Mock()
         mock_n_clusters = Mock()
-        outlier_cluster = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
-                                                          n_clusters=mock_n_clusters,
-                                                          metric=mock_metric,
-                                                          distance_threshold=0.01)
+        outlier_cluster, _ = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
+                                                             n_clusters=mock_n_clusters,
+                                                             metric=mock_metric,
+                                                             distance_threshold=0.01)
         mock_fit.assert_called_once_with(mock_feature_vector)
         self.assertIsNone(outlier_cluster)
 
@@ -374,10 +412,10 @@ class TestClustering(unittest.TestCase):
         mock_metric = MagicMock(return_value=[0.1, 2.0])
         mock_feature_vector = Mock()
         mock_n_clusters = Mock()
-        outlier_cluster = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
-                                                          n_clusters=mock_n_clusters,
-                                                          metric=mock_metric,
-                                                          distance_threshold=3)
+        outlier_cluster, _ = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
+                                                             n_clusters=mock_n_clusters,
+                                                             metric=mock_metric,
+                                                             distance_threshold=3)
         self.assertIsNone(outlier_cluster)
         mock_fit.return_value.predict.assert_not_called()
         mock_fit.assert_called_once_with(mock_feature_vector)
@@ -389,13 +427,16 @@ class TestClustering(unittest.TestCase):
         mock_fit.return_value.predict.return_value = mock_clusters
         mock_feature_vector = Mock()
         mock_n_clusters = Mock()
-        outlier_cluster = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
-                                                          n_clusters=mock_n_clusters,
-                                                          metric=mock_metric,
-                                                          distance_threshold=1)
+        outlier_cluster, _ = Clustering._get_outlier_cluster(feature_vector=mock_feature_vector,
+                                                             n_clusters=mock_n_clusters,
+                                                             metric=mock_metric,
+                                                             distance_threshold=1)
         mock_fit.assert_called_once_with(mock_feature_vector)
         mock_fit.return_value.predict.assert_called_once_with(mock_feature_vector)
         self.assertIsNone(outlier_cluster)
+
+    def test_get_outlier_cluster_binary_majority(self):
+        pass
 
     def test_condense_nested_cluster_list(self):
         mock_cluster_list = [np.asarray([1, 0, 0, 0]),
@@ -410,7 +451,7 @@ class TestClustering(unittest.TestCase):
         condensed = Clustering._condense_nested_cluster_list(cluster_list=mock_cluster_list)
         np.testing.assert_array_equal(np.array([1, 0, 0, 0]), condensed)
 
-    def test_get_separations_from_mean(self):
+    def test_get_separations_from_mean_metric(self):
         mock_coordinates = np.array([[0, 0],
                                      [1, 0],
                                      [-1, 0],
@@ -418,10 +459,16 @@ class TestClustering(unittest.TestCase):
                                      [0, -1],
                                      [-1, -1],
                                      [1, 1]])
-        separations = Clustering._get_separations_from_mean(coordinates=mock_coordinates)
+        separations = Clustering._separations_from_mean_metric(coordinates=mock_coordinates)
         np.testing.assert_array_almost_equal(np.array([0, 1, 1, 1, 1, np.sqrt(2), np.sqrt(2)]),
                                              separations,
                                              4)
+
+    @patch.object(np, 'std')
+    def test_standard_deviation_metric(self, mock_std):
+        mock_features = Mock()
+        self.assertEqual(mock_std.return_value, Clustering()._standard_deviation_metric(features=mock_features))
+        mock_std.assert_called_once_with(mock_features, axis=0)
 
 
 if __name__ == '__main__':
