@@ -135,6 +135,33 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_antenna.assert_called_once()
         self.assertIsNone(antenna_index)
 
+    def test_receiver_indices_of_antenna_when_occurs_twice(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        mock_antenna.name = 'angela'
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        self.assertListEqual([0, 2], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
+
+    def test_receiver_indices_of_antenna_when_occurs_once(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        mock_antenna.name = 'michael'
+        self.assertListEqual([1], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
+
+    def test_receiver_indices_of_antenna_when_occurs_never(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        mock_antenna.name = 'fred'
+        self.assertListEqual([], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
+
     def test_set_gain_solution(self):
         mock_gain_solution_array = MagicMock()
         mock_gain_solution_mask_array = MagicMock()
