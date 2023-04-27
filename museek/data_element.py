@@ -125,13 +125,13 @@ class DataElement:
         """
         return self.get(**kwargs)._array
 
-    def min(self):
+    def min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.min()`. """
-        return self.squeeze.min()
+        return DataElement(array=np.min(self._array, axis=axis, keepdims=True))
 
-    def max(self):
+    def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
-        return self.squeeze.max()
+        return DataElement(array=np.max(self._array, axis=axis, keepdims=True))
 
     @classmethod
     def channel_iterator(cls, data_element: 'DataElement'):
