@@ -78,7 +78,7 @@ class TimeOrderedData:
         self.all_antennas = data.ants
         self._select(data=data)
         self._data_str = str(data)
-        self._cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
+        self._cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'  # TODO: this must be changed according to track/scaning
 
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
