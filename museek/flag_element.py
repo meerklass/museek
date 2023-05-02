@@ -1,6 +1,9 @@
+from typing import Union
+
 import numpy as np
 
 from museek.data_element import DataElement
+from museek.factory.data_element_factory import DataElementFactory
 
 
 class FlagElement:
@@ -10,6 +13,7 @@ class FlagElement:
         """ Initialise with `flags`, a `list of `DataElement`s. """
         self._flags = flags
         self._check_flags()
+        self._data_element_factory = DataElementFactory()
 
     def __len__(self):
         """ Return the number of `DataElement`s in `self`. """
@@ -26,8 +30,12 @@ class FlagElement:
         """ Return the shape of the first element in `self._flags`. All elements have the same shape. """
         return self._flags[0].shape
 
-    def add_flag(self, flag: DataElement):
+    def add_flag(self, flag: Union[DataElement, 'FlagElement']):
         """ Append `flag` to `self` and check for compatibility. """
+        if isinstance(flag, FlagElement):
+            if flag_len := len(flag) > 1:
+                raise ValueError(f'Adding more than one flag at once is not implemented yet. Got {flag_len} flags.')
+            flag = flag._flags[0]
         self._flags.append(flag)
         self._check_flags()
 
@@ -44,11 +52,19 @@ class FlagElement:
         for flag in self._flags:
             result_array += flag.get_array()
         result_array[result_array < threshold] = 0
-        return DataElement(array=np.asarray(result_array, dtype=bool))
+        return self._data_element_factory.create(array=np.asarray(result_array, dtype=bool))
 
     def get(self, **kwargs) -> 'FlagElement':
         """ Wraps `DataElement.get()` around each flag in `self` and returns a new `FlagElement`. """
         return FlagElement(flags=[flag.get(**kwargs) for flag in self._flags])
+
+    def insert_receiver_flag(self, flag: DataElement, i_receiver: int, index: int):
+        """ Insert `flag` for receiver with index `i_receiver` into the flag in `self` at `index`. """
+        if n_flag_recv := flag.shape[-1] != 1:
+            raise ValueError(f'Input `flag` needs to be for exactly one receiver, but got {n_flag_recv}')
+        flag_at_index = self._flags[index].squeeze
+        flag_at_index[:, :, i_receiver] = np.logical_or(flag_at_index[:, :, i_receiver], flag.squeeze)
+        self._flags[index] = self._data_element_factory.create(array=flag_at_index)
 
     def _check_flags(self):
         """ Check if all flags are compatible. """

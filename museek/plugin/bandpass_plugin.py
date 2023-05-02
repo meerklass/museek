@@ -107,7 +107,7 @@ class BandpassPlugin(AbstractPlugin):
                     plt.figure(figsize=(12, 8))
                     ax1 = plt.subplot(3, 1, 1)
                 else:
-                    plt.figure(figsize=(8, 8))
+                    plt.figure(figsize=(8, 4))
                     ax1 = plt.subplot(1, 1, 1)
 
                 plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,

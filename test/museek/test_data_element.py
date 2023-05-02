@@ -98,6 +98,15 @@ class TestDataElement(unittest.TestCase):
                                              axis=mock_axis,
                                              keepdims=True)
 
+    @patch('museek.data_element.DataElement')
+    @patch('museek.data_element.np')
+    def test_sum(self, mock_np, mock_data_element):
+        mock_axis = MagicMock()
+        mean = self.element.sum(axis=mock_axis)
+        mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
+        mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
+        self.assertEqual(mean, mock_data_element.return_value)
+
     def test_get(self):
         list_ = [1] * 9 + [2] * 9 + [3] * 9
         array = np.reshape(list_, (3, 3, 3))
@@ -157,11 +166,41 @@ class TestDataElement(unittest.TestCase):
         self.assertIsInstance(result, np.ndarray)
         np.testing.assert_array_equal(np.zeros(shape_), result)
 
-    def test_min(self):
-        self.assertEqual(0, self.element.min())
+    def test_min_when_axis_0(self):
+        expect = np.array([[0, 1, 2],
+                           [3, 4, 5],
+                           [6, 7, 8]])
+        np.testing.assert_array_equal(expect, self.element.min(axis=0).squeeze)
 
-    def test_max(self):
-        self.assertEqual(26, self.element.max())
+    def test_min_when_axis_1(self):
+        expect = np.array([[0, 1, 2],
+                           [9, 10, 11],
+                           [18, 19, 20]])
+        np.testing.assert_array_equal(expect, self.element.min(axis=1).squeeze)
+
+    def test_min_when_axis_2(self):
+        expect = np.array([[0, 3, 6],
+                           [9, 12, 15],
+                           [18, 21, 24]])
+        np.testing.assert_array_equal(expect, self.element.min(axis=2).squeeze)
+
+    def test_max_when_axis_0(self):
+        expect = np.array([[18, 19, 20],
+                           [21, 22, 23],
+                           [24, 25, 26]])
+        np.testing.assert_array_equal(expect, self.element.max(axis=0).squeeze)
+
+    def test_max_when_axis_1(self):
+        expect = np.array([[6, 7, 8],
+                           [15, 16, 17],
+                           [24, 25, 26]])
+        np.testing.assert_array_equal(expect, self.element.max(axis=1).squeeze)
+
+    def test_max_when_axis_2(self):
+        expect = np.array([[2, 5, 8],
+                           [11, 14, 17],
+                           [20, 23, 26]])
+        np.testing.assert_array_equal(expect, self.element.max(axis=2).squeeze)
 
     def test_channel_iterator(self):
         for i, channel in enumerate(DataElement.channel_iterator(data_element=self.element)):

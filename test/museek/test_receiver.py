@@ -10,6 +10,12 @@ class TestReceiver(unittest.TestCase):
         receiver = Receiver(antenna_number=0, polarisation=Polarisation.v)
         self.assertEqual(str(receiver), 'm000v')
 
+    def test_eq_when_equal(self):
+        self.assertTrue(Receiver.from_string('m000h') == Receiver.from_string('m000h'))
+
+    def test_eq_when_not_equal(self):
+        self.assertFalse(Receiver.from_string('m000h') == Receiver.from_string('m000v'))
+
     def test_name(self):
         receiver = Receiver(antenna_number=0, polarisation=Polarisation.v)
         self.assertEqual(receiver.name, 'm000v')

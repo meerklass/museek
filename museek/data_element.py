@@ -82,6 +82,10 @@ class DataElement:
         """ Return the mean of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
 
+    def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
+        return DataElement(array=np.sum(self._array, axis=axis, keepdims=True))
+
     def get(self,
             *,  # force named parameters
             time: int | list[int] | slice | range | None = None,
@@ -121,13 +125,13 @@ class DataElement:
         """
         return self.get(**kwargs)._array
 
-    def min(self):
+    def min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.min()`. """
-        return self.squeeze.min()
+        return DataElement(array=np.min(self._array, axis=axis, keepdims=True))
 
-    def max(self):
+    def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
-        return self.squeeze.max()
+        return DataElement(array=np.max(self._array, axis=axis, keepdims=True))
 
     @classmethod
     def channel_iterator(cls, data_element: 'DataElement'):
