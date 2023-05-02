@@ -7,6 +7,7 @@ Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
+        'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
         'museek.plugin.zebra_remover_plugin',
