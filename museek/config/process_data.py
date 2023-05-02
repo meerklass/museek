@@ -8,11 +8,11 @@ Pipeline = ConfigSection(
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
         'museek.plugin.antenna_flagger_plugin',
-        # 'museek.plugin.aoflagger_plugin',
-        # 'museek.plugin.point_source_flagger_plugin',
-        # 'museek.plugin.zebra_remover_plugin',
-        # 'museek.plugin.apply_external_gain_solution_plugin',
-        # 'museek.plugin.bandpass_plugin'
+        'museek.plugin.aoflagger_plugin',
+        'museek.plugin.point_source_flagger_plugin',
+        'museek.plugin.zebra_remover_plugin',
+        'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.bandpass_plugin'
     ]
 )
 
