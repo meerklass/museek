@@ -1,5 +1,6 @@
+import itertools
 import unittest
-from unittest.mock import patch, Mock, MagicMock, call
+from unittest.mock import patch, Mock, MagicMock, call, PropertyMock
 
 import numpy as np
 
@@ -16,16 +17,20 @@ class TestTimeOrderedData(unittest.TestCase):
               mock_get_data,
               mock_correlator_products_indices,
               mock_get_data_element_factory):
+        mock_receiver_name_list = ['m000h', 'm000v', 'm001h']
+        self.mock_receiver_list = [Receiver.from_string(name) for name in mock_receiver_name_list]
+        mock_corr_products = np.asarray(list(itertools.product(mock_receiver_name_list, mock_receiver_name_list)))
         self.mock_katdal_data = MagicMock()
+        type(self.mock_katdal_data).corr_products = PropertyMock(return_value=mock_corr_products)
+
         self.mock_correlator_products_indices = mock_correlator_products_indices
         self.mock_get_data_element_factory = mock_get_data_element_factory
         mock_get_data.return_value = self.mock_katdal_data
         mock_block_name = Mock()
-        mock_receiver_list = [Mock(), Mock()]
         mock_data_folder = Mock()
 
         self.time_ordered_data = TimeOrderedData(block_name=mock_block_name,
-                                                 receivers=mock_receiver_list,
+                                                 receivers=self.mock_receiver_list,
                                                  token=None,
                                                  data_folder=mock_data_folder)
 
@@ -134,6 +139,33 @@ class TestTimeOrderedData(unittest.TestCase):
         antenna_index = self.time_ordered_data.antenna_index_of_receiver(receiver=MagicMock())
         mock_antenna.assert_called_once()
         self.assertIsNone(antenna_index)
+
+    def test_receiver_indices_of_antenna_when_occurs_twice(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        mock_antenna.name = 'angela'
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        self.assertListEqual([0, 2], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
+
+    def test_receiver_indices_of_antenna_when_occurs_once(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        mock_antenna.name = 'michael'
+        self.assertListEqual([1], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
+
+    def test_receiver_indices_of_antenna_when_occurs_never(self):
+        mock_receiver_1 = MagicMock(antenna_name='angela')
+        mock_receiver_2 = MagicMock(antenna_name='michael')
+        mock_receiver_3 = MagicMock(antenna_name='angela')
+        mock_antenna = MagicMock()
+        self.time_ordered_data.receivers = [mock_receiver_1, mock_receiver_2, mock_receiver_3]
+        mock_antenna.name = 'fred'
+        self.assertListEqual([], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna))
 
     def test_set_gain_solution(self):
         mock_gain_solution_array = MagicMock()
@@ -291,20 +323,20 @@ class TestTimeOrderedData(unittest.TestCase):
         )
 
     def test_get_receivers_if_receivers_given(self):
-        mock_receivers = [MagicMock()]
-        self.assertEqual(mock_receivers, self.time_ordered_data._get_receivers(receivers=mock_receivers,
-                                                                               data=MagicMock()))
+        mock_receivers = [Receiver.from_string('m000h')]
+        self.assertEqual(mock_receivers, self.time_ordered_data._get_receivers(requested_receivers=mock_receivers,
+                                                                               data=self.mock_katdal_data))
 
-    @patch.object(Receiver, 'from_string')
-    def test_get_receivers_if_receivers_none(self, mock_from_string):
-        mock_data = MagicMock()
-        mock_data.corr_products = np.array([['1', '2'], ['2', '1'], ['1', '3']])
-        expect = [mock_from_string()] * 3
-        self.assertListEqual(expect, self.time_ordered_data._get_receivers(receivers=None,
-                                                                           data=mock_data))
-        mock_from_string.assert_has_calls(calls=[call(receiver_string='1'),
-                                                 call(receiver_string='2'),
-                                                 call(receiver_string='3')])
+    def test_get_receivers_if_receivers_given_but_not_available(self):
+        mock_receivers = [MagicMock()]
+        self.assertEqual([], self.time_ordered_data._get_receivers(requested_receivers=mock_receivers,
+                                                                   data=self.mock_katdal_data))
+
+    def test_get_receivers_if_receivers_none(self):
+        self.assertListEqual(
+            self.mock_receiver_list,
+            self.time_ordered_data._get_receivers(requested_receivers=None, data=self.mock_katdal_data)
+        )
 
     def test_get_scan_tuple_list(self):
         mock_target = Mock()

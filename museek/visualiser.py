@@ -34,15 +34,18 @@ def plot_time_ordered_data_map(right_ascension: DataElement,
     masked_maps = [np.ma.array(map_, mask=mask) for map_, mask in zip(maps, masks)]
 
     plt.imshow(masked_maps[0][::-1, :],
-               extent=(right_ascension.min(), right_ascension.max(), declination.min(), declination.max()),
+               extent=(right_ascension.squeeze.min(),
+                       right_ascension.squeeze.max(),
+                       declination.squeeze.min(),
+                       declination.squeeze.max()),
                cmap=plt.get_cmap(cmap, 255),
                aspect='auto',
                norm=norm,
                vmin=vmin,
                vmax=vmax)
     plt.colorbar()
-    plt.xlim(right_ascension.min(), right_ascension.max())
-    plt.ylim(declination.min(), declination.max())
+    plt.xlim(right_ascension.squeeze.min(), right_ascension.squeeze.max())
+    plt.ylim(declination.squeeze.min(), declination.squeeze.max())
 
 
 def waterfall(visibility: DataElement, flags: FlagElement | None, flag_threshold: int = 1, **imshow_kwargs):
