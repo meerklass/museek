@@ -100,19 +100,21 @@ class Clustering:
 
         return pointing_dumps, pointing_centres
 
-    def iterative_outlier_indices(self, feature_vector: np.ndarray, distance_threshold: float):
+    def iterative_outlier_indices(self, feature_vector: np.ndarray, distance_threshold: float) -> list[int]:
         """
         Return the indices of outlier samples in `feature_vector` `(n_samples, n_features)`
         imposing that non-outliers should be contained within an separation of `distance_threshold`.
         """
-        outlier_cluster = self._iterative_outlier_cluster(feature_vector=feature_vector,
-                                                          n_clusters=2,
-                                                          metric=self._standard_deviation_metric,
-                                                          get_outlier=self._get_outlier_cluster_binary_majority,
-                                                          distance_threshold=distance_threshold,
-                                                          max_iter=5)
-        outlier_indices = np.where(outlier_cluster)[0]
-        return outlier_indices
+        metric = self._max_difference_to_mean_metric
+        if any(metric(features=feature_vector) > distance_threshold):
+            outlier_cluster = self._iterative_outlier_cluster(feature_vector=feature_vector,
+                                                              n_clusters=2,
+                                                              metric=metric,
+                                                              get_outlier=self._get_outlier_cluster_binary_majority,
+                                                              distance_threshold=distance_threshold,
+                                                              max_iter=5)
+            return np.where(outlier_cluster)[0]
+        return []
 
     @staticmethod
     def _atleast_2d(array: np.ndarray) -> np.ndarray:
@@ -268,10 +270,10 @@ class Clustering:
         return separations.degree
 
     @staticmethod
-    def _standard_deviation_metric(features) -> np.ndarray[float]:
+    def _max_difference_to_mean_metric(features: np.ndarray) -> np.ndarray[float]:
         """
-        Return the standard deviation of all samples of the feature vector `features`.
-        :param features: `(n_samples, n_features)`
-        :return: 1-D `numpy` array
+        Return the maximum difference of each feature in `features` to the mean of each feature
+        :param features: feature vector `(n_samples, n_features)`
+        :return: vector of maximum differences with length `n_features`
         """
-        return np.std(features, axis=0)
+        return np.max(abs(features - np.mean(features, axis=0)), axis=0)

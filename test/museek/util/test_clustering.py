@@ -299,21 +299,39 @@ class TestClustering(unittest.TestCase):
 
     @patch.object(np, 'where')
     @patch.object(Clustering, '_iterative_outlier_cluster')
-    def test_iterative_outlier_indices(self, mock_iterative_outlier_cluster, mock_where):
-        mock_feature_vector = Mock()
-        mock_distance_threshold = Mock()
+    @patch.object(Clustering, '_max_difference_to_mean_metric')
+    def test_iterative_outlier_indices(self,
+                                       mock_max_difference_to_mean_metric,
+                                       mock_iterative_outlier_cluster,
+                                       mock_where):
+        mock_max_difference_to_mean_metric.return_value = np.array([2])
+        mock_feature_vector = MagicMock()
+        mock_distance_threshold = 1
         outlier_indices = Clustering().iterative_outlier_indices(feature_vector=mock_feature_vector,
                                                                  distance_threshold=mock_distance_threshold)
         self.assertEqual(mock_where.return_value[0], outlier_indices)
         mock_iterative_outlier_cluster.assert_called_once_with(
             feature_vector=mock_feature_vector,
             n_clusters=2,
-            metric=Clustering()._standard_deviation_metric,
+            metric=Clustering()._max_difference_to_mean_metric,
             get_outlier=Clustering()._get_outlier_cluster_binary_majority,
             distance_threshold=mock_distance_threshold,
             max_iter=5
         )
         mock_where.assert_called_once_with(mock_iterative_outlier_cluster.return_value)
+
+    @patch.object(Clustering, '_iterative_outlier_cluster')
+    @patch.object(Clustering, '_max_difference_to_mean_metric')
+    def test_iterative_outlier_indices_when_no_outliers(self,
+                                                        mock_max_difference_to_mean_metric,
+                                                        mock_iterative_outlier_cluster):
+        mock_max_difference_to_mean_metric.return_value = np.array([0.1])
+        mock_feature_vector = MagicMock()
+        mock_distance_threshold = 1
+        outlier_indices = Clustering().iterative_outlier_indices(feature_vector=mock_feature_vector,
+                                                                 distance_threshold=mock_distance_threshold)
+        self.assertListEqual([], outlier_indices)
+        mock_iterative_outlier_cluster.assert_not_called()
 
     @patch.object(np, 'atleast_2d')
     def test_atleast_2d(self, mock_atleast_2d):
@@ -370,7 +388,7 @@ class TestClustering(unittest.TestCase):
         distance_threshold = 1
         cluster = Clustering()._iterative_outlier_cluster(feature_vector=feature_vector,
                                                           n_clusters=2,
-                                                          metric=Clustering()._standard_deviation_metric,
+                                                          metric=Clustering()._max_difference_to_mean_metric,
                                                           get_outlier=Clustering()._get_outlier_cluster_binary_majority,
                                                           distance_threshold=distance_threshold,
                                                           max_iter=5)
@@ -464,11 +482,10 @@ class TestClustering(unittest.TestCase):
                                              separations,
                                              4)
 
-    @patch.object(np, 'std')
-    def test_standard_deviation_metric(self, mock_std):
-        mock_features = Mock()
-        self.assertEqual(mock_std.return_value, Clustering()._standard_deviation_metric(features=mock_features))
-        mock_std.assert_called_once_with(mock_features, axis=0)
+    def test_max_difference_to_mean(self):
+        mock_features = np.arange(27).reshape((9, 3))
+        result = Clustering()._max_difference_to_mean_metric(features=mock_features)
+        np.testing.assert_array_equal(np.array([12., 12., 12.]), result)
 
 
 if __name__ == '__main__':
