@@ -43,6 +43,11 @@ OutPlugin = ConfigSection(
     output_folder=None  # this means default location is chosen
 )
 
+AntennaFlaggerPlugin = ConfigSection(
+    elevation_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
+    outlier_threshold=0.1,  # degrees
+)
+
 PointSourceFlaggerPlugin = ConfigSection(
     point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
     angle_threshold=0.5
