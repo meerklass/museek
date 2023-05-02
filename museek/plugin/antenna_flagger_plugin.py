@@ -56,6 +56,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         full_flag = DataElement(array=np.ones((shape[0], shape[1], 1)))
         _, antennas = self.outlier_antenna_indices(data=data, distance_threshold=self.outlier_threshold)
         for antenna in antennas:
+            print(f'Outliers: flagged antenna {antenna.name}.')
             i_receiver_list = data.receiver_indices_of_antenna(antenna)
             for i_receiver in i_receiver_list:
                 new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
@@ -90,18 +91,11 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         shape = data.visibility.shape
         new_flag = FlagElement(flags=[FlagFactory().empty_flag(shape=shape)])
         full_flag = DataElement(array=np.ones((shape[0], shape[1], 1)))
-        for index in self.get_non_conformant_elevation_antenna_indices(data=data):
-            new_flag.insert_receiver_flag(flag=full_flag, i_receiver=index, index=0)
-        data.flags.add_flag(flag=new_flag)
-
-    def get_non_conformant_elevation_antenna_indices(self, data: TimeOrderedData) -> list[int]:
-        """
-        Return a `list` of indices of the receivers belonging to  antennas in `data` with non-constant elevation
-        during observation.
-        """
-        antennas = ConstantElevationScans.get_antennas_with_non_constant_elevation(
-            data=data,
-            threshold=self.elevation_threshold
-        )
-        indices = [data.receiver_indices_of_antenna(antenna) for antenna in antennas]
-        return list(chain(*indices))  # flatten the list
+        for antenna in ConstantElevationScans.get_antennas_with_non_constant_elevation(
+                data=data,
+                threshold=self.elevation_threshold
+        ):
+            print(f'Non-constant elevation: flagged antenna {antenna.name}.')
+            i_receiver_list = data.receiver_indices_of_antenna(antenna)
+            for i_receiver in i_receiver_list:
+                new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
