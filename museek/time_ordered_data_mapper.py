@@ -51,8 +51,10 @@ class TimeOrderedDataMapper:
         :param method: interpolation method for `griddata`
         :return: `tuple` of gridded map and the optional mask
         """
-        right_ascension_i = np.linspace(self._right_ascension.min(), self._right_ascension.max(), grid_size[0])
-        declination_i = np.linspace(self._declination.min(), self._declination.max(), grid_size[1])
+        right_ascension_i = np.linspace(self._right_ascension.squeeze.min(),
+                                        self._right_ascension.squeeze.max(),
+                                        grid_size[0])
+        declination_i = np.linspace(self._declination.squeeze.min(), self._declination.squeeze.max(), grid_size[1])
 
         maps = [griddata((self._right_ascension.squeeze, self._declination.squeeze),
                          channel.squeeze,

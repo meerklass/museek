@@ -7,6 +7,7 @@ Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
+        'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
         'museek.plugin.zebra_remover_plugin',
@@ -41,6 +42,11 @@ InPlugin = ConfigSection(
 
 OutPlugin = ConfigSection(
     output_folder=None  # this means default location is chosen
+)
+
+AntennaFlaggerPlugin = ConfigSection(
+    elevation_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
+    outlier_threshold=0.1,  # degrees
 )
 
 PointSourceFlaggerPlugin = ConfigSection(

@@ -73,7 +73,7 @@ class TimeOrderedData:
         self._do_save_to_disc = do_create_cache
 
         data = self._get_data()
-        self.receivers = self._get_receivers(receivers=receivers, data=data)
+        self.receivers = self._get_receivers(requested_receivers=receivers, data=data)
         self.correlator_products = self._get_correlator_products()
         self.all_antennas = data.ants
         self._select(data=data)
@@ -171,12 +171,16 @@ class TimeOrderedData:
         """ Returns the `Antenna` object belonging to `receiver`. """
         return self.antennas[self._antenna_name_list.index(receiver.antenna_name)]
 
-    def antenna_index_of_receiver(self, receiver) -> int | None:
+    def antenna_index_of_receiver(self, receiver: Receiver) -> int | None:
         """ Returns the index of the `Antenna` belonging to `receiver`. Returns `None` if it is not found. """
         try:
             return self.antennas.index(self.antenna(receiver=receiver))
         except ValueError:
             return
+
+    def receiver_indices_of_antenna(self, antenna: Antenna) -> list[int] | None:
+        """ Returns the indices of the `Receiver`s on `Antenna`. Returns empty `list` if none are found. """
+        return [i for i, receiver in enumerate(self.receivers) if receiver.antenna_name == antenna.name]
 
     def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
         """ Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`. """
@@ -294,7 +298,7 @@ class TimeOrderedData:
                   for correlator_product in self.correlator_products]
         result = np.asarray(result, dtype=object)
         if len(result) != len(self.correlator_products) or len(result.shape) != 2 or result.shape[1] == 0:
-            raise ValueError('Input `all_correlator_products` must contain all receivers.')
+            raise ValueError(f'Input `all_correlator_products` must contain all receivers.')
         result = np.atleast_1d(np.squeeze(result)).tolist()
         return result
 
@@ -310,11 +314,14 @@ class TimeOrderedData:
         data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
 
     @staticmethod
-    def _get_receivers(receivers: list[Receiver] | None, data: DataSet) -> list[Receiver]:
-        """ Returns `receivers` unmodified if it is not `None`, otherwise it returns all receivers in `data`. """
-        if receivers is not None:
-            return receivers
+    def _get_receivers(requested_receivers: list[Receiver] | None, data: DataSet) -> list[Receiver]:
+        """
+        Returns a `list` of the `Receiver`s in `requested_receivers` that are available in `data`.
+        If `requested_receivers` is `None`, all available receivers are returned.
+        """
         all_receiver_names = np.unique(data.corr_products.flatten())
+        if requested_receivers is not None:
+            return [receiver for receiver in requested_receivers if receiver.name in all_receiver_names]
         return [Receiver.from_string(receiver_string=name) for name in all_receiver_names]
 
     @staticmethod

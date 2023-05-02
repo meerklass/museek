@@ -20,7 +20,12 @@ class Receiver:
         self.polarisation = self._polarisation_enum.name
 
     def __str__(self) -> str:
+        """ Overload `str` """
         return self.name
+
+    def __eq__(self, other) -> bool:
+        """ Overload equality """
+        return self.name == other.name
 
     @property
     def name(self) -> str:
