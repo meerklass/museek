@@ -29,6 +29,8 @@ class DemoLoadPlugin(AbstractPlugin):
                                       allow_overwrite=True))
         # setting the paths and names for context to disc storage
         context_storage_directory = os.path.join(ROOT_DIR, f'results/demo/')
+        if not os.path.exists(context_storage_directory):
+            raise ValueError(f'The output folder does not exists: {context_storage_directory}')
         self.set_result(result=Result(location=DemoEnum.CONTEXT_STORAGE_DIRECTORY,
                                       result=context_storage_directory))
         self.set_result(result=Result(location=DemoEnum.CONTEXT_FILE_NAME,
