@@ -113,6 +113,10 @@ class TestFlagElement(unittest.TestCase):
         self.assertTrue((self.flag_element._flags[2].get(recv=2).squeeze == False).all())
         self.assertTrue(self.flag_element._flags[2].get(recv=1).squeeze.all())
 
+    def test_array(self):
+        expect = np.zeros((3, 3, 3, 3))
+        np.testing.assert_array_equal(expect, self.flag_element.array())
+
     @patch.object(FlagElement, '_check_flag_types')
     @patch.object(FlagElement, '_check_flag_shapes')
     def test_check_flags(self, mock_check_flag_shapes, mock_check_flag_types):

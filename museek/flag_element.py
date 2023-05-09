@@ -66,6 +66,10 @@ class FlagElement:
         flag_at_index[:, :, i_receiver] = np.logical_or(flag_at_index[:, :, i_receiver], flag.squeeze)
         self._flags[index] = self._data_element_factory.create(array=flag_at_index)
 
+    def array(self) -> np.ndarray[bool]:
+        """ Return the flags in format for storage as a `numpy` array. """
+        return np.asarray([flag._array for flag in self._flags])
+
     def _check_flags(self):
         """ Check if all flags are compatible. """
         self._check_flag_shapes()
