@@ -78,9 +78,21 @@ class DataElement:
         """ Returns the shape of the underlying numpy array. """
         return self._array.shape
 
-    def mean(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
-        """ Return the mean of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
-        return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
+    def mean(
+            self,
+            axis: int | list[int, int] | tuple[int, int],
+            flags: Union['FlagElement', None] = None
+    ) -> 'DataElement':
+        """
+        Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the mean
+        :param flags: optional, only entries not flagged by these are used
+        :return: `DataElement` containing the mean along `axis`
+        """
+        if flags is None:
+            return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
+        return self._flagged_mean(axis=axis, flags=flags)
 
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
@@ -138,3 +150,15 @@ class DataElement:
         """ Iterate through the frequency channels of `data_element`. """
         for channel in np.moveaxis(data_element._array, 1, 0):
             yield cls(array=channel[:, np.newaxis, :])
+
+    def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagElement') -> 'DataElement':
+        """
+        Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the mean
+        :param flags: only entries not flagged by these are used
+        :return: `DataElement` containing the mean along `axis`
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self._array, combined._array)
+        return DataElement(array=masked.mean(axis=axis, keepdims=True))

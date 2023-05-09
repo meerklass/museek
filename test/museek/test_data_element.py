@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from museek.data_element import DataElement
+from museek.flag_element import FlagElement
 
 
 class TestDataElement(unittest.TestCase):
@@ -97,6 +98,19 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.assert_called_once_with(self.element._array,
                                              axis=mock_axis,
                                              keepdims=True)
+
+    def test_mean_when_flags_is_not_none(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagElement(flags=[DataElement(array=flag_array)])
+        mean = self.element.mean(axis=0, flags=flags)
+        self.assertEqual(3, len(mean._array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, mean.squeeze)
 
     @patch('museek.data_element.DataElement')
     @patch('museek.data_element.np')
@@ -212,3 +226,16 @@ class TestDataElement(unittest.TestCase):
         for i, channel in enumerate(DataElement.channel_iterator(data_element=element)):
             self.assertLess(i, 1)
             self.assertEqual(element.get(freq=i), channel)
+
+    def test_flagged_mean(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagElement(flags=[DataElement(array=flag_array)])
+        mean = self.element._flagged_mean(axis=0, flags=flags)
+        self.assertEqual(3, len(mean._array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, mean.squeeze)
