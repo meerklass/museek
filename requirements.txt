@@ -10,3 +10,4 @@ healpy
 astropy
 ivory
 scikit-learn
+katdal
