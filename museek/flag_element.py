@@ -62,8 +62,8 @@ class FlagElement:
         """ Insert `flag` for receiver with index `i_receiver` into the flag in `self` at `index`. """
         if n_flag_recv := flag.shape[-1] != 1:
             raise ValueError(f'Input `flag` needs to be for exactly one receiver, but got {n_flag_recv}')
-        flag_at_index = self._flags[index].squeeze
-        flag_at_index[:, :, i_receiver] = np.logical_or(flag_at_index[:, :, i_receiver], flag.squeeze)
+        flag_at_index = self._flags[index]._array
+        flag_at_index[:, :, i_receiver] = np.logical_or(flag_at_index[:, :, i_receiver], flag._array[:, :, 0])
         self._flags[index] = self._data_element_factory.create(array=flag_at_index)
 
     def array(self) -> np.ndarray[bool]:

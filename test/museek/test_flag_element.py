@@ -113,6 +113,17 @@ class TestFlagElement(unittest.TestCase):
         self.assertTrue((self.flag_element._flags[2].get(recv=2).squeeze == False).all())
         self.assertTrue(self.flag_element._flags[2].get(recv=1).squeeze.all())
 
+    def test_insert_receiver_flag_when_one_channel(self):
+        flags = [DataElement(array=np.zeros((3, 1, 3))) for _ in range(3)]
+        flag_element = FlagElement(flags=flags)
+
+        mock_flag = DataElement(array=np.ones((3, 1, 1), dtype=bool))
+        flag_element.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
+        self.assertTrue((flag_element._flags[0]._array == False).all())
+        self.assertTrue((flag_element._flags[2].get(recv=0).squeeze == False).all())
+        self.assertTrue((flag_element._flags[2].get(recv=2).squeeze == False).all())
+        self.assertTrue(flag_element._flags[2].get(recv=1).squeeze.all())
+
     def test_array(self):
         expect = np.zeros((3, 3, 3, 3))
         np.testing.assert_array_equal(expect, self.flag_element.array())
