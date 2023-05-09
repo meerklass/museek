@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 
 from museek.data_element import DataElement
+from museek.factory.data_element_factory import DataElementFactory
 from museek.flag_element import FlagElement
 
 
@@ -30,6 +31,10 @@ class TestFlagElement(unittest.TestCase):
     def test_eq_when_different_shape_expect_not_equal(self):
         flags = [DataElement(array=np.zeros((3, 4, 3))) for _ in range(3)]
         self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+
+    def test_from_array(self):
+        flag_array = np.zeros((3, 3, 3, 3))
+        self.assertEqual(self.flag_element, FlagElement.from_array(flag_array, element_factory=DataElementFactory()))
 
     def test_shape(self):
         self.assertTupleEqual((3, 3, 3), self.flag_element.shape)

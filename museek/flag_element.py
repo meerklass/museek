@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from museek.data_element import DataElement
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import DataElementFactory, AbstractDataElementFactory
 
 
 class FlagElement:
@@ -24,6 +24,19 @@ class FlagElement:
         if len(self) != len(other):
             return False
         return all([self_flag == other_flag for self_flag, other_flag in zip(self._flags, other._flags)])
+
+    @classmethod
+    def from_array(cls, array: np.ndarray, element_factory: AbstractDataElementFactory) -> 'FlagElement':
+        """
+        Alternative constructor from a 4-dimensional `array` using the factory `element_factory`.
+        :param array: must be 4-dimensional boolean array
+        :param element_factory: to instantiate `DataElement`s
+        :raise ValueError: if `array` is not 4-D
+        :return: `FlagElement` instance
+        """
+        if wrong_shape := len(array.shape) != 4:
+            raise ValueError(f'Input `array` needs to be 4-dimensional, got {wrong_shape}.')
+        return cls(flags=[element_factory.create(array=flag) for flag in array])
 
     @property
     def shape(self):
