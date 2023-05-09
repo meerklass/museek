@@ -289,6 +289,29 @@ class TimeOrderedData:
                             out=[visibility, flags, weights])
         return visibility, flags, weights
 
+    def _visibility_flag_weights_to_file(self,
+                                         visibility: np.ndarray,
+                                         flags: np.ndarray,
+                                         weights: np.ndarray,
+                                         correlator_products: np.ndarray[str]):
+        """
+        Store visibility, flag and weights to `npz` file.
+        :param visibility: visibilities as 3-dimensional `numpy` array, `(time, frequency, receivers)`
+        :param flags: flags as 3-dimensional `numpy` array, `(time, frequency, receivers)`
+        :param weights: weights as 4-dimensional `numpy` array, `(1, time, frequency, receivers)`
+        :param correlator_products: `numpy` array of the `str` correlator product names, e.g. `[['m000h', 'm000h']]`
+        :raise ValueError: if `self.scan_state` is not `None`
+        """
+        if self.scan_state is not None:
+            raise ValueError(f'Data with scan_state {self.scan_state} '
+                             f'cannot store visibility, flag and weight data to cache file.')
+        print(f'Creating cache file for {self.name}...')
+        np.savez_compressed(self._cache_file,
+                            visibility=visibility,
+                            flags=flags,
+                            weights=weights,
+                            correlator_products=np.asarray(correlator_products))
+
     def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> Any:
         """
         Returns the indices belonging to the autocorrelation of the input receivers

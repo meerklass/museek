@@ -283,6 +283,42 @@ class TestTimeOrderedData(unittest.TestCase):
         np.testing.assert_array_equal(np.asarray([[[0]]]), flags)
         np.testing.assert_array_equal(np.asarray([[[0]]]), weights)
 
+    @patch.object(np, 'asarray')
+    @patch.object(np, 'savez_compressed')
+    def test_visibility_flag_weights_to_file(self, mock_savez_compressed, mock_asarray):
+        mock_visibility = Mock()
+        mock_flags = Mock()
+        mock_weights = Mock()
+        mock_correlator_products = Mock()
+        self.time_ordered_data._visibility_flag_weights_to_file(visibility=mock_visibility,
+                                                                flags=mock_flags,
+                                                                weights=mock_weights,
+                                                                correlator_products=mock_correlator_products)
+        mock_savez_compressed.assert_called_once_with(self.time_ordered_data._cache_file,
+                                                      visibility=mock_visibility,
+                                                      flags=mock_flags,
+                                                      weights=mock_weights,
+                                                      correlator_products=mock_asarray.return_value)
+        mock_asarray.assert_called_once_with(mock_correlator_products)
+
+    @patch.object(np, 'asarray')
+    @patch.object(np, 'savez_compressed')
+    def test_visibility_flag_weights_to_file_when_scan_state_not_none(self, mock_savez_compressed, mock_asarray):
+        mock_visibility = Mock()
+        mock_flags = Mock()
+        mock_weights = Mock()
+        mock_correlator_products = Mock()
+        self.time_ordered_data.scan_state = Mock()
+        self.assertRaises(ValueError,
+                          self.time_ordered_data._visibility_flag_weights_to_file,
+                          visibility=mock_visibility,
+                          flags=mock_flags,
+                          weights=mock_weights,
+                          correlator_products=mock_correlator_products)
+
+        mock_savez_compressed.assert_not_called()
+        mock_asarray.assert_not_called()
+
     def test_correlator_products_indices(self):
         all_correlator_products = np.asarray([('a', 'a'), ('b', 'b'), ('c', 'c'), ('d', 'd')])
         self.time_ordered_data.correlator_products = np.asarray([('c', 'c'), ('a', 'a')])
