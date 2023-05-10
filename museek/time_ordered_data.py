@@ -254,7 +254,7 @@ class TimeOrderedData:
                 self._select(data=data)
             visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
             if self._do_create_cache:
-                self._visibility_flag_weights_to_file(
+                self._visibility_flag_weights_to_cache_file(
                     visibility=visibility,
                     flags=flags,
                     weights=weights,
@@ -294,11 +294,11 @@ class TimeOrderedData:
         flags = flags[np.newaxis]  # necessary for compatibility
         return visibility, flags, weights
 
-    def _visibility_flag_weights_to_file(self,
-                                         visibility: np.ndarray,
-                                         flags: np.ndarray,
-                                         weights: np.ndarray,
-                                         correlator_products: np.ndarray[str]):
+    def _visibility_flag_weights_to_cache_file(self,
+                                               visibility: np.ndarray,
+                                               flags: np.ndarray,
+                                               weights: np.ndarray,
+                                               correlator_products: np.ndarray[str]):
         """
         Store visibility, flag and weights to `npz` file.
         :param visibility: visibilities as 3-dimensional `numpy` array, `(time, frequency, receivers)`
