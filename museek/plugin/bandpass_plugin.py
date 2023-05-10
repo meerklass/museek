@@ -20,7 +20,7 @@ class BandpassPlugin(AbstractPlugin):
                  n_centre_observations: int):
         """
         Initialise
-        :param target_channels: `list` or `range` of channel indices to be examined
+        :param target_channels: optional `list` or `range` of channel indices to be examined, if `None`, all are used
         :param pointing_threshold: deviations up to this tolerance from the pointing are accepted
         :param n_pointings: number of pointings per calibrator, usually 5 (centre, up, right, down, left)
         :param n_centre_observations: number of on-centre calibrator observations

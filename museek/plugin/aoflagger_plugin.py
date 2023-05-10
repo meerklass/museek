@@ -2,6 +2,7 @@ import os
 
 from matplotlib import pyplot as plt
 
+from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
@@ -121,6 +122,7 @@ class AoflaggerPlugin(AbstractPlugin):
         :param initial_flag: initial flag on which `flag` was based
         :return: the result of the post-processing, a binary mask
         """
+        # operations on the RFI mask only
         post_process = RfiPostProcess(new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size)
         post_process.binary_mask_dilation()
         post_process.binary_mask_closing()
