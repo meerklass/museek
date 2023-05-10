@@ -36,6 +36,12 @@ class TestFlagElement(unittest.TestCase):
         flag_array = np.zeros((3, 3, 3, 3))
         self.assertEqual(self.flag_element, FlagElement.from_array(flag_array, element_factory=DataElementFactory()))
 
+    def test_from_array_when_3_dimensional(self):
+        flag_array = np.zeros((3, 3, 3))
+        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(1)]
+        flag_element = FlagElement(flags=flags)
+        self.assertEqual(flag_element, FlagElement.from_array(flag_array, element_factory=DataElementFactory()))
+
     def test_shape(self):
         self.assertTupleEqual((3, 3, 3), self.flag_element.shape)
 

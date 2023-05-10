@@ -28,12 +28,14 @@ class FlagElement:
     @classmethod
     def from_array(cls, array: np.ndarray, element_factory: AbstractDataElementFactory) -> 'FlagElement':
         """
-        Alternative constructor from a 4-dimensional `array` using the factory `element_factory`.
-        :param array: must be 4-dimensional boolean array
+        Alternative constructor from a 3 or 4-dimensional `array` using the factory `element_factory`.
+        :param array: must be 3 or 4-dimensional boolean array
         :param element_factory: to instantiate `DataElement`s
-        :raise ValueError: if `array` is not 4-D
+        :raise ValueError: if `array` is not 3 or 4-D
         :return: `FlagElement` instance
         """
+        if len(array.shape) == 3:
+            array = array[np.newaxis]
         if wrong_shape := len(array.shape) != 4:
             raise ValueError(f'Input `array` needs to be 4-dimensional, got {wrong_shape}.')
         return cls(flags=[element_factory.create(array=flag) for flag in array])
