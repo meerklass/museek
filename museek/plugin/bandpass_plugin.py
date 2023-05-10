@@ -14,7 +14,7 @@ class BandpassPlugin(AbstractPlugin):
     """ Example plugin to help later development of the bandpass correction. """
 
     def __init__(self,
-                 target_channels: range | list[int],
+                 target_channels: range | list[int] | None,
                  pointing_threshold: float,
                  n_pointings: int,
                  n_centre_observations: int):
@@ -67,7 +67,6 @@ class BandpassPlugin(AbstractPlugin):
                     n_centre_observations=self.n_centre_observations,
                     distance_threshold=self.pointing_threshold
                 )
-                centre_times = times_list[0]
                 for i, (t, p) in enumerate(zip(times_list, pointing_centres)):
                     color = 'black'
                     label_1 = ''
@@ -87,32 +86,49 @@ class BandpassPlugin(AbstractPlugin):
                 plt.savefig(os.path.join(receiver_path, f'track_pointing_{before_or_after}.png'))
                 plt.close()
 
-                track_centre_times = list(np.asarray(times)[centre_times])
-                target_visibility_centre = track_data.visibility.get(recv=i_receiver,
-                                                                     freq=self.target_channels,
-                                                                     time=track_centre_times)
-                bandpass_centre = target_visibility_centre.mean(axis=0)
                 if track_data.gain_solution is not None:
-                    gain_solution = track_data.gain_solution.get(
-                        recv=i_receiver,
-                        freq=self.target_channels,
-                        time=track_centre_times
-                    )
-                    corrected_target_visibility_centre = track_data.corrected_visibility().get(
-                        recv=i_receiver,
-                        freq=self.target_channels,
-                        time=track_centre_times
-                    )
-                    corrected_bandpass = corrected_target_visibility_centre.mean(axis=0)
                     plt.figure(figsize=(12, 8))
                     ax1 = plt.subplot(3, 1, 1)
                 else:
                     plt.figure(figsize=(8, 4))
                     ax1 = plt.subplot(1, 1, 1)
 
-                plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
-                         bandpass_centre.squeeze[1:],
-                         label='on-centre observation')
+                pointing_labels = ['on centre 1',
+                                   'off centre top',
+                                   'on centre 2',
+                                   'off centre right',
+                                   'on centre 3',
+                                   'off centre down',
+                                   'on centre 4',
+                                   'off centre left']
+                for i_label, pointing_times in enumerate(times_list):
+                    label = pointing_labels[i_label]
+                    track_times = list(np.asarray(times)[pointing_times])
+                    target_visibility = track_data.visibility.get(recv=i_receiver,
+                                                                  freq=self.target_channels,
+                                                                  time=track_times)
+                    flags = track_data.flags.get(recv=i_receiver,
+                                                 freq=self.target_channels,
+                                                 time=track_times)
+
+                    bandpass_pointing = target_visibility.mean(axis=0, flags=flags)
+
+                    if track_data.gain_solution is not None:
+                        gain_solution = track_data.gain_solution.get(
+                            recv=i_receiver,
+                            freq=self.target_channels,
+                            time=track_times
+                        )
+                        corrected_target_visibility_centre = track_data.corrected_visibility().get(
+                            recv=i_receiver,
+                            freq=self.target_channels,
+                            time=track_times
+                        )
+                        corrected_bandpass = corrected_target_visibility_centre.mean(axis=0)
+
+                    plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
+                             bandpass_pointing.squeeze[1:],
+                             label=label)
                 plt.xlabel('frequency [MHz]')
                 plt.ylabel('intensity')
                 plt.legend()
@@ -122,7 +138,7 @@ class BandpassPlugin(AbstractPlugin):
                     plt.subplot(3, 1, 2, sharex=ax1)
                     plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
                              corrected_bandpass.squeeze[1:],
-                             label='on-centre observation')
+                             label=label)
                     plt.xlabel('frequency [MHz]')
                     plt.ylabel('level2 calibrated intensity')
                     plt.legend()
