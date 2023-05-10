@@ -7,7 +7,7 @@ from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import waterfall
@@ -38,7 +38,7 @@ class KnownRfiPlugin(AbstractPlugin):
         if extra_rfi is not None:
             rfi_list.extend(extra_rfi)
         self.rfi_list = [rfi for rfi in rfi_list if rfi is not None]
-        self.data_element_factory = DataElementFactory()
+        self.data_element_factory = FlagElementFactory()
 
     def set_requirements(self):
         """ Set the requirements. """

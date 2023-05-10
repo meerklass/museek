@@ -10,15 +10,15 @@ from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 
 class TestRfiPostProcess(unittest.TestCase):
 
-    @patch('museek.rfi_mitigation.rfi_post_process.DataElementFactory')
-    def setUp(self, mock_data_element_factory):
+    @patch('museek.rfi_mitigation.rfi_post_process.FlagElementFactory')
+    def setUp(self, mock_flag_element_factory):
         self.mock_struct_size = MagicMock()
         self.mock_new_flag = MagicMock()
         self.mock_initial_flag = MagicMock()
         self.rfi_post_process = RfiPostProcess(new_flag=self.mock_new_flag,
                                                initial_flag=self.mock_initial_flag,
                                                struct_size=self.mock_struct_size)
-        self.mock_data_element_factory = mock_data_element_factory.return_value
+        self.mock_data_element_factory = mock_flag_element_factory.return_value
 
     def test_get_flag(self):
         self.assertEqual(self.mock_new_flag, self.rfi_post_process.get_flag())

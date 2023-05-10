@@ -1,14 +1,14 @@
 import numpy as np
 from scipy import ndimage
 
-from museek.data_element import DataElement
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
+from museek.flag_element import FlagElement
 
 
 class RfiPostProcess:
     """ Class to post-process rfi masks. """
 
-    def __init__(self, new_flag: DataElement, initial_flag: DataElement | None, struct_size: tuple[int, int]):
+    def __init__(self, new_flag: FlagElement, initial_flag: FlagElement | None, struct_size: tuple[int, int]):
         """
         Initialise the post-processing of RFI flags.
         :param new_flag: newly generated RFI flag
@@ -19,7 +19,7 @@ class RfiPostProcess:
         self._initial_flag = initial_flag
         self._struct_size = struct_size
         self._struct = np.ones((self._struct_size[0], self._struct_size[1]), dtype=bool)
-        self._factory = DataElementFactory()
+        self._factory = FlagElementFactory()
 
     def get_flag(self):
         """ Return the flag. """
@@ -54,6 +54,5 @@ class RfiPostProcess:
         flagged_fraction = self._flag.sum(axis=0).squeeze / self._flag.shape[0]
         channels_to_flag = np.where(flagged_fraction > time_dump_flag_threshold)[0]
         flag = self._flag._array
-        flag[:,channels_to_flag,:] = True
+        flag[:, channels_to_flag, :] = True
         self._flag = self._factory.create(array=flag)
-

@@ -1,16 +1,17 @@
 import os
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
 from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import waterfall
-from matplotlib import pyplot as plt
+
 
 class NoiseDiodeFlaggerPlugin(AbstractPlugin):
     """ Plugin to flag the noise diode firings. """
@@ -18,7 +19,7 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
     def __init__(self):
         """ Initialise. """
         super().__init__()
-        self.data_element_factory = DataElementFactory()
+        self.data_element_factory = FlagElementFactory()
 
     def set_requirements(self):
         """ Set the requirements `output_path` and the whole data. """

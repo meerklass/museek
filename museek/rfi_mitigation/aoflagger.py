@@ -5,7 +5,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from museek.data_element import DataElement
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
+from museek.flag_element import FlagElement
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -14,13 +15,13 @@ A collection of functions for RFI flagging using the AOflagger algorithm.
 
 def get_rfi_mask(
         time_ordered: DataElement,
-        mask: DataElement,
+        mask: FlagElement,
         first_threshold: float,
         threshold_scales: list[float],
         smoothing_window_size: tuple[int, int],
         smoothing_sigma: tuple[float, float],
         output_path: str | None = None
-) -> DataElement:
+) -> FlagElement:
     """
     Computes a mask to cover the RFI in a data set.
 
@@ -55,7 +56,7 @@ def get_rfi_mask(
                                                smoothing_window_size=smoothing_window_size,
                                                smoothing_sigma=smoothing_sigma)
 
-    return DataElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
+    return FlagElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
 
 
 def gaussian_filter(array: np.ndarray,

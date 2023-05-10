@@ -1,6 +1,6 @@
 from enum import Enum
 
-from museek.factory.data_element_factory import ScanDataElementFactory, AbstractDataElementFactory
+from museek.factory.data_element_factory import ScanElementFactory, AbstractDataElementFactory
 
 
 class ScanStateEnum(Enum):
@@ -9,10 +9,10 @@ class ScanStateEnum(Enum):
     The individual `enum`s are `tuple`s of `string` and `AbstractDataElementFactory` objects belonging to the
     scan state.
     """
-    SCAN = ('scan', ScanDataElementFactory)
-    TRACK = ('track', ScanDataElementFactory)
-    SLEW = ('slew', ScanDataElementFactory)
-    STOP = ('stop', ScanDataElementFactory)
+    SCAN = ('scan', ScanElementFactory)
+    TRACK = ('track', ScanElementFactory)
+    SLEW = ('slew', ScanElementFactory)
+    STOP = ('stop', ScanElementFactory)
 
     def factory(self, *args, **kwargs) -> AbstractDataElementFactory:
         """ Initialise and return the `AbstractDataElementFactory` in `self`. """

@@ -6,11 +6,10 @@ from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
-from museek.factory.data_element_factory import DataElementFactory
-from museek.flag_list import FlagList
+from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
+from museek.flag_list import FlagList
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
@@ -49,7 +48,6 @@ class AoflaggerPlugin(AbstractPlugin):
         self.smoothing_sigma = smoothing_sigma
         self.struct_size = struct_size
         self.flag_combination_threshold = flag_combination_threshold
-        self.data_element_factory = DataElementFactory()
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
@@ -109,9 +107,9 @@ class AoflaggerPlugin(AbstractPlugin):
 
     def post_process_flag(
             self,
-            flag: DataElement,
-            initial_flag: DataElement
-    ) -> DataElement:
+            flag: FlagElement,
+            initial_flag: FlagElement
+    ) -> FlagElement:
         """
         Post process `flag` and return the result.
         The following is done:
@@ -127,12 +125,12 @@ class AoflaggerPlugin(AbstractPlugin):
         post_process.binary_mask_dilation()
         post_process.binary_mask_closing()
         rfi_result = post_process.get_flag()
-        return rfi_result
 
-        # TODO: uncomment this after FlagElement has been created with the + functionality
-        # # operations on the entire mask
-        # post_process = RfiPostProcess(new_flag=rfi_result+initial_flag, initial_flag=None, struct_size=self.struct_size)
-        # post_process.flag_all_channels(channel_flag_threshold=self.channel_flag_threshold)
-        # post_process.flag_all_time_dumps(time_dump_flag_threshold=self.time_dump_flag_threshold)
-        # overall_result = post_process.get_flag()
-        # return rfi_result + overall_result
+        # operations on the entire mask
+        post_process = RfiPostProcess(new_flag=rfi_result + initial_flag,
+                                      initial_flag=None,
+                                      struct_size=self.struct_size)
+        post_process.flag_all_channels(channel_flag_threshold=self.channel_flag_threshold)
+        post_process.flag_all_time_dumps(time_dump_flag_threshold=self.time_dump_flag_threshold)
+        overall_result = post_process.get_flag()
+        return overall_result

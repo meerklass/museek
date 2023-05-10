@@ -11,13 +11,15 @@ from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
 
 class TestTimeOrderedData(unittest.TestCase):
 
+    @patch.object(TimeOrderedData, '_get_flag_element_factory')
     @patch.object(TimeOrderedData, '_get_data_element_factory')
     @patch.object(TimeOrderedData, '_correlator_products_indices')
     @patch.object(TimeOrderedData, '_get_data')
     def setUp(self,
               mock_get_data,
               mock_correlator_products_indices,
-              mock_get_data_element_factory):
+              mock_get_data_element_factory,
+              mock_get_flag_element_factory):
         mock_receiver_name_list = ['m000h', 'm000v', 'm001h']
         self.mock_receiver_list = [Receiver.from_string(name) for name in mock_receiver_name_list]
         mock_corr_products = np.asarray(list(itertools.product(mock_receiver_name_list, mock_receiver_name_list)))
@@ -26,6 +28,7 @@ class TestTimeOrderedData(unittest.TestCase):
 
         self.mock_correlator_products_indices = mock_correlator_products_indices
         self.mock_get_data_element_factory = mock_get_data_element_factory
+        self.mock_get_flag_element_factory = mock_get_flag_element_factory
         mock_get_data.return_value = self.mock_katdal_data
         mock_block_name = Mock()
         mock_data_folder = Mock()
@@ -77,7 +80,7 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
         mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
-                                                element_factory=self.mock_get_data_element_factory.return_value)
+                                                element_factory=self.mock_get_flag_element_factory.return_value)
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
@@ -101,7 +104,7 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
         mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
-                                                element_factory=self.mock_get_data_element_factory.return_value)
+                                                element_factory=self.mock_get_flag_element_factory.return_value)
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
