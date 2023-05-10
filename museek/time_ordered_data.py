@@ -126,6 +126,8 @@ class TimeOrderedData:
         if data is None:
             data = self._get_data()
             self._select(data=data)
+        if scan_state is not None:
+            self._do_create_cache = False  # only the entire data can be stored, not individual scan states
         self.scan_state = scan_state
         self._element_factory = self._get_data_element_factory()
 
