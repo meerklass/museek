@@ -79,7 +79,7 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    first_threshold=0.1,  # First threshold value
+    first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
     smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
