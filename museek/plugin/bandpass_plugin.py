@@ -87,10 +87,10 @@ class BandpassPlugin(AbstractPlugin):
                 plt.close()
 
                 if track_data.gain_solution is not None:
-                    plt.figure(figsize=(12, 8))
+                    plt.figure(figsize=(19, 8))
                     ax1 = plt.subplot(3, 1, 1)
                 else:
-                    plt.figure(figsize=(8, 4))
+                    plt.figure(figsize=(16, 8))
                     ax1 = plt.subplot(1, 1, 1)
 
                 pointing_labels = ['on centre 1',
