@@ -7,7 +7,7 @@ from museek.factory.data_element_factory import ScanElementFactory
 class TestScanStateEnum(unittest.TestCase):
     def test_factory(self):
         enum = ScanStateEnum.SCAN
-        factory = enum.factory(scan_dumps=[0])
+        factory = enum.factory(scan_dumps=[0], component=ScanElementFactory)
         self.assertIsInstance(factory, ScanElementFactory)
 
     def test_scan_name(self):
