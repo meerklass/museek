@@ -8,7 +8,7 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.enum.result_enum import ResultEnum
 from museek.factory.data_element_factory import DataElementFactory
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import waterfall
 
@@ -59,7 +59,7 @@ class KnownRfiPlugin(AbstractPlugin):
                 if rfi_tuple[0] <= frequency / mega <= rfi_tuple[1]:
                     new_flag[:, channel, :] = True
                     continue
-        data.flags.add_flag(flag=FlagElement.from_array(array=new_flag, element_factory=self.data_element_factory))
+        data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         waterfall(data.visibility.get(recv=0),

@@ -81,7 +81,7 @@ class DataElement:
     def mean(
             self,
             axis: int | list[int, int] | tuple[int, int],
-            flags: Union['FlagElement', None] = None
+            flags: Union['FlagList', None] = None
     ) -> 'DataElement':
         """
         Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -151,7 +151,7 @@ class DataElement:
         for channel in np.moveaxis(data_element._array, 1, 0):
             yield cls(array=channel[:, np.newaxis, :])
 
-    def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagElement') -> 'DataElement':
+    def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
         Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
         i.e. the dimensions are kept.

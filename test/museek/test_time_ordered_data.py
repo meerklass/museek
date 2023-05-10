@@ -4,7 +4,7 @@ from unittest.mock import patch, Mock, MagicMock, call, PropertyMock
 
 import numpy as np
 
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.receiver import Receiver, Polarisation
 from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
 
@@ -71,7 +71,7 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_get_data.assert_called_once()
         mock_select.assert_called_once_with(data=mock_get_data.return_value)
 
-    @patch.object(FlagElement, 'from_array')
+    @patch.object(FlagList, 'from_array')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_from_array):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
@@ -84,18 +84,18 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(self.time_ordered_data.weights,
                          self.mock_get_data_element_factory.return_value.create.return_value)
 
-    @patch('museek.time_ordered_data.FlagElement')
-    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_element):
+    @patch('museek.time_ordered_data.FlagList')
+    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_list):
         self.time_ordered_data.visibility = 1
         self.time_ordered_data.flags = 1
         self.time_ordered_data.weights = 1
         self.time_ordered_data.load_visibility_flags_weights()
-        mock_flag_element.assert_not_called()
+        mock_flag_list.assert_not_called()
         self.assertEqual(self.time_ordered_data.visibility, 1)
         self.assertEqual(self.time_ordered_data.flags, 1)
         self.assertEqual(self.time_ordered_data.weights, 1)
 
-    @patch.object(FlagElement, 'from_array')
+    @patch.object(FlagList, 'from_array')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
     def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_from_array):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())

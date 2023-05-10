@@ -9,7 +9,7 @@ from ivory.utils.result import Result
 from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
 from museek.factory.data_element_factory import DataElementFactory
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
@@ -73,7 +73,7 @@ class AoflaggerPlugin(AbstractPlugin):
         data.load_visibility_flags_weights()
         initial_flags = data.flags.combine(threshold=self.flag_combination_threshold)
 
-        new_flag = FlagElement(flags=[FlagFactory().empty_flag(shape=data.visibility.shape)])
+        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=data.visibility.shape)])
 
         for i_receiver, receiver in enumerate(data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):

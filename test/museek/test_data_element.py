@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 
 from museek.data_element import DataElement
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 
 
 class TestDataElement(unittest.TestCase):
@@ -104,7 +104,7 @@ class TestDataElement(unittest.TestCase):
         flag_array[0, 0, 0] = True
         flag_array[1, 1, 1] = True
         flag_array[2, 2, 2] = True
-        flags = FlagElement(flags=[DataElement(array=flag_array)])
+        flags = FlagList(flags=[DataElement(array=flag_array)])
         mean = self.element.mean(axis=0, flags=flags)
         self.assertEqual(3, len(mean._array.shape))
         expect = np.asarray([[13.5, 10., 11.],
@@ -232,7 +232,7 @@ class TestDataElement(unittest.TestCase):
         flag_array[0, 0, 0] = True
         flag_array[1, 1, 1] = True
         flag_array[2, 2, 2] = True
-        flags = FlagElement(flags=[DataElement(array=flag_array)])
+        flags = FlagList(flags=[DataElement(array=flag_array)])
         mean = self.element._flagged_mean(axis=0, flags=flags)
         self.assertEqual(3, len(mean._array.shape))
         expect = np.asarray([[13.5, 10., 11.],

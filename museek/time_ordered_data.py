@@ -13,7 +13,7 @@ from definitions import ROOT_DIR
 from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.receiver import Receiver
 from museek.util.clustering import Clustering
 
@@ -57,7 +57,7 @@ class TimeOrderedData:
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
-        self.flags: FlagElement | None = None
+        self.flags: FlagList | None = None
         self.weights: DataElement | None = None
 
         self._block_name = block_name
@@ -161,7 +161,7 @@ class TimeOrderedData:
         self.visibility = self._element_factory.create(array=visibility_array)
         if self.flags is not None:
             print('Overwriting existing flags.')
-        self.flags = FlagElement.from_array(array=flag_array, element_factory=self._element_factory)
+        self.flags = FlagList.from_array(array=flag_array, element_factory=self._element_factory)
         if self.weights is not None:
             print('Overwriting existing weights.')
         self.weights = self._element_factory.create(array=weight_array)
