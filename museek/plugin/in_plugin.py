@@ -78,11 +78,6 @@ class InPlugin(AbstractPlugin):
             force_load_from_correlator_data=self.force_load_from_correlator_data,
             do_create_cache=self.do_save_visibility_to_disc,
         )
-        scan_data = deepcopy(all_data)
-        scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
-
-        track_data = deepcopy(all_data)
-        track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
         # observation data from file name
         observation_date = datetime.fromtimestamp(int(all_data.name.split('_')[0]))
@@ -99,9 +94,7 @@ class InPlugin(AbstractPlugin):
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=context_directory)
 
-        self.set_result(result=Result(location=ResultEnum.DATA, result=all_data))
-        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
+        self.set_result(result=Result(location=ResultEnum.DATA, result=data))
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
         self.set_result(result=Result(location=ResultEnum.BLOCK_NAME, result=self.block_name))
