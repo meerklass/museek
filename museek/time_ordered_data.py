@@ -239,7 +239,7 @@ class TimeOrderedData:
         """
         if self.scan_state is None:
             return DataElementFactory()
-        return self.scan_state.factory(scan_dumps=self._dumps(), component=DataElementFactory)
+        return self.scan_state.factory(scan_dumps=self._dumps(), component=DataElementFactory())
 
     def _get_flag_element_factory(self) -> AbstractDataElementFactory:
         """
@@ -248,7 +248,7 @@ class TimeOrderedData:
         """
         if self.scan_state is None:
             return FlagElementFactory()
-        return self.scan_state.factory(scan_dumps=self._dumps(), component=FlagElementFactory)
+        return self.scan_state.factory(scan_dumps=self._dumps(), component=FlagElementFactory())
 
     def _visibility_flags_weights(self, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
