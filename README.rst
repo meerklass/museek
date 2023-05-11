@@ -111,9 +111,9 @@ the demo run.
     git clone git@github.com:meerklass/museek.git
     git clone git@github.com:meerklass/ivory.git
 
-    module load python/3.11.2
-    virtualenv /path/to/virtualenv
-    source /path/to/virtualenv/bin/activate
+    module load python/3.10.4
+    virtualenv ./environment/museek
+    source ./environment/museek/bin/activate
     pip install -r museek/requirements.txt
     deactivate
     mkdir museek/results museek/results/demo
