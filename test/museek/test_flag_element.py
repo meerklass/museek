@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 import numpy as np
 
@@ -55,6 +55,15 @@ class TestFlagElement(unittest.TestCase):
         mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
         mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
         self.assertEqual(mean, mock_data_element.return_value)
+
+    @patch.object(np, 'logical_or')
+    def test_insert_receiver_flag(self, mock_logical_or):
+        mock_flag = MagicMock()
+        type(mock_flag).shape = PropertyMock(return_value=(3, 3, 1))
+        expect = np.zeros((3, 3))
+        mock_logical_or.return_value = expect
+        self.element.insert_receiver_flag(flag=mock_flag, i_receiver=0)
+        np.testing.assert_array_equal(self.element._array[:, :, 0], expect)
 
     def test_make_boolean_when_true(self):
         result = FlagElement._make_boolean(array=np.array([1]))
