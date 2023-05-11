@@ -43,7 +43,7 @@ InPlugin = ConfigSection(
 )
 
 OutPlugin = ConfigSection(
-    output_folder=None  # this means default location is chosen
+    output_folder=None  # folder to store results, `None` means default location is chosen
 )
 
 AntennaFlaggerPlugin = ConfigSection(

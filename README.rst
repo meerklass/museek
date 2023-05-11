@@ -111,12 +111,21 @@ the demo run.
     git clone git@github.com:meerklass/museek.git
     git clone git@github.com:meerklass/ivory.git
 
-    module load python/3.11.2
-    virtualenv /path/to/virtualenv
-    source /path/to/virtualenv/bin/activate
+    module load python/3.10.4
+    virtualenv ./environment/museek
+    source ./environment/museek/bin/activate
     pip install -r museek/requirements.txt
     deactivate
     mkdir museek/results museek/results/demo
+
+
+If you have not set up `ssh` keys for your github account, it might be easier to clone the repos like
+
+.. code:: bash
+
+    git clone https://github.com/meerklass/museek.git
+    git clone https://github.com/meerklass/ivory.git
+
 
 Now you are ready to run `MuSEEK`! You can use the `sbatch` command to schedule a job:
 
