@@ -49,108 +49,112 @@ class BandpassPlugin(AbstractPlugin):
                                                                             n_clusters=2)
 
         for i_receiver, receiver in enumerate(track_data.receivers):
-            if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
-                os.makedirs(receiver_path)
+            try:
+                if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
+                    os.makedirs(receiver_path)
 
-            for before_or_after, times in zip(['before_scan', 'after_scan'], target_dumps_list):
-                right_ascension = track_data.right_ascension.get(recv=i_receiver // 2,
-                                                                 time=times).squeeze
-                declination = track_data.declination.get(recv=i_receiver // 2,
-                                                         time=times).squeeze
-                timestamps = track_data.timestamps.get(time=times).squeeze
+                for before_or_after, times in zip(['before_scan', 'after_scan'], target_dumps_list):
+                    right_ascension = track_data.right_ascension.get(recv=i_receiver // 2,
+                                                                     time=times).squeeze
+                    declination = track_data.declination.get(recv=i_receiver // 2,
+                                                             time=times).squeeze
+                    timestamps = track_data.timestamps.get(time=times).squeeze
 
-                times_list, pointing_centres = Clustering().split_pointings(
-                    coordinate_1=right_ascension,
-                    coordinate_2=declination,
-                    timestamps=timestamps,
-                    n_pointings=self.n_pointings,
-                    n_centre_observations=self.n_centre_observations,
-                    distance_threshold=self.pointing_threshold
-                )
-                for i, (t, p) in enumerate(zip(times_list, pointing_centres)):
-                    color = 'black'
-                    label_1 = ''
-                    label_2 = ''
-                    if i == 0:
-                        label_2 = 'on-centre dumps'
-                    if i <= 2:
-                        color = 'red'
-                    elif i == 3:
-                        label_1 = 'pointing centres'
-                        label_2 = 'off-centre dumps'
-                    plt.scatter(right_ascension[t], declination[t], color=color, label=label_2)
-                    plt.scatter(p[0], p[1], color=color, marker='x', s=100, label=label_1)
-                plt.legend()
-                plt.xlabel('RA [deg]')
-                plt.ylabel('Dec [deg]')
-                plt.savefig(os.path.join(receiver_path, f'track_pointing_{before_or_after}.png'))
-                plt.close()
-
-                if track_data.gain_solution is not None:
-                    plt.figure(figsize=(19, 8))
-                    ax1 = plt.subplot(3, 1, 1)
-                else:
-                    plt.figure(figsize=(16, 8))
-                    ax1 = plt.subplot(1, 1, 1)
-
-                pointing_labels = ['on centre 1',
-                                   'off centre top',
-                                   'on centre 2',
-                                   'off centre right',
-                                   'on centre 3',
-                                   'off centre down',
-                                   'on centre 4',
-                                   'off centre left']
-                for i_label, pointing_times in enumerate(times_list):
-                    label = pointing_labels[i_label]
-                    track_times = list(np.asarray(times)[pointing_times])
-                    target_visibility = track_data.visibility.get(recv=i_receiver,
-                                                                  freq=self.target_channels,
-                                                                  time=track_times)
-                    flags = track_data.flags.get(recv=i_receiver,
-                                                 freq=self.target_channels,
-                                                 time=track_times)
-
-                    bandpass_pointing = target_visibility.mean(axis=0, flags=flags)
+                    times_list, pointing_centres = Clustering().split_pointings(
+                        coordinate_1=right_ascension,
+                        coordinate_2=declination,
+                        timestamps=timestamps,
+                        n_pointings=self.n_pointings,
+                        n_centre_observations=self.n_centre_observations,
+                        distance_threshold=self.pointing_threshold
+                    )
+                    for i, (t, p) in enumerate(zip(times_list, pointing_centres)):
+                        color = 'black'
+                        label_1 = ''
+                        label_2 = ''
+                        if i == 0:
+                            label_2 = 'on-centre dumps'
+                        if i <= 2:
+                            color = 'red'
+                        elif i == 3:
+                            label_1 = 'pointing centres'
+                            label_2 = 'off-centre dumps'
+                        plt.scatter(right_ascension[t], declination[t], color=color, label=label_2)
+                        plt.scatter(p[0], p[1], color=color, marker='x', s=100, label=label_1)
+                    plt.legend()
+                    plt.xlabel('RA [deg]')
+                    plt.ylabel('Dec [deg]')
+                    plt.savefig(os.path.join(receiver_path, f'track_pointing_{before_or_after}.png'))
+                    plt.close()
 
                     if track_data.gain_solution is not None:
-                        gain_solution = track_data.gain_solution.get(
-                            recv=i_receiver,
-                            freq=self.target_channels,
-                            time=track_times
-                        )
-                        corrected_target_visibility_centre = track_data.corrected_visibility().get(
-                            recv=i_receiver,
-                            freq=self.target_channels,
-                            time=track_times
-                        )
-                        corrected_bandpass = corrected_target_visibility_centre.mean(axis=0)
+                        plt.figure(figsize=(19, 8))
+                        ax1 = plt.subplot(3, 1, 1)
+                    else:
+                        plt.figure(figsize=(16, 8))
+                        ax1 = plt.subplot(1, 1, 1)
 
-                    plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
-                             bandpass_pointing.squeeze[1:],
-                             label=label)
-                plt.xlabel('frequency [MHz]')
-                plt.ylabel('intensity')
-                plt.legend()
+                    pointing_labels = ['on centre 1',
+                                       'off centre top',
+                                       'on centre 2',
+                                       'off centre right',
+                                       'on centre 3',
+                                       'off centre down',
+                                       'on centre 4',
+                                       'off centre left']
+                    for i_label, pointing_times in enumerate(times_list):
+                        label = pointing_labels[i_label]
+                        track_times = list(np.asarray(times)[pointing_times])
+                        target_visibility = track_data.visibility.get(recv=i_receiver,
+                                                                      freq=self.target_channels,
+                                                                      time=track_times)
+                        flags = track_data.flags.get(recv=i_receiver,
+                                                     freq=self.target_channels,
+                                                     time=track_times)
 
-                if track_data.gain_solution is not None:
-                    gain_solution_mean = gain_solution.mean(axis=0).squeeze
-                    plt.subplot(3, 1, 2, sharex=ax1)
-                    plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
-                             corrected_bandpass.squeeze[1:],
-                             label=label)
+                        bandpass_pointing = target_visibility.mean(axis=0, flags=flags)
+
+                        if track_data.gain_solution is not None:
+                            gain_solution = track_data.gain_solution.get(
+                                recv=i_receiver,
+                                freq=self.target_channels,
+                                time=track_times
+                            )
+                            corrected_target_visibility_centre = track_data.corrected_visibility().get(
+                                recv=i_receiver,
+                                freq=self.target_channels,
+                                time=track_times
+                            )
+                            corrected_bandpass = corrected_target_visibility_centre.mean(axis=0)
+
+                        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
+                                 bandpass_pointing.squeeze[1:],
+                                 label=label)
                     plt.xlabel('frequency [MHz]')
-                    plt.ylabel('level2 calibrated intensity')
+                    plt.ylabel('intensity')
                     plt.legend()
 
-                    plt.subplot(3, 1, 3, sharex=ax1)
-                    plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
-                             gain_solution_mean[1:],
-                             label='on-centre observation')
-                    plt.xlabel('frequency [MHz]')
-                    plt.ylabel('level2 gain solution')
-                    plt.legend()
+                    if track_data.gain_solution is not None:
+                        gain_solution_mean = gain_solution.mean(axis=0).squeeze
+                        plt.subplot(3, 1, 2, sharex=ax1)
+                        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
+                                 corrected_bandpass.squeeze[1:],
+                                 label=label)
+                        plt.xlabel('frequency [MHz]')
+                        plt.ylabel('level2 calibrated intensity')
+                        plt.legend()
 
-                plt.suptitle(f'Calibrator tracking receiver {receiver.name}')
-                plt.savefig(os.path.join(receiver_path, f'bandpass_during_tracking_{before_or_after}.png'))
-                plt.close()
+                        plt.subplot(3, 1, 3, sharex=ax1)
+                        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / mega,
+                                 gain_solution_mean[1:],
+                                 label='on-centre observation')
+                        plt.xlabel('frequency [MHz]')
+                        plt.ylabel('level2 gain solution')
+                        plt.legend()
+
+                    plt.suptitle(f'Calibrator tracking receiver {receiver.name}')
+                    plt.savefig(os.path.join(receiver_path, f'bandpass_during_tracking_{before_or_after}.png'))
+                    plt.close()
+            except ValueError:
+                print(f'Receiver {receiver.name} failed to process. Continue...')
+                continue
