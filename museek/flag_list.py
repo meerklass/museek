@@ -75,11 +75,11 @@ class FlagList:
 
     def insert_receiver_flag(self, flag: FlagElement, i_receiver: int, index: int):
         """ Insert `flag` for receiver with index `i_receiver` into the flag in `self` at `index`. """
-        if n_flag_recv := flag.shape[-1] != 1:
-            raise ValueError(f'Input `flag` needs to be for exactly one receiver, but got {n_flag_recv}')
-        flag_at_index = self._flags[index]._array
-        flag_at_index[:, :, i_receiver] = np.logical_or(flag_at_index[:, :, i_receiver], flag._array[:, :, 0])
-        self._flags[index] = self._flag_element_factory.create(array=flag_at_index)
+        if flag.shape[-1] != 1:
+            raise ValueError(f'Input `flag` needs to be for exactly one receiver, but got {flag.shape[-1]}')
+        flag_at_index = self._flags[index]
+        flag_at_index.insert_receiver_flag(i_receiver=i_receiver, flag=flag)
+        self._flags[index] = flag_at_index
 
     def array(self) -> np.ndarray[bool]:
         """ Return the flags in format for storage as a `numpy` array. """

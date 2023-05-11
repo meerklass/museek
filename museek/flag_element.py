@@ -29,6 +29,17 @@ class FlagElement(AbstractDataElement):
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.sum(self._array, axis=axis, keepdims=True))
 
+    def insert_receiver_flag(self, flag: 'FlagElement', i_receiver: int):
+        """
+        Insert `flag` for receiver with index `i_receiver` into `self`.
+        :param flag: needs to contain only one receiver
+        :param i_receiver: the index of the receiver wrt the receiver list
+        :raise ValueError: if `flag` contains flags for more than one single receiver
+        """
+        if flag.shape[-1] != 1:
+            raise ValueError(f'Input `flag` needs to be for one receiver only, got {flag.shape[-1]}')
+        self._array[:, :, i_receiver] = np.logical_or(self._array[:, :, i_receiver], flag._array[:, :, 0])
+
     @staticmethod
     def _make_boolean(array: np.ndarray):
         """

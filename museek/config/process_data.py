@@ -7,11 +7,14 @@ Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
-        'museek.plugin.antenna_flagger_plugin',
+        'museek.plugin.noise_diode_flagger_plugin',
+        'museek.plugin.known_rfi_plugin',
         'museek.plugin.aoflagger_plugin',
-        'museek.plugin.point_source_flagger_plugin',
-        'museek.plugin.zebra_remover_plugin',
-        'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.scan_track_split_plugin',
+        'museek.plugin.antenna_flagger_plugin',
+        # 'museek.plugin.point_source_flagger_plugin',
+        # 'museek.plugin.zebra_remover_plugin',
+        # 'museek.plugin.apply_external_gain_solution_plugin',
         'museek.plugin.bandpass_plugin'
     ]
 )
@@ -20,30 +23,14 @@ InPlugin = ConfigSection(
     block_name='1631379874',  # observation time stamp
     receiver_list=['m000h',
                    'm000v',
-                   'm001h',
-                   'm001v',
-                   'm002h',
-                   'm002v',
                    'm008h',
                    'm008v',
-                   'm012h',
-                   'm012v',
                    'm013h',
                    'm013v',
-                   'm014h',
-                   'm014v',
-                   'm031h',
-                   'm031v',
                    'm032h',
                    'm032v',
                    'm037h',
                    'm037v',
-                   'm022h',
-                   'm022v',
-                   'm026h',
-                   'm026v',
-                   'm052h',
-                   'm052v',
                    'm063h',
                    'm063v'],
     token=None,  # archive token
@@ -79,6 +66,8 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
+    n_jobs=12,
+    verbose=0,
     first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis

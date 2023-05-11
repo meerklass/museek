@@ -18,6 +18,14 @@ class TestFlagFactory(unittest.TestCase):
         mock_flag_element_factory.return_value.create.assert_called_once_with(array=mock_np.zeros.return_value)
         self.assertEqual(empty_flag, mock_flag_element_factory.return_value.create.return_value)
 
+    @patch.object(FlagFactory, 'empty_flag')
+    def test_from_list_of_receiver_flags(self, mock_empty_flag):
+        flag_factory = FlagFactory()
+        mock_flag_list = [MagicMock()]
+        flag = flag_factory.from_list_of_receiver_flags(list_=mock_flag_list)
+        mock_empty_flag.return_value.insert_receiver_flag.assert_called_once_with(flag=mock_flag_list[0], i_receiver=0)
+        self.assertEqual(flag, mock_empty_flag.return_value)
+
     @patch('museek.flag_factory.SkyCoord')
     @patch('museek.flag_factory.units')
     @patch.object(np, 'loadtxt')

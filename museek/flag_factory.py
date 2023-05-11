@@ -19,6 +19,14 @@ class FlagFactory:
         """ Returns an empty `FlagElement` of shape `shape`. """
         return self._data_element_factory.create(array=np.zeros(shape, dtype=bool))
 
+    def from_list_of_receiver_flags(self, list_: list[FlagElement]) -> FlagElement:
+        """ Combines all flags in `list_` to one single `FlagElement` and returns the result. """
+        shape = (list_[0].shape[0], list_[0].shape[1], len(list_))
+        result = self.empty_flag(shape=shape)
+        for i_receiver, flag in enumerate(list_):
+            result.insert_receiver_flag(flag=flag, i_receiver=i_receiver)
+        return result
+
     @staticmethod
     def point_sources_coordinate_list(point_source_file_path: str) -> list[SkyCoord]:
         """
