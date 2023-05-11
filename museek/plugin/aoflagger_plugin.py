@@ -1,22 +1,23 @@
 import os
+from typing import Generator
 
 from matplotlib import pyplot as plt
 
 from definitions import ROOT_DIR
-from ivory.plugin.abstract_plugin import AbstractPlugin
+from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
-from museek.flag_list import FlagList
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import waterfall
 
 
-class AoflaggerPlugin(AbstractPlugin):
+class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
 
     def __init__(self,
@@ -28,7 +29,8 @@ class AoflaggerPlugin(AbstractPlugin):
                  channel_flag_threshold: float,
                  time_dump_flag_threshold: float,
                  flag_combination_threshold: int,
-                 do_store_context: bool):
+                 do_store_context: bool,
+                 **kwargs):
         """
         Initialise the plugin
         :param first_threshold: initial threshold to be used for the aoflagger algorithm
@@ -41,7 +43,7 @@ class AoflaggerPlugin(AbstractPlugin):
         :param flag_combination_threshold: for combining sets of flags, usually `1`
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.first_threshold = first_threshold
         self.threshold_scales = threshold_scales
         self.smoothing_kernel = smoothing_kernel
@@ -58,12 +60,14 @@ class AoflaggerPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
 
-    def run(self,
+    def map(self,
             data: TimeOrderedData,
             output_path: str,
-            block_name: str):
+            block_name: str) \
+            -> Generator[tuple[str, DataElement, FlagElement], None, None]:
         """
-        Run the Aoflagger algorithm and post-process the result. Done for each receiver separately.
+        Yield a `tuple` of the results path for one receiver, the visibility data for one receiver and the
+        initial flags for one receiver.
         :param data: time ordered data containing the entire observation
         :param output_path: path to store results
         :param block_name: name of the data block
@@ -71,29 +75,47 @@ class AoflaggerPlugin(AbstractPlugin):
         data.load_visibility_flags_weights()
         initial_flags = data.flags.combine(threshold=self.flag_combination_threshold)
 
-        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=data.visibility.shape)])
-
         for i_receiver, receiver in enumerate(data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             visibility = data.visibility.get(recv=i_receiver)
             initial_flag = initial_flags.get(recv=i_receiver)
-            rfi_flag = get_rfi_mask(time_ordered=visibility,
-                                    mask=initial_flag,
-                                    first_threshold=self.first_threshold,
-                                    threshold_scales=self.threshold_scales,
-                                    output_path=receiver_path,
-                                    smoothing_window_size=self.smoothing_kernel,
-                                    smoothing_sigma=self.smoothing_sigma)
-            rfi_flag = self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag)
-            new_flag.insert_receiver_flag(flag=rfi_flag, i_receiver=i_receiver, index=0)
+            yield receiver_path, visibility, initial_flag
 
+    def run_job(self, anything: tuple[str, DataElement, FlagElement]) -> FlagElement:
+        """
+        Run the Aoflagger algorithm and post-process the result. Done for one receiver at a time.
+        :param anything: `tuple` of the output path, the visibility and the initial flag
+        :return: rfi mask as `FlagElement`
+        """
+        receiver_path, visibility, initial_flag = anything
+        rfi_flag = get_rfi_mask(time_ordered=visibility,
+                                mask=initial_flag,
+                                first_threshold=self.first_threshold,
+                                threshold_scales=self.threshold_scales,
+                                output_path=receiver_path,
+                                smoothing_window_size=self.smoothing_kernel,
+                                smoothing_sigma=self.smoothing_sigma)
+        return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag)
+
+    def gather_and_set_result(self,
+                              result_list: list[FlagElement],
+                              data: TimeOrderedData,
+                              output_path: str,
+                              block_name: str):
+        """
+        Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
+        :param result_list: `list` of `FlagElement`s created from the RFI flagging
+        :param data: `TimeOrderedData` containing the entire observation
+        :param output_path: path to store results
+        :param block_name: name of the observation block
+        """
+        new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
         data.flags.add_flag(flag=new_flag)
 
         waterfall(data.visibility.get(recv=0),
                   data.flags.get(recv=0),
-                  cmap='gist_ncar',
-                  norm='log')
+                  cmap='gist_ncar')
         plt.savefig(os.path.join(output_path, 'rfi_mitigation_result_receiver_0.png'), dpi=1000)
         plt.close()
 
