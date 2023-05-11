@@ -4,19 +4,22 @@ from unittest.mock import patch, Mock, MagicMock, call, PropertyMock
 
 import numpy as np
 
+from museek.flag_list import FlagList
 from museek.receiver import Receiver, Polarisation
 from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
 
 
 class TestTimeOrderedData(unittest.TestCase):
 
+    @patch.object(TimeOrderedData, '_get_flag_element_factory')
     @patch.object(TimeOrderedData, '_get_data_element_factory')
     @patch.object(TimeOrderedData, '_correlator_products_indices')
     @patch.object(TimeOrderedData, '_get_data')
     def setUp(self,
               mock_get_data,
               mock_correlator_products_indices,
-              mock_get_data_element_factory):
+              mock_get_data_element_factory,
+              mock_get_flag_element_factory):
         mock_receiver_name_list = ['m000h', 'm000v', 'm001h']
         self.mock_receiver_list = [Receiver.from_string(name) for name in mock_receiver_name_list]
         mock_corr_products = np.asarray(list(itertools.product(mock_receiver_name_list, mock_receiver_name_list)))
@@ -25,6 +28,7 @@ class TestTimeOrderedData(unittest.TestCase):
 
         self.mock_correlator_products_indices = mock_correlator_products_indices
         self.mock_get_data_element_factory = mock_get_data_element_factory
+        self.mock_get_flag_element_factory = mock_get_flag_element_factory
         mock_get_data.return_value = self.mock_katdal_data
         mock_block_name = Mock()
         mock_data_folder = Mock()
@@ -70,42 +74,40 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_get_data.assert_called_once()
         mock_select.assert_called_once_with(data=mock_get_data.return_value)
 
-    @patch('museek.time_ordered_data.FlagElement')
+    @patch.object(FlagList, 'from_array')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_flag_element):
+    def test_load_visibility_flag_weights(self, mock_visibility_flags_weights, mock_from_array):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
-        mock_flag_element.assert_called_once_with(
-            flags=[self.mock_get_data_element_factory.return_value.create.return_value]
-        )
+        mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
+                                                element_factory=self.mock_get_flag_element_factory.return_value)
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
-        self.assertEqual(self.time_ordered_data.flags, mock_flag_element.return_value)
+        self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
         self.assertEqual(self.time_ordered_data.weights,
                          self.mock_get_data_element_factory.return_value.create.return_value)
 
-    @patch('museek.time_ordered_data.FlagElement')
-    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_element):
+    @patch('museek.time_ordered_data.FlagList')
+    def test_load_visibility_flag_weights_when_already_loaded(self, mock_flag_list):
         self.time_ordered_data.visibility = 1
         self.time_ordered_data.flags = 1
         self.time_ordered_data.weights = 1
         self.time_ordered_data.load_visibility_flags_weights()
-        mock_flag_element.assert_not_called()
+        mock_flag_list.assert_not_called()
         self.assertEqual(self.time_ordered_data.visibility, 1)
         self.assertEqual(self.time_ordered_data.flags, 1)
         self.assertEqual(self.time_ordered_data.weights, 1)
 
-    @patch('museek.time_ordered_data.FlagElement')
+    @patch.object(FlagList, 'from_array')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
-    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_flag_element):
+    def test_delete_visibility_flags_weights(self, mock_visibility_flags_weights, mock_from_array):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
-        mock_flag_element.assert_called_once_with(
-            flags=[self.mock_get_data_element_factory.return_value.create.return_value]
-        )
+        mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
+                                                element_factory=self.mock_get_flag_element_factory.return_value)
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
-        self.assertEqual(self.time_ordered_data.flags, mock_flag_element.return_value)
+        self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
         self.assertEqual(self.time_ordered_data.weights,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.time_ordered_data.delete_visibility_flags_weights()
@@ -280,8 +282,44 @@ class TestTimeOrderedData(unittest.TestCase):
         )
         mock_dask_lazy_indexer.get.assert_called_once()
         np.testing.assert_array_equal(np.asarray([[[0. + 0.j]]]), visibility)
-        np.testing.assert_array_equal(np.asarray([[[0]]]), flags)
+        np.testing.assert_array_equal(np.asarray([[[[0]]]]), flags)
         np.testing.assert_array_equal(np.asarray([[[0]]]), weights)
+
+    @patch.object(np, 'asarray')
+    @patch.object(np, 'savez_compressed')
+    def test_visibility_flag_weights_to_cache_file(self, mock_savez_compressed, mock_asarray):
+        mock_visibility = Mock()
+        mock_flags = Mock()
+        mock_weights = Mock()
+        mock_correlator_products = Mock()
+        self.time_ordered_data._visibility_flag_weights_to_cache_file(visibility=mock_visibility,
+                                                                      flags=mock_flags,
+                                                                      weights=mock_weights,
+                                                                      correlator_products=mock_correlator_products)
+        mock_savez_compressed.assert_called_once_with(self.time_ordered_data._cache_file,
+                                                      visibility=mock_visibility,
+                                                      flags=mock_flags,
+                                                      weights=mock_weights,
+                                                      correlator_products=mock_asarray.return_value)
+        mock_asarray.assert_called_once_with(mock_correlator_products)
+
+    @patch.object(np, 'asarray')
+    @patch.object(np, 'savez_compressed')
+    def test_visibility_flag_weights_to_cache_file_when_scan_state_not_none(self, mock_savez_compressed, mock_asarray):
+        mock_visibility = Mock()
+        mock_flags = Mock()
+        mock_weights = Mock()
+        mock_correlator_products = Mock()
+        self.time_ordered_data.scan_state = Mock()
+        self.assertRaises(ValueError,
+                          self.time_ordered_data._visibility_flag_weights_to_cache_file,
+                          visibility=mock_visibility,
+                          flags=mock_flags,
+                          weights=mock_weights,
+                          correlator_products=mock_correlator_products)
+
+        mock_savez_compressed.assert_not_called()
+        mock_asarray.assert_not_called()
 
     def test_correlator_products_indices(self):
         all_correlator_products = np.asarray([('a', 'a'), ('b', 'b'), ('c', 'c'), ('d', 'd')])

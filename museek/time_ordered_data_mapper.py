@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import griddata
 
 from museek.data_element import DataElement
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 
 
@@ -13,7 +13,7 @@ class TimeOrderedDataMapper:
                  right_ascension: DataElement,
                  declination: DataElement,
                  to_map: DataElement,
-                 flags: FlagElement | None = None):
+                 flags: FlagList | None = None):
         """
         Initialise
         :param right_ascension: celestial coordinate right ascension, any unit
@@ -46,7 +46,7 @@ class TimeOrderedDataMapper:
         """
         Grid the data in bins in right ascension and declination
         :param grid_size: `tuple` of `integers` to specify the resolution in right ascension and declination
-        :param flag_threshold: forwarded to `FlagElement`, combined flag entries less than this value are interpreted
+        :param flag_threshold: forwarded to `FlagList`, combined flag entries less than this value are interpreted
                                as unmasked
         :param method: interpolation method for `griddata`
         :return: `tuple` of gridded map and the optional mask

@@ -7,11 +7,14 @@ Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
         'museek.plugin.out_plugin',
-        'museek.plugin.antenna_flagger_plugin',
+        'museek.plugin.noise_diode_flagger_plugin',
+        'museek.plugin.known_rfi_plugin',
         'museek.plugin.aoflagger_plugin',
-        'museek.plugin.point_source_flagger_plugin',
-        'museek.plugin.zebra_remover_plugin',
-        'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.scan_track_split_plugin',
+        'museek.plugin.antenna_flagger_plugin',
+        # 'museek.plugin.point_source_flagger_plugin',
+        # 'museek.plugin.zebra_remover_plugin',
+        # 'museek.plugin.apply_external_gain_solution_plugin',
         'museek.plugin.bandpass_plugin'
     ]
 )
@@ -20,30 +23,14 @@ InPlugin = ConfigSection(
     block_name='1631379874',  # observation time stamp
     receiver_list=['m000h',
                    'm000v',
-                   'm001h',
-                   'm001v',
-                   'm002h',
-                   'm002v',
                    'm008h',
                    'm008v',
-                   'm012h',
-                   'm012v',
                    'm013h',
                    'm013v',
-                   'm014h',
-                   'm014v',
-                   'm031h',
-                   'm031v',
                    'm032h',
                    'm032v',
                    'm037h',
                    'm037v',
-                   'm022h',
-                   'm022v',
-                   'm026h',
-                   'm026v',
-                   'm052h',
-                   'm052v',
                    'm063h',
                    'm063v'],
     token=None,  # archive token
@@ -51,7 +38,6 @@ InPlugin = ConfigSection(
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
-    do_use_noise_diode=True,
     do_store_context=True,
     context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
 )
@@ -80,17 +66,33 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    first_threshold=0.1,  # First threshold value
+    n_jobs=12,
+    verbose=0,
+    first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
     smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
-    struct_size=(6, 1),  # size of struct for dilation in time and frequency direction [pixels]
+    struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
-    flag_combination_threshold=1
+    time_dump_flag_threshold=0.6,
+    flag_combination_threshold=1,
+    do_store_context=True
+)
+
+KnownRfiPlugin = ConfigSection(
+    gsm_900_uplink=(890, 915),
+    gsm_900_downlink=(935, 960),
+    gsm_1800_uplink=(1710, 1785),
+    gps=(1170, 1390),
+    extra_rfi=[(1524, 1630)]
+)
+
+ScanTrackSplitPlugin = ConfigSection(
+    do_delete_unsplit_data=True
 )
 
 BandpassPlugin = ConfigSection(
-    target_channels=range(570, 765),
+    target_channels=None,
     pointing_threshold=5.,
     n_pointings=5,
     n_centre_observations=3

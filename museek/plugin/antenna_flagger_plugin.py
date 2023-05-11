@@ -9,6 +9,7 @@ from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
+from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.clustering import Clustering
 
@@ -50,8 +51,8 @@ class AntennaFlaggerPlugin(AbstractPlugin):
     def flag_outlier_antennas(self, data: TimeOrderedData):
         """ Add a new flag to `data` to exclude antennas with non-constant elevation readings. """
         shape = data.visibility.shape
-        new_flag = FlagElement(flags=[FlagFactory().empty_flag(shape=shape)])
-        full_flag = DataElement(array=np.ones((shape[0], shape[1], 1)))
+        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])
+        full_flag = FlagElement(array=np.ones((shape[0], shape[1], 1)))
         _, antennas = self.outlier_antenna_indices(data=data, distance_threshold=self.outlier_threshold)
         for antenna in antennas:
             print(f'Outliers: flagged antenna {antenna.name}.')
@@ -87,7 +88,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
     def flag_for_elevation(self, data: TimeOrderedData):
         """ Add a new flag to `data` to exclude antennas with non-constant elevation readings. """
         shape = data.visibility.shape
-        new_flag = FlagElement(flags=[FlagFactory().empty_flag(shape=shape)])
+        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])
         full_flag = DataElement(array=np.ones((shape[0], shape[1], 1)))
         for antenna in ConstantElevationScans.get_antennas_with_non_constant_elevation(
                 data=data,

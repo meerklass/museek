@@ -5,7 +5,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from museek.data_element import DataElement
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
+from museek.flag_element import FlagElement
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -14,13 +15,13 @@ A collection of functions for RFI flagging using the AOflagger algorithm.
 
 def get_rfi_mask(
         time_ordered: DataElement,
-        mask: DataElement,
+        mask: FlagElement,
         first_threshold: float,
         threshold_scales: list[float],
         smoothing_window_size: tuple[int, int],
         smoothing_sigma: tuple[float, float],
         output_path: str | None = None
-) -> DataElement:
+) -> FlagElement:
     """
     Computes a mask to cover the RFI in a data set.
 
@@ -55,20 +56,21 @@ def get_rfi_mask(
                                                smoothing_window_size=smoothing_window_size,
                                                smoothing_sigma=smoothing_sigma)
 
-    return DataElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
+    return FlagElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
 
 
 def gaussian_filter(array: np.ndarray,
                     mask: np.ndarray,
                     window_size: tuple[int, int] = (20, 40),
-                    sigma: tuple[float, float] = (0.5, 0.5)):
+                    sigma: tuple[float, float] = (0.5, 0.5)) -> np.ndarray[float | None]:
     """
-    Apply a gaussian filter (smoothing) to the given array taking into account masked values
+    Apply a gaussian filter (smoothing) to the given positive definite array taking into account masked values,
+    any result entries that are zero are replaced by `None`
     :param array: the array to be smoothed
     :param mask: boolean array defining masked values
     :param window_size: kernel window size tuple for axes 0 and 1
     :param sigma: kernel sigma tuple for axes 0 and 1
-    :return: filtered array
+    :return: filtered array with entries >0 or `None`
     """
 
     def exponential_window(x, y, sigma_x, sigma_y):
@@ -82,13 +84,14 @@ def gaussian_filter(array: np.ndarray,
                            mask=mask,
                            kernel=(kernel_0, kernel_1),
                            even_window_size=window_size)
+    result[result == 0] = None
     return result
 
 
 def _apply_kernel(array: np.ndarray,
                   mask: np.ndarray,
                   kernel: tuple[np.ndarray, np.ndarray],
-                  even_window_size: tuple[int, int]):
+                  even_window_size: tuple[int, int]) -> np.ndarray:
     """
     Apply smoothing with `kernel` to `array` taking into account values masked by `mask` and return the result.
     :param array: `numpy` `array` to be smoothed
@@ -252,7 +255,6 @@ def plot_moments(data, output_path: str):
     plt.plot(std_time)
     plt.xlabel('time')
     plt.ylabel('std')
-    # plt.show()
     plt.subplot(223)
     plt.plot(mean_freuqency)
     plt.xlabel('freuqency')
@@ -264,6 +266,7 @@ def plot_moments(data, output_path: str):
     plt.tight_layout()
     plot_name = 'standard_deviation_and_mean.png'
     plt.savefig(os.path.join(output_path, plot_name))
+    plt.close()
 
 
 def plot_data(data, ax, title, vmin=None, vmax=None, cb=True, norm=None, extent=None, cmap=None):
@@ -299,3 +302,4 @@ def plot_step(data, mask, smoothed_data, residual, title, plot_name: str, output
     plot_data(smoothed, ax[0, 1], 'smooth')
     plot_data(residual, ax[1, 1], 'residual')
     fig.savefig(os.path.join(output_path, plot_name))
+    plt.close()

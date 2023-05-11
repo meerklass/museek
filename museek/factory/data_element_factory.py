@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from museek.data_element import DataElement
+from museek.flag_element import FlagElement
 
 
 class AbstractDataElementFactory(ABC):
@@ -25,21 +26,29 @@ class DataElementFactory(AbstractDataElementFactory):
         return DataElement(array=array)
 
 
-class ScanDataElementFactory(AbstractDataElementFactory):
+class FlagElementFactory(AbstractDataElementFactory):
+    """ `FlagElement` factory. """
+
+    def create(self, array: np.ndarray) -> FlagElement:
+        """ Initialise and return a `FlagElement` object with `array`. """
+        return FlagElement(array=array)
+
+
+class ScanElementFactory(AbstractDataElementFactory):
     """
-    `DataElement` factory specific to a certain scan state. Follows the decorator pattern.
+    `AbstractDataElement` factory specific to a certain scan state. Follows the decorator pattern.
     """
 
-    def __init__(self, scan_dumps: list[int]):
+    def __init__(self, scan_dumps: list[int], component: DataElementFactory | FlagElementFactory):
         """
         Initialise super class and set a `DataElementFactory` as a component.
         :param scan_dumps: dump indices belonging to the scan state
         """
         super().__init__()
-        self._component = DataElementFactory()
+        self._component = component
         self._scan_dumps = scan_dumps
 
-    def create(self, array: np.ndarray) -> DataElement:
+    def create(self, array: np.ndarray) -> DataElement | FlagElement:
         """
         Initialise and return a `DataElement` object with `array` indexed at `self._scan_dumps`.
         """

@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock, call
 
 import numpy as np
 
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
 from museek.rfi_mitigation.aoflagger import _sum_threshold_mask, \
     _run_sumthreshold, _apply_kernel, \
     gaussian_filter, get_rfi_mask
@@ -24,7 +24,7 @@ class TestAoflagger(unittest.TestCase):
         self.mask[:, -10:, :] = True
 
     @patch.object(np, 'arange')
-    @patch.object(DataElementFactory, 'create')
+    @patch.object(FlagElementFactory, 'create')
     @patch('museek.rfi_mitigation.aoflagger.plot_moments')
     @patch('museek.rfi_mitigation.aoflagger._run_sumthreshold')
     def test_get_rfi_mask(self, mock_run_sumthreshold, mock_plot_moments, mock_create, mock_arange):

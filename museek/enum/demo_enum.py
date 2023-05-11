@@ -8,3 +8,5 @@ class DemoEnum(enum.Enum):
 
     CONTEXT_STORAGE_DIRECTORY = enum.auto()
     CONTEXT_FILE_NAME = enum.auto()
+
+    PARALLEL_RESULT = enum.auto()
