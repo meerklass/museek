@@ -1,14 +1,14 @@
 import unittest
 
 from museek.enum.scan_state_enum import ScanStateEnum
-from museek.factory.data_element_factory import ScanDataElementFactory
+from museek.factory.data_element_factory import ScanElementFactory
 
 
 class TestScanStateEnum(unittest.TestCase):
     def test_factory(self):
         enum = ScanStateEnum.SCAN
-        factory = enum.factory(scan_dumps=[0])
-        self.assertIsInstance(factory, ScanDataElementFactory)
+        factory = enum.factory(scan_dumps=[0], component=ScanElementFactory)
+        self.assertIsInstance(factory, ScanElementFactory)
 
     def test_scan_name(self):
         enum = ScanStateEnum.SCAN

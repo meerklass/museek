@@ -12,8 +12,8 @@ from katpoint import Target, Antenna
 from definitions import ROOT_DIR
 from museek.data_element import DataElement
 from museek.enum.scan_state_enum import ScanStateEnum
-from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory
-from museek.flag_element import FlagElement
+from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory, FlagElementFactory
+from museek.flag_list import FlagList
 from museek.receiver import Receiver
 from museek.util.clustering import Clustering
 
@@ -57,7 +57,7 @@ class TimeOrderedData:
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
-        self.flags: FlagElement | None = None
+        self.flags: FlagList | None = None
         self.weights: DataElement | None = None
 
         self._block_name = block_name
@@ -70,7 +70,7 @@ class TimeOrderedData:
         self._katdal_open_argument: Optional[str] = None
 
         self._force_load_from_correlator_data = force_load_from_correlator_data
-        self._do_save_to_disc = do_create_cache
+        self._do_create_cache = do_create_cache
 
         data = self._get_data()
         self.receivers = self._get_receivers(requested_receivers=receivers, data=data)
@@ -79,6 +79,9 @@ class TimeOrderedData:
         self._select(data=data)
         self._data_str = str(data)
         self._cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
+        cache_file_directory = os.path.join(ROOT_DIR, 'cache')
+        os.makedirs(cache_file_directory, exist_ok=True)
+        self._cache_file = os.path.join(cache_file_directory, self._cache_file_name)
 
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
@@ -89,6 +92,7 @@ class TimeOrderedData:
 
         self.scan_state: ScanStateEnum | None = None
         self._element_factory: AbstractDataElementFactory | None = None
+        self._flag_element_factory: FlagElementFactory | None = None
 
         self.timestamps: DataElement | None = None
         self.original_timestamps: DataElement | None = None
@@ -123,8 +127,11 @@ class TimeOrderedData:
         if data is None:
             data = self._get_data()
             self._select(data=data)
+        if scan_state is not None:
+            self._do_create_cache = False  # only the entire data can be stored, not individual scan states
         self.scan_state = scan_state
         self._element_factory = self._get_data_element_factory()
+        self._flag_element_factory = self._get_flag_element_factory()
 
         self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
         if self.original_timestamps is None:
@@ -152,14 +159,14 @@ class TimeOrderedData:
         if self.flags is not None and self.weights is not None and self.visibility is not None:
             print('Visibility, flag and weight data is already loaded.')
             return
-        visibility, flags, weights = self._visibility_flags_weights()
-        self.visibility = self._element_factory.create(array=visibility)
+        visibility_array, flag_array, weight_array = self._visibility_flags_weights()
+        self.visibility = self._element_factory.create(array=visibility_array)
         if self.flags is not None:
             print('Overwriting existing flags.')
-        self.flags = FlagElement(flags=[self._element_factory.create(array=flags)])
+        self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
         if self.weights is not None:
             print('Overwriting existing weights.')
-        self.weights = self._element_factory.create(array=weights)
+        self.weights = self._element_factory.create(array=weight_array)
 
     def delete_visibility_flags_weights(self):
         """ Delete large arrays from memory, i.e. replace them with `None`. """
@@ -232,7 +239,16 @@ class TimeOrderedData:
         """
         if self.scan_state is None:
             return DataElementFactory()
-        return self.scan_state.factory(scan_dumps=self._dumps())
+        return self.scan_state.factory(scan_dumps=self._dumps(), component=DataElementFactory())
+
+    def _get_flag_element_factory(self) -> AbstractDataElementFactory:
+        """
+        Returns the `FlagElementFactory` taken from `self.scan_state`. If `self.scan_state` is None,
+        a default factory instance is returned.
+        """
+        if self.scan_state is None:
+            return FlagElementFactory()
+        return self.scan_state.factory(scan_dumps=self._dumps(), component=FlagElementFactory())
 
     def _visibility_flags_weights(self, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -242,24 +258,22 @@ class TimeOrderedData:
         :param data: optional `katdal` `DataSet`, defaults to `None`
         :return: a tuple of visibility, flags and weights as `np.ndarray` each
         """
-        cache_file_directory = os.path.join(ROOT_DIR, 'cache')
-        os.makedirs(cache_file_directory, exist_ok=True)
-        cache_file = os.path.join(cache_file_directory, self._cache_file_name)
-        if not os.path.exists(cache_file) or self._force_load_from_correlator_data:
+        if not os.path.exists(self._cache_file) or self._force_load_from_correlator_data:
+            self._force_load_from_correlator_data = False
             if data is None:
                 data = katdal.open(self._katdal_open_argument)
                 self._select(data=data)
             visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
-            if self._do_save_to_disc:
-                print(f'Creating cache file for {self.name}...')
-                np.savez_compressed(cache_file,
-                                    visibility=visibility,
-                                    flags=flags,
-                                    weights=weights,
-                                    correlator_products=data.corr_products)
+            if self._do_create_cache:
+                self._visibility_flag_weights_to_cache_file(
+                    visibility=visibility,
+                    flags=flags,
+                    weights=weights,
+                    correlator_products=data.corr_products
+                )
         else:
             print(f'Loading visibility, flags and weights for {self.name} from cache file...')
-            data_from_cache = np.load(cache_file)
+            data_from_cache = np.load(self._cache_file)
             correlator_products = data_from_cache['correlator_products']
             try:  # if this fails it means that the cache file does not contain the correlator products
                 correlator_products_indices = self._correlator_products_indices(
@@ -267,19 +281,20 @@ class TimeOrderedData:
                 )
             except ValueError:
                 self._force_load_from_correlator_data = True
-                self._do_save_to_disc = True
+                self._do_create_cache = True
                 return self._visibility_flags_weights(data=data)
             visibility = data_from_cache['visibility'][:, :, correlator_products_indices]
-            flags = data_from_cache['flags'][:, :, correlator_products_indices]
+            flags = data_from_cache['flags'][:, :, :, correlator_products_indices]
             weights = data_from_cache['weights'][:, :, correlator_products_indices]
         return visibility.real, flags, weights
 
     def _load_autocorrelation_visibility(self, data: DataSet) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Loads the visibility, flags and weights from katdal lazy indexer.
+        Loads and returns the visibility, flags and weights from katdal lazy indexer.
         Note: this consumes a lot of memory depending on the selection of `data`.
         :param data: a `katdal` `DataSet`
-        :return: a tuple of visibility, flags and weights as `np.ndarray` each
+        :return: a tuple of visibility, flags and weights as `np.ndarray` each, with the visibility and weights
+                 3-dimensional and the flags 4-dimensional
         """
         visibility = np.zeros(shape=self.shape, dtype=complex)
         flags = np.zeros(shape=self.shape, dtype=bool)
@@ -287,7 +302,31 @@ class TimeOrderedData:
         DaskLazyIndexer.get(arrays=[data.vis, data.flags, data.weights],
                             keep=...,
                             out=[visibility, flags, weights])
+        flags = flags[np.newaxis]  # necessary for compatibility
         return visibility, flags, weights
+
+    def _visibility_flag_weights_to_cache_file(self,
+                                               visibility: np.ndarray,
+                                               flags: np.ndarray,
+                                               weights: np.ndarray,
+                                               correlator_products: np.ndarray[str]):
+        """
+        Store visibility, flag and weights to `npz` file.
+        :param visibility: visibilities as 3-dimensional `numpy` array, `(time, frequency, receivers)`
+        :param flags: flags as 3-dimensional `numpy` array, `(time, frequency, receivers)`
+        :param weights: weights as 4-dimensional `numpy` array, `(1, time, frequency, receivers)`
+        :param correlator_products: `numpy` array of the `str` correlator product names, e.g. `[['m000h', 'm000h']]`
+        :raise ValueError: if `self.scan_state` is not `None`
+        """
+        if self.scan_state is not None:
+            raise ValueError(f'Data with scan_state {self.scan_state} '
+                             f'cannot store visibility, flag and weight data to cache file.')
+        print(f'Creating cache file for {self.name}...')
+        np.savez_compressed(self._cache_file,
+                            visibility=visibility,
+                            flags=flags,
+                            weights=weights,
+                            correlator_products=np.asarray(correlator_products))
 
     def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> Any:
         """

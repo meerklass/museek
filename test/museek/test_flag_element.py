@@ -3,133 +3,68 @@ from unittest.mock import patch, MagicMock
 
 import numpy as np
 
-from museek.data_element import DataElement
 from museek.flag_element import FlagElement
 
 
 class TestFlagElement(unittest.TestCase):
+
     def setUp(self):
-        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(3)]
-        self.flag_element = FlagElement(flags=flags)
+        self.shape = (3, 3, 3)
+        self.mock_parent = MagicMock()
+        self.array = np.ones((3, 3, 3), dtype=bool)
+        self.element = FlagElement(array=self.array)
 
-    def test_len(self):
-        self.assertEqual(3, len(self.flag_element))
+    def test_add_when_both_empty(self):
+        flag = FlagElement(array=np.asarray([[[False, False, False],
+                                              [False, False, False],
+                                              [False, False, False]]]))
+        self.assertEqual(flag + flag, flag)
 
-    def test_eq(self):
-        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(3)]
-        self.assertEqual(self.flag_element, FlagElement(flags=flags))
+    def test_add_when_both_full(self):
+        flag = FlagElement(array=np.asarray([[[True, True, True],
+                                              [True, True, True],
+                                              [True, True, True]]]))
+        self.assertEqual(flag + flag, flag)
 
-    def test_eq_when_not_equal(self):
-        flags = [DataElement(array=np.ones((3, 3, 3))) for _ in range(3)]
-        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+    def test_add_when_one_empty_one_full(self):
+        flag_1 = FlagElement(array=np.asarray([[[False, False, False],
+                                                [False, False, False],
+                                                [False, False, False]]]))
+        flag_2 = FlagElement(array=np.asarray([[[True, True, True],
+                                                [True, True, True],
+                                                [True, True, True]]]))
+        self.assertEqual(flag_1 + flag_2, flag_2)
 
-    def test_eq_when_more_flags_expect_not_equal(self):
-        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(4)]
-        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+    def test_add_when_complementary(self):
+        flag_1 = FlagElement(array=np.asarray([[[True, False, False],
+                                                [False, False, True],
+                                                [False, True, False]]]))
+        flag_2 = FlagElement(array=np.asarray([[[False, True, True],
+                                                [True, True, False],
+                                                [True, False, True]]]))
+        expect = FlagElement(array=np.asarray([[[True, True, True],
+                                                [True, True, True],
+                                                [True, True, True]]]))
+        self.assertEqual(flag_1 + flag_2, expect)
 
-    def test_eq_when_different_shape_expect_not_equal(self):
-        flags = [DataElement(array=np.zeros((3, 4, 3))) for _ in range(3)]
-        self.assertNotEqual(self.flag_element, FlagElement(flags=flags))
+    @patch('museek.flag_element.DataElement')
+    @patch('museek.flag_element.np')
+    def test_sum(self, mock_np, mock_data_element):
+        mock_axis = MagicMock()
+        mean = self.element.sum(axis=mock_axis)
+        mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
+        mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
+        self.assertEqual(mean, mock_data_element.return_value)
 
-    def test_shape(self):
-        self.assertTupleEqual((3, 3, 3), self.flag_element.shape)
+    def test_make_boolean_when_true(self):
+        result = FlagElement._make_boolean(array=np.array([1]))
+        self.assertTrue(isinstance(result[0], bool | np.bool_))
+        np.testing.assert_array_equal(np.array([True]), result)
 
-    def test_add_flag(self):
-        self.flag_element.add_flag(flag=DataElement(array=np.zeros((3, 3, 3))))
-        flags = [DataElement(array=np.zeros((3, 3, 3))) for _ in range(4)]
-        expect = FlagElement(flags=flags)
-        self.assertEqual(expect, self.flag_element)
+    def test_make_boolean_when_false(self):
+        result = FlagElement._make_boolean(array=np.array([0]))
+        self.assertTrue(isinstance(result[0], bool | np.bool_))
+        np.testing.assert_array_equal(np.array([False]), FlagElement._make_boolean(array=np.array([0])))
 
-    def test_add_flag_when_flag_element(self):
-        mock_flags = FlagElement(flags=[DataElement(array=np.zeros((3, 3, 3)))])
-        self.flag_element.add_flag(flag=mock_flags)
-        np.testing.assert_array_equal(mock_flags._flags[0]._array, self.flag_element._flags[0]._array)
-
-    def test_remove_flag(self):
-        flag_element = FlagElement(flags=[DataElement(array=np.ones((3, 3, 3)) * i) for i in range(3)])
-        flag_element.remove_flag(index=1)
-        expect = FlagElement(flags=[DataElement(array=np.ones((3, 3, 3)) * i) for i in [0, 2]])
-        self.assertEqual(expect, flag_element)
-
-    def test_combine_when_empty(self):
-        self.assertEqual(DataElement(array=np.zeros((3, 3, 3))), self.flag_element.combine())
-
-    def test_combine_when_ones_and_threshold_small(self):
-        flags = [DataElement(array=np.ones((3, 3, 3))) for _ in range(3)]
-        flag_element = FlagElement(flags=flags)
-        self.assertEqual(DataElement(array=np.ones((3, 3, 3))), flag_element.combine(threshold=1))
-
-    def test_combine_when_ones_and_threshold_large(self):
-        flags = [DataElement(array=np.ones((3, 3, 3))) for _ in range(3)]
-        flag_element = FlagElement(flags=flags)
-        self.assertEqual(DataElement(array=np.zeros((3, 3, 3))), flag_element.combine(threshold=4))
-
-    def test_combine_when_different_flags_and_threshold_small(self):
-        flags = [DataElement(array=np.ones((3, 3, 3))),
-                 DataElement(array=np.zeros((3, 3, 3))),
-                 DataElement(array=np.ones((3, 3, 3)))]
-        flag_element = FlagElement(flags=flags)
-        self.assertEqual(DataElement(array=np.ones((3, 3, 3))), flag_element.combine(threshold=1))
-
-    def test_combine_when_different_flags_and_threshold_large(self):
-        flags = [DataElement(array=np.ones((3, 3, 3))),
-                 DataElement(array=np.zeros((3, 3, 3))),
-                 DataElement(array=np.ones((3, 3, 3)))]
-        flag_element = FlagElement(flags=flags)
-        self.assertEqual(DataElement(array=np.zeros((3, 3, 3))), flag_element.combine(threshold=3))
-
-    def test_combine_when_one_dump_flagged(self):
-        flag_1 = DataElement(array=np.zeros((3, 3, 3)))
-        array_ = np.zeros((3, 3, 3))
-        array_[1, 1, 1] = 1
-        flag_2 = DataElement(array=array_)
-
-        flag_element = FlagElement(flags=[flag_1, flag_2])
-        self.assertEqual(flag_2, flag_element.combine(threshold=1))
-
-    @patch.object(FlagElement, '_check_flags')
-    def test_get(self, mock_check_flags):
-        mock_flag = MagicMock(shape=1)
-        mock_flag.get.return_value = mock_flag
-        flag_element = FlagElement(flags=[mock_flag])
-        kwargs = {'mock': 'mock'}
-        self.assertEqual(flag_element._flags[0], flag_element.get(**kwargs)._flags[0])
-        mock_flag.get.assert_called_once_with(mock='mock')
-        self.assertEqual(2, mock_check_flags.call_count)
-
-    def test_insert_receiver_flag_when_flag_shape_incorrect_expect_value_error(self):
-        mock_flag = DataElement(array=np.ones((3, 3, 2)))
-        self.assertRaises(ValueError,
-                          self.flag_element.insert_receiver_flag,
-                          flag=mock_flag,
-                          i_receiver=1,
-                          index=2)
-
-    def test_insert_receiver_flag(self):
-        mock_flag = DataElement(array=np.ones((3, 3, 1), dtype=bool))
-        self.flag_element.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
-        self.assertTrue((self.flag_element._flags[0]._array == False).all())
-        self.assertTrue((self.flag_element._flags[2].get(recv=0).squeeze == False).all())
-        self.assertTrue((self.flag_element._flags[2].get(recv=2).squeeze == False).all())
-        self.assertTrue(self.flag_element._flags[2].get(recv=1).squeeze.all())
-
-    @patch.object(FlagElement, '_check_flag_types')
-    @patch.object(FlagElement, '_check_flag_shapes')
-    def test_check_flags(self, mock_check_flag_shapes, mock_check_flag_types):
-        self.flag_element._check_flags()
-        mock_check_flag_shapes.assert_called_once()
-        mock_check_flag_types.assert_called_once()
-
-    def test_check_flag_shapes(self):
-        self.assertIsNone(self.flag_element._check_flag_shapes())
-
-    def test_check_flag_shapes_expect_raise(self):
-        flags = [DataElement(array=np.zeros((3, 3, 3))), DataElement(array=np.zeros((1, 1, 1)))]
-        self.assertRaises(ValueError, FlagElement, flags=flags)
-
-    def test_check_flag_types(self):
-        self.assertIsNone(self.flag_element._check_flag_types())
-
-    def test_check_flag_types_expect_raise(self):
-        flags = [DataElement(array=np.zeros((3, 3, 3))), np.zeros((1, 1, 1))]
-        self.assertRaises(ValueError, FlagElement, flags=flags)
+    def test_make_boolean_when_not_binary_expect_raise(self):
+        self.assertRaises(ValueError, FlagElement._make_boolean, np.array([1, 2, 3]))

@@ -3,19 +3,20 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from museek.data_element import DataElement
-from museek.factory.data_element_factory import DataElementFactory
+from museek.factory.data_element_factory import FlagElementFactory
+from museek.flag_element import FlagElement
 from museek.receiver import Receiver
 
 
 class FlagFactory:
-    """ Class to instantiate flags, i.e. `DataElement`s with boolean entries. """
+    """ Class to instantiate `FlagElement`s, basically `DataElement`s with boolean entries. """
 
     def __init__(self):
-        """ Initialise and set the `DataElementFactory`. """
-        self._data_element_factory = DataElementFactory()
+        """ Initialise and set the `FlagElementFactory`. """
+        self._data_element_factory = FlagElementFactory()
 
-    def empty_flag(self, shape: tuple[int, int, int]):
-        """ Returns an empty `DataElement` of shape `shape`. """
+    def empty_flag(self, shape: tuple[int, int, int]) -> FlagElement:
+        """ Returns an empty `FlagElement` of shape `shape`. """
         return self._data_element_factory.create(array=np.zeros(shape, dtype=bool))
 
     @staticmethod
@@ -35,16 +36,16 @@ class FlagFactory:
                               declination: DataElement,
                               angle_threshold: float,
                               point_source_file_path: str) \
-            -> DataElement:
+            -> FlagElement:
         """
-        Return a `DataElement` that is `True` wherever a dump is close enough to a point source.
-        :param shape: the returned `DataElement` will have this `shape`
+        Return a `FlagElement` that is `True` wherever a dump is close enough to a point source.
+        :param shape: the returned `FlagElement` will have this `shape`
         :param receivers: list of `Receiver`s to get the point source masks for
         :param right_ascension: celestial coordinate right ascension
         :param declination: celestial coordinate declination
         :param angle_threshold: all points up to this angular separation (degrees) are masked
         :param point_source_file_path: directory of the point source data
-        :return: a `DataElement` which is `True` for all masked pixels
+        :return: a `FlagElement` which is `True` for all masked pixels
         """
         point_source_mask = np.zeros(shape, dtype=bool)
         mask_points = FlagFactory.point_sources_coordinate_list(point_source_file_path=point_source_file_path)

@@ -8,7 +8,7 @@ from museek.util.report_writer import ReportWriter
 class TestReportWriter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.output_path = './cache/'
+        cls.output_path = './test/museek/util/cache/'
         cls.report_name = 'report.md'
         cls.plugin_name = 'PluginName'
         if not os.path.exists(cls.output_path):
@@ -23,11 +23,6 @@ class TestReportWriter(unittest.TestCase):
 
     def test_ini(self):
         self.assertTrue(os.path.exists(self.report_writer.file_name))
-
-    @patch.object(ReportWriter, 'write_to_report')
-    def test_print_to_report(self, mock_write_to_report):
-        self.report_writer.print_to_report(anything=1)
-        mock_write_to_report.assert_called_once_with(lines=['```\n1\n\n```\n'])
 
     @patch.object(ReportWriter, 'write_to_report')
     def test_write_plot_description_to_report(self, mock_write_to_report):

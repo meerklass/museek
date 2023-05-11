@@ -2,14 +2,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from museek.data_element import DataElement
-from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
 from museek.time_ordered_data_mapper import TimeOrderedDataMapper
 
 
 def plot_time_ordered_data_map(right_ascension: DataElement,
                                declination: DataElement,
                                visibility: DataElement,
-                               flags: FlagElement | None = None,
+                               flags: FlagList | None = None,
                                grid_size: tuple[int, int] = (60, 60),
                                cmap: str = 'jet',
                                norm: str = 'linear',
@@ -48,7 +48,7 @@ def plot_time_ordered_data_map(right_ascension: DataElement,
     plt.ylim(declination.squeeze.min(), declination.squeeze.max())
 
 
-def waterfall(visibility: DataElement, flags: FlagElement | None, flag_threshold: int = 1, **imshow_kwargs):
+def waterfall(visibility: DataElement, flags: FlagList | None, flag_threshold: int = 1, **imshow_kwargs):
     """
     Function to create the waterfall plot.
     :param visibility: visibility data to be plotted
