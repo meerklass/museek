@@ -87,6 +87,22 @@ class AbstractDataElement(ABC):
 
     @classmethod
     def channel_iterator(cls, data_element: 'AbstractDataElement'):
-        """ Iterate through the frequency channels of `data_element`. """
+        """
+        Iterate through the frequency channels of `data_element` and yield a `tuple` of the channel visibilities
+        and the `np.arange` of the number of timestamps in the channel.
+        """
         for channel in np.moveaxis(data_element.array, 1, 0):
-            yield cls(array=channel[:, np.newaxis, :])
+            yield cls(array=channel[:, np.newaxis, :]), np.arange(len(channel))
+
+    @classmethod
+    def flagged_channel_iterator(cls,
+                                 data_element: 'AbstractDataElement',
+                                 flag_element: 'AbstractDataElement'):
+        """
+        Simultaneously iterate through the frequency channels of `data_element` and `flag_element` and yield
+        the channel visibilities as well as the unmasked indices
+        """
+        for visibility_channel, flag_channel in zip(np.moveaxis(data_element.array, 1, 0),
+                                                    np.moveaxis(flag_element.array, 1, 0)):
+            unmasked = np.where(flag_channel == False)[0]
+            yield cls(array=visibility_channel[:, np.newaxis, :]), unmasked
