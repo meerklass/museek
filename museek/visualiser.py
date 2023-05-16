@@ -10,30 +10,39 @@ def plot_time_ordered_data_map(right_ascension: DataElement,
                                declination: DataElement,
                                visibility: DataElement,
                                flags: FlagList | None = None,
+                               flag_threshold: int = 1,
                                grid_size: tuple[int, int] = (60, 60),
                                cmap: str = 'jet',
                                norm: str = 'linear',
                                vmin: float | None = None,
-                               vmax: float | None = None):
+                               vmax: float | None = None,
+                               do_mask: bool = True,
+                               interpolation_method: str = 'linear'):
     """
     Function to plot the gridded and masked visibility data.
     :param right_ascension: coordinate
     :param declination: coordinate
     :param visibility: visibility data to grid and plot
     :param flags: flags to mask the visibility
+    :param flag_threshold: flags are ignored if they sum to less than this value
     :param grid_size: size of the grid
     :param cmap: color map for `imshow`
     :param norm: color normalisation for `imshow`
     :param vmin: color mapping minimum value for `imshow`
     :param vmax: color mapping maximum value for `imshow`
+    :param do_mask: wether or not to mask the flagged pixels in the map
+    :param interpolation_method: passed on to `grid()`
     """
     maps, masks = TimeOrderedDataMapper(right_ascension=right_ascension,
                                         declination=declination,
                                         to_map=visibility,
-                                        flags=flags).grid(grid_size=grid_size)
-    masked_maps = [np.ma.array(map_, mask=mask) for map_, mask in zip(maps, masks)]
+                                        flags=flags,
+                                        flag_threshold=flag_threshold).grid(grid_size=grid_size,
+                                                                            method=interpolation_method)
+    if do_mask:
+        maps = [np.ma.array(map_, mask=mask) for map_, mask in zip(maps, masks)]
 
-    plt.imshow(masked_maps[0][::-1, :],
+    plt.imshow(maps[0][::-1, :],
                extent=(right_ascension.squeeze.min(),
                        right_ascension.squeeze.max(),
                        declination.squeeze.min(),
