@@ -92,6 +92,7 @@ ScanTrackSplitPlugin = ConfigSection(
 )
 
 BandpassPlugin = ConfigSection(
+    # target_channels=range(570, 765),
     target_channels=None,
     pointing_threshold=5.,
     n_pointings=5,

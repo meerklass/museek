@@ -23,33 +23,33 @@ class TestDataElement(unittest.TestCase):
         element_2 = DataElement(array=np.ones(self.shape) * 2)
         multiplied = self.element * element_2
         expect = np.resize(np.arange(27), self.shape) * 2
-        np.testing.assert_array_equal(expect, multiplied._array)
+        np.testing.assert_array_equal(expect, multiplied.array)
 
     def test_mul_when_other_is_numpy_array(self):
         multiplied = self.element * np.ones(self.shape) * 3
         expect = np.resize(np.arange(27), self.shape) * 3
-        np.testing.assert_array_equal(expect, multiplied._array)
+        np.testing.assert_array_equal(expect, multiplied.array)
 
     def test_mul_when_other_is_float(self):
         multiplied = self.element * 2.
         expect = np.resize(np.arange(27), self.shape) * 2.
-        np.testing.assert_array_equal(expect, multiplied._array)
+        np.testing.assert_array_equal(expect, multiplied.array)
 
     def test_truediv_when_other_is_time_ordered_data_element(self):
         element_2 = DataElement(array=np.ones(self.shape) * 2)
         divided = self.element / element_2
         expect = np.resize(np.arange(27), self.shape) / 2
-        np.testing.assert_array_equal(expect, divided._array)
+        np.testing.assert_array_equal(expect, divided.array)
 
     def test_truediv_when_other_is_numpy_array(self):
         divided = self.element / (np.ones(self.shape) * 3)
         expect = np.resize(np.arange(27), self.shape) / 3
-        np.testing.assert_array_equal(expect, divided._array)
+        np.testing.assert_array_equal(expect, divided.array)
 
     def test_truediv_when_other_is_float(self):
         divided = self.element / 2.
         expect = np.resize(np.arange(27), self.shape) / 2.
-        np.testing.assert_array_equal(expect, divided._array)
+        np.testing.assert_array_equal(expect, divided.array)
 
     @patch('museek.abstract_data_element.np')
     def test_getitem(self, mock_np):
@@ -84,7 +84,7 @@ class TestDataElement(unittest.TestCase):
 
     def test_mean_when_explicit(self):
         mean = self.element.mean(axis=0)
-        self.assertEqual(3, len(mean._array.shape))
+        self.assertEqual(3, len(mean.array.shape))
         expect = np.asarray([[9., 10., 11.],
                              [12., 13., 14.],
                              [15., 16., 17.]])
@@ -95,8 +95,8 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.return_value.shape = (1, 1, 1)
         mock_axis = MagicMock()
         mean = self.element.mean(axis=mock_axis)
-        self.assertEqual(mean._array, mock_np.mean.return_value)
-        mock_np.mean.assert_called_once_with(self.element._array,
+        self.assertEqual(mean.array, mock_np.mean.return_value)
+        mock_np.mean.assert_called_once_with(self.element.array,
                                              axis=mock_axis,
                                              keepdims=True)
 
@@ -107,7 +107,7 @@ class TestDataElement(unittest.TestCase):
         flag_array[2, 2, 2] = True
         flags = FlagList(flags=[FlagElement(array=flag_array)])
         mean = self.element.mean(axis=0, flags=flags)
-        self.assertEqual(3, len(mean._array.shape))
+        self.assertEqual(3, len(mean.array.shape))
         expect = np.asarray([[13.5, 10., 11.],
                              [12., 13., 14.],
                              [15., 16., 12.5]])
@@ -118,7 +118,7 @@ class TestDataElement(unittest.TestCase):
     def test_sum(self, mock_np, mock_data_element):
         mock_axis = MagicMock()
         mean = self.element.sum(axis=mock_axis)
-        mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
+        mock_np.sum.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
         mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
         self.assertEqual(mean, mock_data_element.return_value)
 
@@ -164,7 +164,7 @@ class TestDataElement(unittest.TestCase):
     @patch.object(DataElement, 'get')
     def test_get_array(self, mock_get):
         mock_kwargs = MagicMock()
-        self.assertEqual(mock_get.return_value._array, self.element.get_array(**mock_kwargs))
+        self.assertEqual(mock_get.return_value.array, self.element.get_array(**mock_kwargs))
         mock_get.assert_called_once_with(**mock_kwargs)
 
     def test_get_array_when_shape_1_1_1(self):
@@ -235,7 +235,7 @@ class TestDataElement(unittest.TestCase):
         flag_array[2, 2, 2] = True
         flags = FlagList(flags=[FlagElement(array=flag_array)])
         mean = self.element._flagged_mean(axis=0, flags=flags)
-        self.assertEqual(3, len(mean._array.shape))
+        self.assertEqual(3, len(mean.array.shape))
         expect = np.asarray([[13.5, 10., 11.],
                              [12., 13., 14.],
                              [15., 16., 12.5]])

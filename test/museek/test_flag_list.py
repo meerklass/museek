@@ -54,7 +54,7 @@ class TestFlagList(unittest.TestCase):
     def test_add_flag_when_flag_element(self):
         mock_flags = FlagList(flags=[FlagElement(array=np.zeros((3, 3, 3)))])
         self.flag_list.add_flag(flag=mock_flags)
-        np.testing.assert_array_equal(mock_flags._flags[0]._array, self.flag_list._flags[0]._array)
+        np.testing.assert_array_equal(mock_flags._flags[0].array, self.flag_list._flags[0].array)
 
     def test_remove_flag(self):
         flag_list = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in range(3)])
@@ -119,7 +119,7 @@ class TestFlagList(unittest.TestCase):
     def test_insert_receiver_flag(self):
         mock_flag = FlagElement(array=np.ones((3, 3, 1), dtype=bool))
         self.flag_list.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
-        self.assertTrue((self.flag_list._flags[0]._array == False).all())
+        self.assertTrue((self.flag_list._flags[0].array == False).all())
         self.assertTrue((self.flag_list._flags[2].get(recv=0).squeeze == False).all())
         self.assertTrue((self.flag_list._flags[2].get(recv=2).squeeze == False).all())
         self.assertTrue(self.flag_list._flags[2].get(recv=1).squeeze.all())
@@ -130,7 +130,7 @@ class TestFlagList(unittest.TestCase):
 
         mock_flag = FlagElement(array=np.ones((3, 1, 1), dtype=bool))
         flag_list.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
-        self.assertTrue((flag_list._flags[0]._array == False).all())
+        self.assertTrue((flag_list._flags[0].array == False).all())
         self.assertTrue((flag_list._flags[2].get(recv=0).squeeze == False).all())
         self.assertTrue((flag_list._flags[2].get(recv=2).squeeze == False).all())
         self.assertTrue(flag_list._flags[2].get(recv=1).squeeze.all())
