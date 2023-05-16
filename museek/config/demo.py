@@ -1,5 +1,4 @@
 from ivory.utils.config_section import ConfigSection
-from museek.enum.demo_enum import DemoEnum
 
 Pipeline = ConfigSection(
     plugins=[

@@ -23,9 +23,9 @@ class DataElement(AbstractDataElement):
                 raise ValueError(f'Cannot multiply instances with different shapes, '
                                  f'got {self.shape} and {other.shape}.')
         if isinstance(other, DataElement):
-            return DataElement(array=self._array * other._array)
+            return DataElement(array=self.array * other.array)
         if isinstance(other, np.ndarray | numbers.Number):
-            return DataElement(array=self._array * other)
+            return DataElement(array=self.array * other)
 
     def __truediv__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
         """
@@ -37,9 +37,9 @@ class DataElement(AbstractDataElement):
                 raise ValueError(f'Cannot multiply instances with different shapes, '
                                  f'got {self.shape} and {other.shape}.')
         if isinstance(other, DataElement):
-            return DataElement(array=self._array / other._array)
+            return DataElement(array=self.array / other.array)
         if isinstance(other, np.ndarray | numbers.Number):
-            return DataElement(array=self._array / other)
+            return DataElement(array=self.array / other)
 
     def mean(
             self,
@@ -54,20 +54,20 @@ class DataElement(AbstractDataElement):
         :return: `DataElement` containing the mean along `axis`
         """
         if flags is None:
-            return DataElement(array=np.mean(self._array, axis=axis, keepdims=True))
+            return DataElement(array=np.mean(self.array, axis=axis, keepdims=True))
         return self._flagged_mean(axis=axis, flags=flags)
 
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
-        return DataElement(array=np.sum(self._array, axis=axis, keepdims=True))
+        return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
 
     def min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.min()`. """
-        return DataElement(array=np.min(self._array, axis=axis, keepdims=True))
+        return DataElement(array=np.min(self.array, axis=axis, keepdims=True))
 
     def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
-        return DataElement(array=np.max(self._array, axis=axis, keepdims=True))
+        return DataElement(array=np.max(self.array, axis=axis, keepdims=True))
 
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
@@ -78,5 +78,5 @@ class DataElement(AbstractDataElement):
         :return: `DataElement` containing the mean along `axis`
         """
         combined = flags.combine(threshold=1)
-        masked = np.ma.masked_array(self._array, combined._array)
+        masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.mean(axis=axis, keepdims=True))

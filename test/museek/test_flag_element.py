@@ -52,7 +52,7 @@ class TestFlagElement(unittest.TestCase):
     def test_sum(self, mock_np, mock_data_element):
         mock_axis = MagicMock()
         mean = self.element.sum(axis=mock_axis)
-        mock_np.sum.assert_called_once_with(self.element._array, axis=mock_axis, keepdims=True)
+        mock_np.sum.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
         mock_data_element.assert_called_once_with(array=mock_np.sum.return_value)
         self.assertEqual(mean, mock_data_element.return_value)
 
@@ -63,7 +63,7 @@ class TestFlagElement(unittest.TestCase):
         expect = np.zeros((3, 3))
         mock_logical_or.return_value = expect
         self.element.insert_receiver_flag(flag=mock_flag, i_receiver=0)
-        np.testing.assert_array_equal(self.element._array[:, :, 0], expect)
+        np.testing.assert_array_equal(self.element.array[:, :, 0], expect)
 
     def test_make_boolean_when_true(self):
         result = FlagElement._make_boolean(array=np.array([1]))

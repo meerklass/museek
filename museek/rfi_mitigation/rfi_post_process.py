@@ -45,7 +45,7 @@ class RfiPostProcess:
         """ If the fraction of flagged channels exceeds `channel_flag_threshold`, all channels are flagged. """
         flagged_fraction = self._flag.sum(axis=1).squeeze / self._flag.shape[1]
         timestamps_to_flag = np.where(flagged_fraction > channel_flag_threshold)[0]
-        flag = self._flag._array
+        flag = self._flag.array
         flag[timestamps_to_flag] = True
         self._flag = self._factory.create(array=flag)
 
@@ -53,6 +53,6 @@ class RfiPostProcess:
         """ If the fraction of flagged time dumps exceeds `time_dump_flag_threshold`, all time dumps are flagged. """
         flagged_fraction = self._flag.sum(axis=0).squeeze / self._flag.shape[0]
         channels_to_flag = np.where(flagged_fraction > time_dump_flag_threshold)[0]
-        flag = self._flag._array
+        flag = self._flag.array
         flag[:, channels_to_flag, :] = True
         self._flag = self._factory.create(array=flag)

@@ -21,13 +21,13 @@ class FlagElement(AbstractDataElement):
         Raises a `ValueError` if `other` is not a `FlagElement`.
         """
         if isinstance(other, FlagElement):
-            result = self._array + other._array
+            result = self.array + other.array
             return FlagElement(array=result)
         raise ValueError(f'Cannot add class {type(other)} to `FlagElement`.')
 
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> DataElement:
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
-        return DataElement(array=np.sum(self._array, axis=axis, keepdims=True))
+        return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
 
     def insert_receiver_flag(self, flag: 'FlagElement', i_receiver: int):
         """
@@ -38,7 +38,7 @@ class FlagElement(AbstractDataElement):
         """
         if flag.shape[-1] != 1:
             raise ValueError(f'Input `flag` needs to be for one receiver only, got {flag.shape[-1]}')
-        self._array[:, :, i_receiver] = np.logical_or(self._array[:, :, i_receiver], flag._array[:, :, 0])
+        self.array[:, :, i_receiver] = np.logical_or(self.array[:, :, i_receiver], flag.array[:, :, 0])
 
     @staticmethod
     def _make_boolean(array: np.ndarray):

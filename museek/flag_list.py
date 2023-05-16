@@ -83,7 +83,7 @@ class FlagList:
 
     def array(self) -> np.ndarray[bool]:
         """ Return the flags in format for storage as a `numpy` array. """
-        return np.asarray([flag._array for flag in self._flags])
+        return np.asarray([flag.array for flag in self._flags])
 
     def _check_flags(self):
         """ Check if all flags are compatible. """

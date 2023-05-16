@@ -13,15 +13,15 @@ class AbstractDataElement(ABC):
         """
         if len(array.shape) != 3:
             raise ValueError(f'Input `array` needs to be 3-dimensional, got shape {array.shape}')
-        self._array = array
+        self.array = array
 
     def __getitem__(self, index: int | list[int]) -> np.ndarray:
         """ Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`. """
-        return np.squeeze(self._array[index])
+        return np.squeeze(self.array[index])
 
     def __str__(self):
         """ Return the string of the underlying array. """
-        return str(self._array)
+        return str(self.array)
 
     def __eq__(self, other: 'AbstractDataElement'):
         """
@@ -30,7 +30,7 @@ class AbstractDataElement(ABC):
         """
         if self.shape != other.shape:
             return False
-        return (self._array == other._array).all()
+        return (self.array == other.array).all()
 
     @property
     def squeeze(self) -> np.ndarray:
@@ -43,7 +43,7 @@ class AbstractDataElement(ABC):
     @property
     def shape(self) -> tuple[int, int, int]:
         """ Returns the shape of the underlying numpy array. """
-        return self._array.shape
+        return self.array.shape
 
     def get(self,
             *,  # force named parameters
@@ -59,7 +59,7 @@ class AbstractDataElement(ABC):
         :return: a copy of `self` indexed at the input indices
         """
 
-        array = self._array.copy()
+        array = self.array.copy()
 
         if isinstance(time, int | np.int64):
             time = [time]
@@ -83,10 +83,10 @@ class AbstractDataElement(ABC):
         Returns `self._array` after passing `kwargs` to `self.get()`.
         :param kwargs: passed on to `self.get()`
         """
-        return self.get(**kwargs)._array
+        return self.get(**kwargs).array
 
     @classmethod
     def channel_iterator(cls, data_element: 'AbstractDataElement'):
         """ Iterate through the frequency channels of `data_element`. """
-        for channel in np.moveaxis(data_element._array, 1, 0):
+        for channel in np.moveaxis(data_element.array, 1, 0):
             yield cls(array=channel[:, np.newaxis, :])
