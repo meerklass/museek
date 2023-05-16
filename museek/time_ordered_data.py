@@ -120,39 +120,14 @@ class TimeOrderedData:
 
     def set_data_elements(self, scan_state: ScanStateEnum | None, data: DataSet | None = None):
         """
-        Initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
+        Initialises all `DataElement`s for `scan_state` using either a `katdal` `DataSet` or `self`.
         :param scan_state: the scan state as a `ScanStateEnum`, this is set as an attribute to `self`
         :param data: a `DataSet` object from `katdal`, can be `None`
         """
-        if data is None:
-            data = self._get_data()
-            self._select(data=data)
-        if scan_state is not None:
-            self._do_create_cache = False  # only the entire data can be stored, not individual scan states
-        self.scan_state = scan_state
-        self._element_factory = self._get_data_element_factory()
-        self._flag_element_factory = self._get_flag_element_factory()
-
-        self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
-        if self.original_timestamps is None:
-            self.original_timestamps = copy(self.timestamps)
-        self.timestamp_dates = self._element_factory.create(
-            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
-        )
-        self.frequencies = self._element_factory.create(array=data.freqs[np.newaxis, :, np.newaxis])
-
-        # sky coordinates
-        self.azimuth = self._element_factory.create(array=data.az[:, np.newaxis, :])
-        self.elevation = self._element_factory.create(array=data.el[:, np.newaxis, :])
-        self.declination = self._element_factory.create(array=data.dec[:, np.newaxis, :])
-        self.right_ascension = self._element_factory.create(
-            array=self._coherent_right_ascension(right_ascension=data.ra)[:, np.newaxis, :]
-        )
-
-        # climate
-        self.temperature = self._element_factory.create(array=data.temperature[:, np.newaxis, np.newaxis])
-        self.humidity = self._element_factory.create(array=data.humidity[:, np.newaxis, np.newaxis])
-        self.pressure = self._element_factory.create(array=data.pressure[:, np.newaxis, np.newaxis])
+        if self.timestamps is None:
+            self._set_data_elements_from_katdal(data=data, scan_state=scan_state)
+        else:
+            self._set_data_elements_from_self(scan_state=scan_state)
 
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
@@ -200,6 +175,71 @@ class TimeOrderedData:
             print('Gain solution not available.')
             return
         return self.visibility / self.gain_solution
+
+    def _set_data_elements_from_katdal(self, scan_state: ScanStateEnum | None, data: DataSet | None = None):
+        """
+        Initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
+        :param scan_state: the scan state as a `ScanStateEnum`, this is set as an attribute to `self`
+        :param data: a `DataSet` object from `katdal`, can be `None`, in which case it is loaded again
+        """
+        if data is None:
+            data = self._get_data()
+            self._select(data=data)
+        if scan_state is not None:
+            self._do_create_cache = False  # only the entire data can be stored, not individual scan states
+        self.scan_state = scan_state
+        self._element_factory = self._get_data_element_factory()
+        self._flag_element_factory = self._get_flag_element_factory()
+
+        self.timestamps = self._element_factory.create(array=data.timestamps[:, np.newaxis, np.newaxis])
+        if self.original_timestamps is None:
+            self.original_timestamps = copy(self.timestamps)
+        self.timestamp_dates = self._element_factory.create(
+            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis,
+                  np.newaxis]
+        )
+        self.frequencies = self._element_factory.create(array=data.freqs[np.newaxis, :, np.newaxis])
+
+        # sky coordinates
+        self.azimuth = self._element_factory.create(array=data.az[:, np.newaxis, :])
+        self.elevation = self._element_factory.create(array=data.el[:, np.newaxis, :])
+        self.declination = self._element_factory.create(array=data.dec[:, np.newaxis, :])
+        self.right_ascension = self._element_factory.create(
+            array=self._coherent_right_ascension(right_ascension=data.ra)[:, np.newaxis, :]
+        )
+
+        # climate
+        self.temperature = self._element_factory.create(array=data.temperature[:, np.newaxis, np.newaxis])
+        self.humidity = self._element_factory.create(array=data.humidity[:, np.newaxis, np.newaxis])
+        self.pressure = self._element_factory.create(array=data.pressure[:, np.newaxis, np.newaxis])
+
+    def _set_data_elements_from_self(self, scan_state: ScanStateEnum | None):
+        """
+        Re-initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
+        :param scan_state: the scan state as a `ScanStateEnum`, this is set as an attribute to `self`
+        """
+        if scan_state is not None:
+            self._do_create_cache = False  # only the entire data can be stored, not individual scan states
+        self.scan_state = scan_state
+        self._element_factory = self._get_data_element_factory()
+        self._flag_element_factory = self._get_flag_element_factory()
+
+        self.timestamps = self._element_factory.create(array=self.timestamps.array)
+        if self.original_timestamps is None:
+            self.original_timestamps = copy(self.timestamps)
+        self.timestamp_dates = self._element_factory.create(array=self.timestamp_dates.array)
+        self.frequencies = self._element_factory.create(array=self.frequencies.array)
+
+        # sky coordinates
+        self.azimuth = self._element_factory.create(array=self.azimuth.array)
+        self.elevation = self._element_factory.create(array=self.elevation.array)
+        self.declination = self._element_factory.create(array=self.declination.array)
+        self.right_ascension = self._element_factory.create(array=self.right_ascension.array)
+
+        # climate
+        self.temperature = self._element_factory.create(array=self.temperature.array)
+        self.humidity = self._element_factory.create(array=self.humidity.array)
+        self.pressure = self._element_factory.create(array=self.pressure.array)
 
     def _get_data(self) -> DataSet:
         """

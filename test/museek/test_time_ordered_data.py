@@ -47,32 +47,21 @@ class TestTimeOrderedData(unittest.TestCase):
         expect = str(self.mock_katdal_data)
         self.assertEqual(str(self.time_ordered_data), expect)
 
-    def test_set_data_elements(self):
+    @patch.object(TimeOrderedData, '_set_data_elements_from_self')
+    def test_set_data_elements(self, mock_set_data_elements_from_self):
+        self.time_ordered_data.timestamps = 1
         mock_scan_state = Mock()
-        mock_data = MagicMock()
+        mock_data = Mock()
         self.time_ordered_data.set_data_elements(scan_state=mock_scan_state, data=mock_data)
-        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
-        self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._element_factory)
-        expect = mock_scan_state.factory().create.return_value
-        self.assertEqual(expect, self.time_ordered_data.timestamps)
-        self.assertEqual(expect, self.time_ordered_data.timestamp_dates)
-        self.assertEqual(expect, self.time_ordered_data.frequencies)
-        self.assertEqual(expect, self.time_ordered_data.azimuth)
-        self.assertEqual(expect, self.time_ordered_data.elevation)
-        self.assertEqual(expect, self.time_ordered_data.declination)
-        self.assertEqual(expect, self.time_ordered_data.right_ascension)
-        self.assertEqual(expect, self.time_ordered_data.temperature)
-        self.assertEqual(expect, self.time_ordered_data.humidity)
-        self.assertEqual(expect, self.time_ordered_data.pressure)
+        mock_set_data_elements_from_self.assert_called_once_with(scan_state=mock_scan_state)
 
-    @patch.object(TimeOrderedData, '_select')
-    @patch.object(TimeOrderedData, '_get_data')
-    def test_set_data_elements_when_data_is_none(self, mock_get_data, mock_select):
+    @patch.object(TimeOrderedData, '_set_data_elements_from_katdal')
+    def test_set_data_elements_when_timestamps_is_none(self, mock_set_data_elements_from_katdal):
+        self.time_ordered_data.timestamps = None
         mock_scan_state = Mock()
-        self.time_ordered_data.set_data_elements(scan_state=mock_scan_state, data=None)
-        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
-        mock_get_data.assert_called_once()
-        mock_select.assert_called_once_with(data=mock_get_data.return_value)
+        mock_data = Mock()
+        self.time_ordered_data.set_data_elements(scan_state=mock_scan_state, data=mock_data)
+        mock_set_data_elements_from_katdal.assert_called_once_with(scan_state=mock_scan_state, data=mock_data)
 
     @patch.object(FlagList, 'from_array')
     @patch.object(TimeOrderedData, '_visibility_flags_weights')
@@ -189,6 +178,50 @@ class TestTimeOrderedData(unittest.TestCase):
         self.time_ordered_data.gain_solution = 3
         self.assertEqual(2 / 3, self.time_ordered_data.corrected_visibility())
 
+    def test_set_data_elements_from_katdal(self):
+        mock_scan_state = Mock()
+        mock_data = MagicMock()
+        self.time_ordered_data._set_data_elements_from_katdal(scan_state=mock_scan_state, data=mock_data)
+        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
+        self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._element_factory)
+        expect = mock_scan_state.factory().create.return_value
+        self.assertEqual(expect, self.time_ordered_data.timestamps)
+        self.assertEqual(expect, self.time_ordered_data.timestamp_dates)
+        self.assertEqual(expect, self.time_ordered_data.frequencies)
+        self.assertEqual(expect, self.time_ordered_data.azimuth)
+        self.assertEqual(expect, self.time_ordered_data.elevation)
+        self.assertEqual(expect, self.time_ordered_data.declination)
+        self.assertEqual(expect, self.time_ordered_data.right_ascension)
+        self.assertEqual(expect, self.time_ordered_data.temperature)
+        self.assertEqual(expect, self.time_ordered_data.humidity)
+        self.assertEqual(expect, self.time_ordered_data.pressure)
+
+    @patch.object(TimeOrderedData, '_select')
+    @patch.object(TimeOrderedData, '_get_data')
+    def test_set_data_elements_from_katdal_when_data_is_none(self, mock_get_data, mock_select):
+        mock_scan_state = Mock()
+        self.time_ordered_data._set_data_elements_from_katdal(scan_state=mock_scan_state, data=None)
+        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
+        mock_get_data.assert_called_once()
+        mock_select.assert_called_once_with(data=mock_get_data.return_value)
+
+    def test_set_data_elements_from_self(self):
+        mock_scan_state = Mock()
+        self.time_ordered_data._set_data_elements_from_self(scan_state=mock_scan_state)
+        self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
+        self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._element_factory)
+        expect = mock_scan_state.factory().create.return_value
+        self.assertEqual(expect, self.time_ordered_data.timestamps)
+        self.assertEqual(expect, self.time_ordered_data.timestamp_dates)
+        self.assertEqual(expect, self.time_ordered_data.frequencies)
+        self.assertEqual(expect, self.time_ordered_data.azimuth)
+        self.assertEqual(expect, self.time_ordered_data.elevation)
+        self.assertEqual(expect, self.time_ordered_data.declination)
+        self.assertEqual(expect, self.time_ordered_data.right_ascension)
+        self.assertEqual(expect, self.time_ordered_data.temperature)
+        self.assertEqual(expect, self.time_ordered_data.humidity)
+        self.assertEqual(expect, self.time_ordered_data.pressure)
+
     @patch.object(TimeOrderedData, 'set_data_elements')
     @patch.object(TimeOrderedData, '_select')
     @patch('museek.time_ordered_data.katdal.open')
@@ -243,8 +276,7 @@ class TestTimeOrderedData(unittest.TestCase):
         self.time_ordered_data._dumps()
         mock_dumps_of_scan_state.assert_called_once()
 
-    @patch('museek.time_ordered_data.DataElementFactory')
-    def test_get_data_element_factory(self, mock_factory):
+    def test_get_data_element_factory(self):
         mock_scan_state = Mock()
         self.time_ordered_data.scan_state = mock_scan_state
         self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._get_data_element_factory())
