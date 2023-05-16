@@ -155,3 +155,15 @@ script are minimal and for demonstration only.
 
 Once the job is finished, you can check the results of the demo pipeline in your working directory and in `museek/results/demo`.
 
+You can also run `MuSEEK` in `jupyter` on ilifu! First, install the `ipykernel` in your python environment,
+if you followed the above the code block below should work.
+
+.. code:: bash
+
+    source ./environment/museek/bin/activate
+    pip install ipykernel
+    ipython kernel install --name "museek_kernel" --user
+    deactivate
+
+After that you should be able to select `museek_kernel` as a kernel for your jupyter notebook. To quickly access
+results stored by the pipeline as a `pickle` file from within a notebook, the class `ContextLoader` can be used.
