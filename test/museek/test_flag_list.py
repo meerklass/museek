@@ -137,7 +137,7 @@ class TestFlagList(unittest.TestCase):
 
     def test_array(self):
         expect = np.zeros((3, 3, 3, 3))
-        np.testing.assert_array_equal(expect, self.flag_list.array())
+        np.testing.assert_array_equal(expect, self.flag_list.array)
 
     @patch.object(FlagList, '_check_flag_types')
     @patch.object(FlagList, '_check_flag_shapes')

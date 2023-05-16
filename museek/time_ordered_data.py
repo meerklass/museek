@@ -241,6 +241,12 @@ class TimeOrderedData:
         self.humidity = self._element_factory.create(array=self.humidity.array)
         self.pressure = self._element_factory.create(array=self.pressure.array)
 
+        # visibility, flags and weights
+        if self.visibility is not None:
+            self.visibility = self._element_factory.create(array=self.visibility.array)
+            self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
+            self.weights = self._element_factory.create(array=self.weights.array)
+
     def _get_data(self) -> DataSet:
         """
         Loads and returns the data from `katdal` for `self._block_name` using either `self._token`

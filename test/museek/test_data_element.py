@@ -218,15 +218,29 @@ class TestDataElement(unittest.TestCase):
         np.testing.assert_array_equal(expect, self.element.max(axis=2).squeeze)
 
     def test_channel_iterator(self):
-        for i, channel in enumerate(DataElement.channel_iterator(data_element=self.element)):
+        for i, (channel, arange) in enumerate(DataElement.channel_iterator(data_element=self.element)):
             self.assertEqual(self.element.get(freq=i), channel)
+            np.testing.assert_array_equal(np.arange(3), arange)
 
     def test_channel_iterator_when_one_channel(self):
         array = np.resize(np.arange(9), (3, 1, 3))
         element = DataElement(array=array)
-        for i, channel in enumerate(DataElement.channel_iterator(data_element=element)):
+        for i, (channel, arange) in enumerate(DataElement.channel_iterator(data_element=element)):
             self.assertLess(i, 1)
             self.assertEqual(element.get(freq=i), channel)
+            np.testing.assert_array_equal(np.arange(3), arange)
+
+    def test_flagged_channel_iterator(self):
+        flag_array = np.zeros_like(self.array, dtype=bool)
+        flag_array[1, :, :] = True
+        flag_element = FlagElement(array=flag_array)
+
+        for i, (channel, arange) in enumerate(DataElement.flagged_channel_iterator(
+                data_element=self.element.get(recv=0),
+                flag_element=flag_element.get(recv=0)
+        )):
+            self.assertEqual(self.element.get(freq=i, recv=0), channel)
+            np.testing.assert_array_equal(np.asarray([0, 2]), arange)
 
     def test_flagged_mean(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)

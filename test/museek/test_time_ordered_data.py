@@ -205,8 +205,12 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_get_data.assert_called_once()
         mock_select.assert_called_once_with(data=mock_get_data.return_value)
 
-    def test_set_data_elements_from_self(self):
+    @patch.object(FlagList, 'from_array')
+    def test_set_data_elements_from_self(self, mock_from_array):
         mock_scan_state = Mock()
+        self.time_ordered_data.visibility = Mock(array=1)
+        self.time_ordered_data.flags = Mock(array=1)
+        self.time_ordered_data.weights = Mock(array=1)
         self.time_ordered_data._set_data_elements_from_self(scan_state=mock_scan_state)
         self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
         self.assertEqual(mock_scan_state.factory(), self.time_ordered_data._element_factory)
@@ -221,6 +225,10 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(expect, self.time_ordered_data.temperature)
         self.assertEqual(expect, self.time_ordered_data.humidity)
         self.assertEqual(expect, self.time_ordered_data.pressure)
+        self.assertEqual(expect, self.time_ordered_data.visibility)
+        self.assertEqual(expect, self.time_ordered_data.weights)
+        self.assertEqual(mock_from_array.return_value, self.time_ordered_data.flags)
+        mock_from_array.assert_called_once()
 
     @patch.object(TimeOrderedData, 'set_data_elements')
     @patch.object(TimeOrderedData, '_select')
