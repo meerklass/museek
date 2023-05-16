@@ -45,6 +45,11 @@ class FlagList:
         """ Return the shape of the first element in `self._flags`. All elements have the same shape. """
         return self._flags[0].shape
 
+    @property
+    def array(self) -> np.ndarray[bool]:
+        """ Return the flags in format for storage as a `numpy` array. """
+        return np.asarray([flag.array for flag in self._flags])
+
     def add_flag(self, flag: Union[FlagElement, 'FlagList']):
         """ Append `flag` to `self` and check for compatibility. """
         if isinstance(flag, FlagList):
@@ -80,10 +85,6 @@ class FlagList:
         flag_at_index = self._flags[index]
         flag_at_index.insert_receiver_flag(i_receiver=i_receiver, flag=flag)
         self._flags[index] = flag_at_index
-
-    def array(self) -> np.ndarray[bool]:
-        """ Return the flags in format for storage as a `numpy` array. """
-        return np.asarray([flag.array for flag in self._flags])
 
     def _check_flags(self):
         """ Check if all flags are compatible. """
