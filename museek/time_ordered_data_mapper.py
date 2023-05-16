@@ -13,62 +13,75 @@ class TimeOrderedDataMapper:
                  right_ascension: DataElement,
                  declination: DataElement,
                  to_map: DataElement,
+                 flag_threshold: int = 1,
                  flags: FlagList | None = None):
         """
         Initialise
         :param right_ascension: celestial coordinate right ascension, any unit
         :param declination: celestial coordinate declination, any unit
         :param to_map: quantity to map
+        :param flag_threshold: flags are only used if they overlap more than this value
         :param flags: optional flags to mask `to_map`
         """
         self._right_ascension = right_ascension
         self._declination = declination
         self._to_map = to_map
-        if flags is None:
-            self._flags = []
+        if flags is not None:
+            self._flags = flags.combine(threshold=flag_threshold)
+            self._channel_iterator = DataElement.flagged_channel_iterator(data_element=self._to_map,
+                                                                          flag_element=self._flags)
         else:
-            self._flags = flags
+            self._flags = None
+            self._channel_iterator = DataElement.channel_iterator(data_element=self._to_map)
 
     @classmethod
-    def from_time_ordered_data(cls, data: TimeOrderedData, recv: int = 0) -> 'TimeOrderedDataMapper':
+    def from_time_ordered_data(cls,
+                               data: TimeOrderedData,
+                               recv: int = 0,
+                               flag_threshold: int = 1) -> 'TimeOrderedDataMapper':
         """
         Constructor using `TimeOrderedData` directly.
         :param data: time ordered data to map
         :param recv: receiver index to use, defaults to 0
+        :param flag_threshold: flags are only used if they overlap more than this value
         """
         return cls(right_ascension=data.right_ascension.get(recv=recv),
                    declination=data.declination.get(recv=recv),
                    to_map=data.visibility.get(recv=recv),
-                   flags=data.flags.get(recv=recv))
+                   flags=data.flags.get(recv=recv),
+                   flag_threshold=flag_threshold)
 
-    def grid(self, grid_size: tuple[int, int] = (60, 60), flag_threshold: int = 1, method: str = 'linear') \
-            -> tuple[list[np.ndarray], list[np.ndarray | None]]:
+    def grid(
+            self,
+            grid_size: tuple[int, int] = (60, 60),
+            method: str = 'linear'
+    ) -> tuple[list[np.ndarray], list[np.ndarray | None]]:
         """
-        Grid the data in bins in right ascension and declination
+        Grid the data in bins in right ascension and declination and return a tuple of map and mask
         :param grid_size: `tuple` of `integers` to specify the resolution in right ascension and declination
-        :param flag_threshold: forwarded to `FlagList`, combined flag entries less than this value are interpreted
-                               as unmasked
         :param method: interpolation method for `griddata`
-        :return: `tuple` of gridded map and the optional mask
+        :return: `tuple` of gridded map and mask
         """
         right_ascension_i = np.linspace(self._right_ascension.squeeze.min(),
                                         self._right_ascension.squeeze.max(),
                                         grid_size[0])
         declination_i = np.linspace(self._declination.squeeze.min(), self._declination.squeeze.max(), grid_size[1])
 
-        maps = [griddata((self._right_ascension.squeeze, self._declination.squeeze),
-                         channel.squeeze,
-                         (right_ascension_i[np.newaxis, :], declination_i[:, np.newaxis]),
-                         method=method)
-                for channel in DataElement.channel_iterator(data_element=self._to_map)]
+        maps = [
+            griddata((self._right_ascension.get(time=unmasked).squeeze, self._declination.get(time=unmasked).squeeze),
+                     channel.get(time=unmasked).squeeze,
+                     (right_ascension_i[np.newaxis, :], declination_i[:, np.newaxis]),
+                     method=method)
+            for channel, unmasked in self._channel_iterator if unmasked.size > 0
+        ]
         if self._flags:
             masks = [griddata(
                 (self._right_ascension.squeeze, self._declination.squeeze),
                 flag.squeeze,
-                (right_ascension_i[None, :], declination_i[:, None]),
-                method='linear'
+                (right_ascension_i[np.newaxis, :], declination_i[:, np.newaxis]),
+                method='nearest'
             )
-                for flag in DataElement.channel_iterator(data_element=self._flags.combine(threshold=flag_threshold))]
+                for flag, _ in DataElement.channel_iterator(data_element=self._flags)]
         else:
             masks = [None for _ in maps]
         return maps, masks
