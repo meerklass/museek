@@ -20,6 +20,14 @@ A shorthand for running `Ivory` is directly inside `MuSEEK` and allows running t
 
     python cli/main.py museek.config.demo
 
+The following syntax allows to pass extra arguments to `MuSEEK` which override those from the config file (this allows e.g. running the pipeline on different observations with otherwise the same config):
+
+.. code-block:: python
+
+    python cli/main.py --InPlugin-block-name=1634748682 museek.config.process_data
+
+In this specific case, the parameter `block_name` of the plugin `InPlugin` is replaced with the example `1634748682`.
+
 The python interpreter should be >3.10 (older versions are not tested) and needs to have `requirements.txt` installed.
 A popular way of doing this is
 
@@ -30,7 +38,7 @@ A popular way of doing this is
 
 Plugins
 -----------------------
-Plugins can be implementing by creating a class inheriting from **Ivory**s `AbstractPlugin`. They need to implement the methods
+Plugins can be implemented by creating a class inheriting from **Ivory**s `AbstractPlugin`. They need to implement the methods
 `run()` and `set_requirements()`.
 
 1. Only one plugin per file is allowed. One plugin can not import another plugin.
@@ -154,6 +162,10 @@ script are minimal and for demonstration only.
     /path/to/virtualenv/bin/python /path/to/project/museek/cli/main.py museek.config.demo
 
 Once the job is finished, you can check the results of the demo pipeline in your working directory and in `museek/results/demo`.
+To go from the demo pipeline to the real one, you will need to change `museek.config.demo` to the config you want to use, an example
+is `museek.config.process_data`. You also need to adjust the ressources in the `sbatch` script depending
+on the config. As a rough estimate, processing an entire MeerKAT observation block may be done with
+`--cpus-per-task=32`, `--mem=128GB` and `--time=03:00:00`.
 
 You can also run `MuSEEK` in `jupyter` on ilifu! First, install the `ipykernel` in your python environment,
 if you followed the above the code block below should work.
