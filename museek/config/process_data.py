@@ -88,7 +88,8 @@ KnownRfiPlugin = ConfigSection(
 )
 
 ScanTrackSplitPlugin = ConfigSection(
-    do_delete_unsplit_data=True
+    do_delete_unsplit_data=True,
+    do_store_context=True
 )
 
 BandpassPlugin = ConfigSection(
