@@ -35,6 +35,14 @@ A popular way of doing this is
 
     pip install -r /path/to/requirements.txt
 
+Or you can do
+
+.. code-block:: bash
+
+    pip install --editable .
+
+from within the `museek` root directory (you can do the same for `ivory`).
+
 
 Plugins
 -----------------------
@@ -108,11 +116,10 @@ Using
     module avail
 
 displays all available modules that can be loaded. You can follow the Ilifu `documentation <https://docs.ilifu.ac.za/#/tech_docs/software_environments?id=python-virtual-environments>`_
-to create a virtual environment with the python interpreter of your choice, e.g. python/3.11.2.
+to create a virtual environment with the python interpreter of your choice, e.g. python/3.10.4.
 
 The following compiles all the commands needed to get up and running with `MuSEEK` on slurm.ilifu.ac.za or a similar system.
-You first clone the repositories, create a new python environment, install the required modules and create a results folder for
-the demo run.
+You first clone the repositories, create a new python environment, install museek and ivory and create a results folder.
 
 .. code:: bash
 
@@ -122,9 +129,20 @@ the demo run.
     module load python/3.10.4
     virtualenv ./environment/museek
     source ./environment/museek/bin/activate
-    pip install -r museek/requirements.txt
+    cd ivory
+    pip install --editable .
+    cd ../museek
+    pip install --editable .
+    cd ..
+
+    # for jupyter support
+    pip install ipykernel
+    ipython kernel install --name "museek_kernel" --user
+
     deactivate
+
     mkdir museek/results museek/results/demo
+
 
 
 If you have not set up `ssh` keys for your github account, it might be easier to clone the repos like
@@ -167,15 +185,7 @@ is `museek.config.process_data`. You also need to adjust the ressources in the `
 on the config. As a rough estimate, processing an entire MeerKAT observation block may be done with
 `--cpus-per-task=32`, `--mem=128GB` and `--time=03:00:00`.
 
-You can also run `MuSEEK` in `jupyter` on ilifu! First, install the `ipykernel` in your python environment,
-if you followed the above the code block below should work.
-
-.. code:: bash
-
-    source ./environment/museek/bin/activate
-    pip install ipykernel
-    ipython kernel install --name "museek_kernel" --user
-    deactivate
-
-After that you should be able to select `museek_kernel` as a kernel for your jupyter notebook. To quickly access
-results stored by the pipeline as a `pickle` file from within a notebook, the class `ContextLoader` can be used.
+You can also run `MuSEEK` in `jupyter` on ilifu! If you followed the manual above, you already have a
+kernel installed, it's called `museek_kernel` and can be selected to run a `jupyter` notebook.
+To quickly access results stored by the pipeline as a `pickle` file from within a notebook, the class `ContextLoader`
+can be used.
