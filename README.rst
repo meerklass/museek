@@ -33,15 +33,23 @@ A popular way of doing this is
 
 .. code-block:: bash
 
-    pip install -r /path/to/requirements.txt
+    pip install -r museek/requirements.txt
 
 Or you can do
 
 .. code-block:: bash
 
+    cd museek
     pip install --editable .
+    cd ..
 
-from within the `museek` root directory (you can do the same for `ivory`).
+You can do the same for `ivory` if it's cloned in the same directory.
+
+.. code-block:: bash
+
+    cd ivory
+    pip install --editable .
+    cd ..
 
 
 Plugins
@@ -161,7 +169,7 @@ Now you are ready to run `MuSEEK`! You can use the `sbatch` command to schedule 
 
 You can find an `sbatch` script to start with below, but remember to change `/path/to/project` to your own project's
 working directory and `/path/to/virtualenv/` to the directory of your new environment. The allocated ressources in this
-script are minimal and for demonstration only.
+script are minimal and for demonstration only, see below for a brief guideline on ressource usage.
 
 .. code:: batch
 
@@ -176,7 +184,6 @@ script are minimal and for demonstration only.
     #SBATCH --time=00:05:00
 
     echo "Submitting Slurm job"
-    export PYTHONPATH=/path/to/project/ivory:/path/to/project/museek
     /path/to/virtualenv/bin/python /path/to/project/museek/cli/main.py museek.config.demo
 
 Once the job is finished, you can check the results of the demo pipeline in your working directory and in `museek/results/demo`.
