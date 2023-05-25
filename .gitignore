@@ -52,3 +52,7 @@ results/*
 
 # pycharm
 .idea/*
+
+# VS Code
+museek.code-workspace
+.vscode/*
