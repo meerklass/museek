@@ -39,6 +39,13 @@ def plot_time_ordered_data_map(right_ascension: DataElement,
                                         flags=flags,
                                         flag_threshold=flag_threshold).grid(grid_size=grid_size,
                                                                             method=interpolation_method)
+    if (n_channels := len(maps)) > 1:
+        print(f'Only one channel can be plotted at a time, got {n_channels}.')
+        return
+    if maps[0] is None:
+        print('Flag covers the entire visibility data.')
+        maps[0] = np.zeros(grid_size)
+        do_mask = True
     if do_mask:
         maps = [np.ma.array(map_, mask=mask) for map_, mask in zip(maps, masks)]
 
