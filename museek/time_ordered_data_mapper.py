@@ -51,16 +51,17 @@ class TimeOrderedDataMapper:
                    flags=data.flags.get(recv=recv),
                    flag_threshold=flag_threshold)
 
-    def grid(
-            self,
-            grid_size: tuple[int, int] = (60, 60),
-            method: str = 'linear'
-    ) -> tuple[list[np.ndarray], list[np.ndarray | None]]:
+    def grid(self,
+             grid_size: tuple[int, int] = (60, 60),
+             method: str = 'linear'
+             ) -> tuple[list[np.ndarray | None], list[np.ndarray | None]]:
         """
-        Grid the data in bins in right ascension and declination and return a tuple of map and mask
+        Grid the data in bins in right ascension and declination and return a tuple of map and mask.
+        If a all pixels of a map are flagged `None` is returned instead of a map array
+        If no flags are given, `None` is returned instead of a mask
         :param grid_size: `tuple` of `integers` to specify the resolution in right ascension and declination
         :param method: interpolation method for `griddata`
-        :return: `tuple` of gridded map and mask
+        :return: `tuple` of gridded map and mask, both optional
         """
         right_ascension_i = np.linspace(self._right_ascension.squeeze.min(),
                                         self._right_ascension.squeeze.max(),
@@ -72,7 +73,7 @@ class TimeOrderedDataMapper:
                      channel.get(time=unmasked).squeeze,
                      (right_ascension_i[np.newaxis, :], declination_i[:, np.newaxis]),
                      method=method)
-            for channel, unmasked in self._channel_iterator if unmasked.size > 0
+            if unmasked.size > 0 else None for channel, unmasked in self._channel_iterator
         ]
         if self._flags:
             masks = [griddata(
