@@ -27,8 +27,8 @@ InPlugin = ConfigSection(
                    'm008v',
                    'm013h',
                    'm013v',
-                   'm032h',
-                   'm032v',
+                   'm028h',
+                   'm028v',
                    'm037h',
                    'm037v',
                    'm063h',
@@ -66,7 +66,7 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    n_jobs=12,
+    n_jobs=13,
     verbose=0,
     first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
