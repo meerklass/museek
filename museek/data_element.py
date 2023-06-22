@@ -41,6 +41,20 @@ class DataElement(AbstractDataElement):
         if isinstance(other, np.ndarray | numbers.Number):
             return DataElement(array=self.array / other)
 
+    def __sub__(self, other: Union['DataElement', np.ndarray, numbers.Number]) -> 'DataElement':
+        """
+        Subtraction of two `DataElement`s and of one `DataElement` with a `np.ndarray` or any `Number`.
+        :raise ValueError: if the shapes of `self` and `other` do not match
+        """
+        if not isinstance(other, numbers.Number):
+            if self.shape != other.shape:
+                raise ValueError(f'Cannot subtract instances with different shapes, '
+                                 f'got {self.shape} and {other.shape}.')
+        if isinstance(other, DataElement):
+            return DataElement(array=self.array - other.array)
+        if isinstance(other, np.ndarray | numbers.Number):
+            return DataElement(array=self.array - other)
+
     def mean(
             self,
             axis: int | list[int, int] | tuple[int, int],
