@@ -67,6 +67,22 @@ class TestDataElement(unittest.TestCase):
         expect = np.resize(np.arange(-2, 25), self.shape)
         np.testing.assert_array_equal(expect, subtracted.array)
 
+    def test_add_when_other_is_time_ordered_data_element(self):
+        element_2 = DataElement(array=np.ones(self.shape))
+        subtracted = self.element + element_2
+        expect = np.resize(np.arange(1, 28), self.shape)
+        np.testing.assert_array_equal(expect, subtracted.array)
+
+    def test_add_when_other_is_numpy_array(self):
+        subtracted = self.element + (np.ones(self.shape) * 3)
+        expect = np.resize(np.arange(3, 30), self.shape)
+        np.testing.assert_array_equal(expect, subtracted.array)
+
+    def test_add_when_other_is_float(self):
+        subtracted = self.element + 2.
+        expect = np.resize(np.arange(2, 29), self.shape)
+        np.testing.assert_array_equal(expect, subtracted.array)
+
     @patch('museek.abstract_data_element.np')
     def test_getitem(self, mock_np):
         self.assertEqual(mock_np.squeeze.return_value, self.element[0, 1, 2])
