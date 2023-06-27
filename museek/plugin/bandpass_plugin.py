@@ -1,7 +1,9 @@
 import os
+from copy import deepcopy
 
 import numpy as np
 from matplotlib import pyplot as plt
+from numpy.polynomial import legendre
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
@@ -92,25 +94,47 @@ class BandpassPlugin(AbstractPlugin):
 
                     self.plot_all_bandpasses(receiver=receiver,
                                              receiver_path=receiver_path,
-                                             before_or_after=before_or_after,
                                              track_data=track_data,
                                              bandpasses_dict=bandpasses_dict,
-                                             corrected_bandpasses_dict=corrected_bandpasses_dict)
-
+                                             corrected_bandpasses_dict=corrected_bandpasses_dict,
+                                             plot_name=f'bandpass_during_tracking_{before_or_after}.png')
                     self.plot_bandpass(track_data=track_data,
-                                       bandpass=bandpasses_dict['on centre 1'] - bandpasses_dict['off centre top'],
-                                       label='on centre 1 - off centre top',
+                                       bandpass=bandpasses_dict['on centre 1'] + bandpasses_dict['off centre top'],
+                                       label='on centre 1 + off centre top',
                                        receiver_path=receiver_path,
                                        before_or_after=before_or_after)
 
+                    self.plot_fft(track_data=track_data,
+                                  bandpasses_dict=bandpasses_dict,
+                                  receiver_path=receiver_path,
+                                  before_or_after=before_or_after)
+
+                    mean = (bandpasses_dict['on centre 1'] + bandpasses_dict['off centre top']) / 2
+                    epsilon = self.epsilon(track_data=track_data, mean=mean, receiver_path=receiver_path)
+
+                    no_wiggles_bandpasses_dict = {}
+                    for key, value in bandpasses_dict.items():
+                        no_wiggles_bandpasses_dict[key] = value / (1 + epsilon)
+
+                    self.plot_all_bandpasses(
+                        receiver=receiver,
+                        receiver_path=receiver_path,
+                        track_data=track_data,
+                        bandpasses_dict=no_wiggles_bandpasses_dict,
+                        corrected_bandpasses_dict=corrected_bandpasses_dict,
+                        plot_name=f'no_wiggles_bandpass_during_tracking_{before_or_after}.png'
+                    )
+
+
+
             except ValueError:
                 print(f'Receiver {receiver.name} failed to process. Continue...')
-                continue
+                raise
 
     def plot_bandpass(self, track_data, bandpass, label, receiver_path, before_or_after):
         plt.figure(figsize=(16, 8))
-        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
-                 bandpass.squeeze[1:],
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 bandpass,
                  label=label)
         plt.legend()
         plt.xlabel('frequency [MHz]')
@@ -159,7 +183,7 @@ class BandpassPlugin(AbstractPlugin):
                                          freq=self.target_channels,
                                          time=track_times)
 
-            bandpass_pointing = target_visibility.mean(axis=0, flags=flags)
+            bandpass_pointing = target_visibility.mean(axis=0, flags=flags).squeeze
             bandpasses_dict[label] = bandpass_pointing
 
             if track_data.gain_solution is not None:
@@ -168,7 +192,7 @@ class BandpassPlugin(AbstractPlugin):
                     freq=self.target_channels,
                     time=track_times
                 )
-                corrected_bandpass = corrected_target_visibility_centre.mean(axis=0)
+                corrected_bandpass = corrected_target_visibility_centre.mean(axis=0).squeeze
                 corrected_bandpasses_dict[label] = corrected_bandpass
             else:
                 corrected_bandpasses_dict[label] = None
@@ -177,10 +201,10 @@ class BandpassPlugin(AbstractPlugin):
     def plot_all_bandpasses(self,
                             receiver,
                             receiver_path,
-                            before_or_after,
                             track_data,
                             bandpasses_dict,
-                            corrected_bandpasses_dict):
+                            corrected_bandpasses_dict,
+                            plot_name):
         plt.figure(figsize=(16, 8))
         ax1 = plt.subplot(1, 1, 1)
         for key in bandpasses_dict.keys():
@@ -191,8 +215,8 @@ class BandpassPlugin(AbstractPlugin):
 
         for key in bandpasses_dict.keys():
 
-            plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
-                     bandpasses_dict[key].squeeze[1:],
+            plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                     bandpasses_dict[key],
                      label=key)
             plt.xlabel('frequency [MHz]')
             plt.ylabel('intensity')
@@ -201,15 +225,15 @@ class BandpassPlugin(AbstractPlugin):
             if corrected_bandpasses_dict[key] is not None:
                 gain_solution_mean = corrected_bandpasses_dict[key].mean(axis=0).squeeze
                 plt.subplot(3, 1, 2, sharex=ax1)
-                plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
-                         corrected_bandpasses_dict[key].squeeze[1:],
+                plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                         corrected_bandpasses_dict[key],
                          label=key)
                 plt.xlabel('frequency [MHz]')
                 plt.ylabel('level2 calibrated intensity')
                 plt.legend()
 
                 plt.subplot(3, 1, 3, sharex=ax1)
-                plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
+                plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
                          gain_solution_mean[1:],
                          label='on-centre observation')
                 plt.xlabel('frequency [MHz]')
@@ -217,5 +241,135 @@ class BandpassPlugin(AbstractPlugin):
                 plt.legend()
 
         plt.suptitle(f'Calibrator tracking receiver {receiver.name}')
-        plt.savefig(os.path.join(receiver_path, f'bandpass_during_tracking_{before_or_after}.png'))
+        plt.savefig(os.path.join(receiver_path, plot_name))
         plt.close()
+
+    def plot_fft(self, track_data, bandpasses_dict, receiver_path, before_or_after):
+        mean = (bandpasses_dict['on centre 1'] + bandpasses_dict['off centre top']) / 2
+        # mean -= np.mean(mean)
+        difference = bandpasses_dict['on centre 4'] - bandpasses_dict['off centre right']
+        # quantity = difference / mean
+        label = 'fft'
+        # norm_channel = 1122  # when using everything
+        norm_channel = 0  # when using cosmo frequencies only
+        # quantity =  (bandpasses_dict['on centre 4'] + bandpasses_dict['off centre right'])
+
+        plt.figure(figsize=(16, 8))
+
+        # plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
+        #          quantity.squeeze[1:] / quantity.get(freq=norm_channel).squeeze,
+        #          color='green',
+        #          label=label)
+        #
+        # plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
+        #          difference.squeeze[1:] / difference.get(freq=norm_channel).squeeze,
+        #          color='red',
+        #          label=label)
+        # plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze[1:] / MEGA,
+        #          mean[1:] / mean.get(freq=norm_channel).squeeze,
+        #          color='blue',
+        #          label=label)
+        plt.subplot(4, 1, 1)
+        fft = np.fft.fft(mean)
+        fft_freq = np.fft.fftfreq(
+            len(mean),
+            (track_data.frequencies.get(freq=1).squeeze - track_data.frequencies.get(freq=0).squeeze) / MEGA
+        )
+        filtered_fft = deepcopy(fft)
+        max_freq = 0.2  # delta is around 0.0245
+        min_freq = 0.03
+        filtered_fft[np.abs(fft_freq) > max_freq] = 0
+        filtered_fft[np.abs(fft_freq) < min_freq] = 0
+        # filtered_fft[(min_freq < np.abs(fft_freq)) & (np.abs(fft_freq) < max_freq)] = 0
+
+        # filtered_fft[:band] = 0
+        # filtered_fft[band + bandwidth:] = 0
+
+        plt.plot(fft_freq, np.abs(fft), label='fft')
+        plt.plot(fft_freq, np.abs(filtered_fft), label='fft filtered', ls=':')
+        plt.ylim((0, 300))
+        plt.ylabel('fft')
+        plt.legend()
+
+        plt.subplot(4, 1, 2)
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 mean,
+                 label='mean')
+        plt.legend()
+
+        filtered_mean = np.fft.ifft(filtered_fft)
+
+        plt.subplot(4, 1, 3)
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 filtered_mean.real,
+                 label='filtered mean')
+
+        plt.ylabel('intensity')
+
+        plt.legend()
+        plt.xlabel('frequency [MHz]')
+
+        plt.subplot(4, 1, 4)
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 mean - filtered_mean.real,
+                 label='difference mean and filtered')
+        plt.legend()
+
+        plt.savefig(os.path.join(receiver_path, f'bandpass_{label}_{before_or_after}.png'))
+        plt.close()
+
+    def epsilon(self, track_data, mean, receiver_path):
+
+        legendre_degree = 4
+        coefficients = legendre.legfit(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                                       mean,
+                                       legendre_degree)
+        legendre_fit = legendre.legval(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                                       coefficients)
+        plt.figure(figsize=(16, 12))
+        plt.subplot(3, 1, 1)
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 mean,
+                 label='mean')
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 legendre_fit,
+                 label='legendre fit')
+        plt.ylabel('intensity')
+        plt.xlabel('frequency [MHz]')
+        plt.legend()
+
+        plt.subplot(3, 1, 2)
+        epsilon_noisy = mean / legendre_fit - 1  # epsilon = signal / signal_no_wiggles - 1
+
+        fft = np.fft.fft(epsilon_noisy)
+        fft_freq = np.fft.fftfreq(
+            len(epsilon_noisy),
+            (track_data.frequencies.get(freq=1).squeeze - track_data.frequencies.get(freq=0).squeeze) / MEGA
+        )
+        filtered_fft = deepcopy(fft)
+        min_freq = 0.15
+        filtered_fft[np.abs(fft_freq) > min_freq] = 0
+        epsilon = np.fft.ifft(filtered_fft)
+
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 epsilon_noisy.real,
+                 label='epsilon = mean / legendre - 1')
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 epsilon.real,
+                 label='lowpass of epsilon =  mean / legendre - 1')
+        plt.ylabel('intensity')
+        plt.xlabel('frequency [MHz]')
+
+        plt.legend()
+
+        plt.subplot(3, 1, 3)
+        plt.plot(track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+                 mean / (1 + epsilon.real),
+                 label='mean without wiggles')
+        plt.ylabel('intensity')
+        plt.xlabel('frequency [MHz]')
+
+        plt.legend()
+        plt.savefig(os.path.join(receiver_path, 'legendre_fit_fft_denoise_epsilon.png'))
+
+        return epsilon.real
