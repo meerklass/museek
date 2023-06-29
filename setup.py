@@ -20,6 +20,7 @@ setup(
         'astropy',
         'scikit-learn',
         'katdal',
+        'sphinx'
     ],
     classifiers=[
         'GPLv3',

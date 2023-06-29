@@ -10,3 +10,4 @@ healpy
 astropy
 scikit-learn
 katdal
+sphinx
