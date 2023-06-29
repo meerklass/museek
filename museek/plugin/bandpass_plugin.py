@@ -276,10 +276,9 @@ class BandpassPlugin(AbstractPlugin):
             (track_data.frequencies.get(freq=1).squeeze - track_data.frequencies.get(freq=0).squeeze) / MEGA
         )
         filtered_fft = deepcopy(fft)
-        max_freq = 0.2  # delta is around 0.0245
-        min_freq = 0.03
-        filtered_fft[np.abs(fft_freq) > max_freq] = 0
-        filtered_fft[np.abs(fft_freq) < min_freq] = 0
+        max_freq = 0.13  # delta is around 0.0245
+        min_freq = 0.09
+        filtered_fft[(np.abs(fft_freq) < max_freq) & (np.abs(fft_freq) > min_freq)] = 0
         # filtered_fft[(min_freq < np.abs(fft_freq)) & (np.abs(fft_freq) < max_freq)] = 0
 
         # filtered_fft[:band] = 0
@@ -346,6 +345,7 @@ class BandpassPlugin(AbstractPlugin):
             len(epsilon_noisy),
             (track_data.frequencies.get(freq=1).squeeze - track_data.frequencies.get(freq=0).squeeze) / MEGA
         )
+
         filtered_fft = deepcopy(fft)
         min_freq = 0.15
         filtered_fft[np.abs(fft_freq) > min_freq] = 0
@@ -371,5 +371,15 @@ class BandpassPlugin(AbstractPlugin):
 
         plt.legend()
         plt.savefig(os.path.join(receiver_path, 'legendre_fit_fft_denoise_epsilon.png'))
+        plt.close()
+
+        plt.plot(fft_freq[fft_freq > 0], np.abs(fft[fft_freq > 0]))
+        plt.xlabel('µs')
+        plt.ylabel('fft of epsilon before denoising')
+        plt.xlim((0., 0.5))
+        plt.axvline(min_freq, label='delay cut to remove noise')
+        plt.legend()
+        plt.savefig(os.path.join(receiver_path, 'fft_epsilon.png'))
+        plt.close()
 
         return epsilon.real
