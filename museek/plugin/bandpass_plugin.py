@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 
 import numpy as np
+import scipy
 from matplotlib import pyplot as plt
 from numpy.polynomial import legendre
 
@@ -59,11 +60,13 @@ class BandpassPlugin(AbstractPlugin):
                            'on centre 4',
                            'off centre left']
         for i_receiver, receiver in enumerate(track_data.receivers):
+            print(f'Working on {receiver}...')
             try:
                 if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                     os.makedirs(receiver_path)
 
                 for before_or_after, times in zip(['before_scan', 'after_scan'], target_dumps_list):
+                    print(f'Working on {before_or_after}...')
                     right_ascension = track_data.right_ascension.get(recv=i_receiver // 2,
                                                                      time=times).squeeze
                     declination = track_data.declination.get(recv=i_receiver // 2,
@@ -110,7 +113,11 @@ class BandpassPlugin(AbstractPlugin):
                                   before_or_after=before_or_after)
 
                     mean = (bandpasses_dict['on centre 1'] + bandpasses_dict['off centre top']) / 2
-                    epsilon = self.epsilon(track_data=track_data, mean=mean, receiver_path=receiver_path)
+                    # epsilon = self.epsilon(track_data=track_data, mean=mean, receiver_path=receiver_path)
+                    epsilon = self.epsilon_from_model(track_data=track_data,
+                                                      mean=mean,
+                                                      receiver_path=receiver_path,
+                                                      before_or_after=before_or_after)
 
                     no_wiggles_bandpasses_dict = {}
                     for key, value in bandpasses_dict.items():
@@ -179,9 +186,10 @@ class BandpassPlugin(AbstractPlugin):
             target_visibility = track_data.visibility.get(recv=i_receiver,
                                                           freq=self.target_channels,
                                                           time=track_times)
-            flags = track_data.flags.get(recv=i_receiver,
-                                         freq=self.target_channels,
-                                         time=track_times)
+            # flags = track_data.flags.get(recv=i_receiver,
+            #                              freq=self.target_channels,
+            #                              time=track_times)
+            flags = None
 
             bandpass_pointing = target_visibility.mean(axis=0, flags=flags).squeeze
             bandpasses_dict[label] = bandpass_pointing
@@ -383,3 +391,83 @@ class BandpassPlugin(AbstractPlugin):
         plt.close()
 
         return epsilon.real
+
+    def epsilon_from_model(self, track_data, mean, receiver_path, before_or_after):
+        legendre_degree = 3
+        displacements = [14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7]
+        wavelengths = [d * 2 for d in displacements]
+
+        starting_legendre_coefficients = [x for x in legendre.legfit(
+            track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA,
+            mean,
+            legendre_degree
+        )]
+        frequencies = track_data.frequencies.get(freq=self.target_channels).squeeze / MEGA
+
+        starting_coefficients = starting_legendre_coefficients + [0.1 * (i % 2)
+                                                                  for i in range(len(wavelengths) * 2)]
+
+        def bandpass_model_wrapper(f, *coefficients):
+            sinus_coefficient_list = [
+                (coefficients[len(starting_legendre_coefficients) + 2 * i],
+                 coefficients[len(starting_legendre_coefficients) + 2 * i + 1],
+                 w)
+                for i, w in enumerate(wavelengths)
+            ]
+            return self.bandpass_model(frequencies=f,
+                                       legendre_coefficients=coefficients[:len(starting_legendre_coefficients)],
+                                       sinus_coefficient_list=sinus_coefficient_list)
+
+        lower_bounds = np.asarray([-np.inf for _ in starting_legendre_coefficients] + [-np.pi, -1] * len(wavelengths))
+        upper_bounds = np.asarray([np.inf for _ in starting_legendre_coefficients] + [np.pi, 1] * len(wavelengths))
+        bounds = (lower_bounds, upper_bounds)
+
+        curve_fit = scipy.optimize.curve_fit(bandpass_model_wrapper,
+                                             frequencies,
+                                             mean,
+                                             p0=starting_coefficients,
+                                             bounds=bounds)
+        model = bandpass_model_wrapper(frequencies, *curve_fit[0])
+        smooth = legendre.legval(frequencies, curve_fit[0][:len(starting_legendre_coefficients)])
+        if any(smooth == 0):
+            print(f'legendre is zero sometimes! {receiver_path}')
+        epsilon = model / smooth - 1
+
+        plt.figure(figsize=(16, 8))
+        plt.subplot(2, 1, 1)
+        plt.plot(frequencies, mean, label='bandpass mean')
+        plt.plot(frequencies, model, label='model')
+        plt.plot(frequencies, smooth, label='smooth model')
+        plt.xlabel('frequency [MHz]')
+        plt.ylabel('intensity')
+        plt.legend()
+        plt.subplot(2, 1, 2)
+        plt.plot(frequencies, epsilon, label='epsilon wiggle model')
+        plt.plot(frequencies, mean / smooth - 1, label='epsilon wiggle data')
+        plt.xlabel('frequency [MHz]')
+        plt.legend()
+        plt.savefig(os.path.join(receiver_path, f'panel_gap_reflection_model_{before_or_after}.png'))
+        plt.close()
+
+        plt.plot(frequencies, (mean - model) / mean * 100)
+        plt.xlabel('frequency [MHz]')
+        plt.ylabel('residual [%]')
+        plt.savefig(os.path.join(receiver_path, f'panel_gap_reflection_model_residual_{before_or_after}.png'))
+        plt.close()
+
+        return epsilon
+
+    def bandpass_model(self,
+                       frequencies,
+                       legendre_coefficients,
+                       sinus_coefficient_list: list[tuple[float, float, float]]):
+        legendre_fit = legendre.legval(frequencies, legendre_coefficients)
+        sinusoidal_fits = [self.sinusoidal_fit(frequencies, sinus_coefficients)
+                           for sinus_coefficients in sinus_coefficient_list]
+        return legendre_fit * (1 + sum(sinusoidal_fits))
+
+    @staticmethod
+    def sinusoidal_fit(frequencies, coefficients: tuple[float, float, float]):
+        speed_of_light = 3e8  # m/s
+        phase, amplitude, wavelength = coefficients
+        return amplitude * np.sin(phase + frequencies * 2 * np.pi / (speed_of_light / wavelength / MEGA))
