@@ -12,7 +12,8 @@ Pipeline = ConfigSection(
 )
 
 BandpassPlugin = ConfigSection(
-    # target_channels=range(570, 765),
+    # target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
     target_channels=None,
     pointing_threshold=5.,
     n_pointings=5,
