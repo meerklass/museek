@@ -1,3 +1,4 @@
+import json
 import os
 from copy import deepcopy
 
@@ -59,8 +60,11 @@ class BandpassPlugin(AbstractPlugin):
                            'off centre down',
                            'on centre 4',
                            'off centre left']
+        parameters_dict = {}  # type: dict[dict[dict[float]]]
         for i_receiver, receiver in enumerate(track_data.receivers):
             print(f'Working on {receiver}...')
+            if receiver.name not in parameters_dict:
+                parameters_dict[receiver.name] = {}  # type: dict[dict[float]]
             try:
                 if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                     os.makedirs(receiver_path)
@@ -114,10 +118,12 @@ class BandpassPlugin(AbstractPlugin):
 
                     mean = (bandpasses_dict['on centre 1'] + bandpasses_dict['off centre top']) / 2
                     # epsilon = self.epsilon(track_data=track_data, mean=mean, receiver_path=receiver_path)
-                    epsilon = self.epsilon_from_model(track_data=track_data,
-                                                      mean=mean,
-                                                      receiver_path=receiver_path,
-                                                      before_or_after=before_or_after)
+                    epsilon, parameters = self.epsilon_from_model(track_data=track_data,
+                                                                  mean=mean,
+                                                                  receiver_path=receiver_path,
+                                                                  before_or_after=before_or_after)
+
+                    parameters_dict[receiver.name][before_or_after] = parameters
 
                     no_wiggles_bandpasses_dict = {}
                     for key, value in bandpasses_dict.items():
@@ -137,6 +143,13 @@ class BandpassPlugin(AbstractPlugin):
             except ValueError:
                 print(f'Receiver {receiver.name} failed to process. Continue...')
                 raise
+
+        parameters_dict_name = f'parameters_dict_frequency_' \
+                               f'{track_data.frequencies.get(freq=self.target_channels[0]).squeeze / MEGA:.0f}_to_' \
+                               f'{track_data.frequencies.get(freq=self.target_channels[-1]).squeeze / MEGA:.0f}' \
+                               f'_MHz.json'
+        with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
+            json.dump(parameters_dict, f)
 
     def plot_bandpass(self, track_data, bandpass, label, receiver_path, before_or_after):
         plt.figure(figsize=(16, 8))
@@ -393,8 +406,8 @@ class BandpassPlugin(AbstractPlugin):
         return epsilon.real
 
     def epsilon_from_model(self, track_data, mean, receiver_path, before_or_after):
-        legendre_degree = 3
-        displacements = [14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7]
+        legendre_degree = 1
+        displacements = [14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8]
         wavelengths = [d * 2 for d in displacements]
 
         starting_legendre_coefficients = [x for x in legendre.legfit(
@@ -427,6 +440,7 @@ class BandpassPlugin(AbstractPlugin):
                                              mean,
                                              p0=starting_coefficients,
                                              bounds=bounds)
+
         model = bandpass_model_wrapper(frequencies, *curve_fit[0])
         smooth = legendre.legval(frequencies, curve_fit[0][:len(starting_legendre_coefficients)])
         if any(smooth == 0):
@@ -455,7 +469,17 @@ class BandpassPlugin(AbstractPlugin):
         plt.savefig(os.path.join(receiver_path, f'panel_gap_reflection_model_residual_{before_or_after}.png'))
         plt.close()
 
-        return epsilon
+        return epsilon, self.parameters_to_dict(curve_fit[0],
+                                                n_legendre_coefficients=len(starting_legendre_coefficients),
+                                                wavelengths=wavelengths)
+
+    @staticmethod
+    def parameters_to_dict(parameters, n_legendre_coefficients, wavelengths):
+        parameter_dict = {f'l_{i}': l for i, l in enumerate(parameters[:n_legendre_coefficients])}
+        for i, w in enumerate(wavelengths):
+            parameter_dict[f'wavelength_{w}_phase'] = parameters[n_legendre_coefficients + 2 * i]
+            parameter_dict[f'wavelength_{w}_amplitude'] = parameters[n_legendre_coefficients + 2 * i + 1]
+        return parameter_dict
 
     def bandpass_model(self,
                        frequencies,
