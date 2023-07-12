@@ -249,6 +249,45 @@ class TestDataElement(unittest.TestCase):
                            [20, 23, 26]])
         np.testing.assert_array_equal(expect, self.element.max(axis=2).squeeze)
 
+    def test_fill_when_receiver_axis(self):
+        element = self.element.get(recv=0)
+        expect = np.asarray([[[0, 0, 0],
+                              [3, 3, 3],
+                              [6, 6, 6]],
+                             [[9, 9, 9],
+                              [12, 12, 12],
+                              [15, 15, 15]],
+                             [[18, 18, 18],
+                              [21, 21, 21],
+                              [24, 24, 24]]])
+        np.testing.assert_array_equal(expect, element.fill(to_shape=self.element.shape).array)
+
+    def test_fill_when_receiver_and_frequency_axes(self):
+        element = self.element.get(freq=0, recv=0)
+        expect = np.asarray([[[0, 0, 0],
+                              [0, 0, 0],
+                              [0, 0, 0]],
+                             [[9, 9, 9],
+                              [9, 9, 9],
+                              [9, 9, 9]],
+                             [[18, 18, 18],
+                              [18, 18, 18],
+                              [18, 18, 18]]])
+        np.testing.assert_array_equal(expect, element.fill(to_shape=self.element.shape).array)
+
+    def test_fill_when_time_and_frequency_axes(self):
+        element = self.element.get(time=0, freq=0)
+        expect = np.asarray([[[0, 1, 2],
+                              [0, 1, 2],
+                              [0, 1, 2]],
+                             [[0, 1, 2],
+                              [0, 1, 2],
+                              [0, 1, 2]],
+                             [[0, 1, 2],
+                              [0, 1, 2],
+                              [0, 1, 2]]])
+        np.testing.assert_array_equal(expect, element.fill(to_shape=self.element.shape).array)
+
     def test_channel_iterator(self):
         for i, (channel, arange) in enumerate(DataElement.channel_iterator(data_element=self.element)):
             self.assertEqual(self.element.get(freq=i), channel)

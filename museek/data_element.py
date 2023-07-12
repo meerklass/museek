@@ -1,4 +1,5 @@
 import numbers
+from copy import deepcopy
 from typing import Union
 
 import numpy as np
@@ -96,6 +97,26 @@ class DataElement(AbstractDataElement):
     def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
         return DataElement(array=np.max(self.array, axis=axis, keepdims=True))
+
+    def fill(self, to_shape: tuple[int, int, int]) -> 'DataElement':
+        """
+        Repeat `self` to have `to_shape` and return the result.
+        :raise ValueError: if no axis of `self` has the same length as `to_shape`
+        :raise ValueError: if an axis of `self` is both inequal to 1 and to the corresponding entry in `to_shape`
+        """
+        message = f'Cannot fill `self` with shape {self.shape} to {to_shape}.'
+        if self.shape == to_shape:
+            return self
+        shapes_equal = np.asarray(self.shape) == np.asarray(to_shape)
+        if not shapes_equal.any():
+            raise ValueError(message)
+        new_array = deepcopy(self.array)
+        for i, continue_ in enumerate(shapes_equal):
+            if not continue_:
+                if self.shape[i] != 1:
+                    raise ValueError(message)
+                new_array = np.repeat(new_array, to_shape[i], axis=i)
+        return DataElement(array=new_array)
 
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
