@@ -52,11 +52,13 @@ class Atmosphere(AbstractModel):
         )  # TODO: confirm this equation
         air_relative_humidity = self.humidity / 100.  # this is a percentage in katdal
 
-        atmospheric_opacity_ = atmospheric_opacity(self.pressure.fill(to_shape=to_shape).array,
-                                                   air_relative_humidity.fill(to_shape=to_shape).array,
-                                                   self.pressure.fill(to_shape=to_shape).array,
-                                                   height,
-                                                   frequency.fill(to_shape=to_shape).array)
+        atmospheric_opacity_ = atmospheric_opacity(
+            temperature=self.ground_temperature.fill(to_shape=to_shape).array,
+            relative_humidity=air_relative_humidity.fill(to_shape=to_shape).array,
+            pressure=self.pressure.fill(to_shape=to_shape).array,
+            height=height,
+            frequency=frequency.fill(to_shape=to_shape).array
+        )
         atmosphere_array = atmosphere_temperature.fill(to_shape=to_shape) * (
                 1 - np.exp(-atmospheric_opacity_ / np.sin(np.radians(elevation.fill(to_shape=to_shape).array)))
         )
