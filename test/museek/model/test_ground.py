@@ -15,16 +15,16 @@ class TestGround(unittest.TestCase):
         self.ground = Ground(data_element_factory=DataElementFactory())
 
         mock_elevation_array = np.linspace(52, 57, 10)[:, np.newaxis, np.newaxis]
-        mock_frequency_array = np.linspace(856000000, 1711791016, 20)[np.newaxis, :, np.newaxis]
+        mock_frequencies_array = np.linspace(856000000, 1711791016, 20)[np.newaxis, :, np.newaxis]
         self.mock_elevation = DataElementFactory().create(array=mock_elevation_array)
-        self.mock_frequency = DataElementFactory().create(array=mock_frequency_array)
+        self.mock_frequencies = DataElementFactory().create(array=mock_frequencies_array)
 
     def test_temperature_when_polarisation_h(self):
         receiver = Receiver.from_string('m000h')
 
         temperature = self.ground.temperature(receiver=receiver,
                                               elevation=self.mock_elevation,
-                                              frequency=self.mock_frequency)
+                                              frequencies=self.mock_frequencies)
         self.assertTupleEqual((10, 20, 1), temperature.shape)
         self.assertIsInstance(temperature, DataElement)
         self.assertLess(temperature.squeeze.max(), 4)
@@ -35,7 +35,7 @@ class TestGround(unittest.TestCase):
 
         temperature = self.ground.temperature(receiver=receiver,
                                               elevation=self.mock_elevation,
-                                              frequency=self.mock_frequency)
+                                              frequencies=self.mock_frequencies)
         self.assertTupleEqual((10, 20, 1), temperature.shape)
         self.assertIsInstance(temperature, DataElement)
         self.assertLess(temperature.squeeze.max(), 4)

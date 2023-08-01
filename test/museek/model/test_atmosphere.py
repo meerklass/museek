@@ -41,23 +41,23 @@ class TestAtmosphere(unittest.TestCase):
                                      receivers=self.mock_receivers)
 
         mock_elevation_array = np.linspace(52, 57, n_dump)[:, np.newaxis, np.newaxis]
-        mock_frequency_array = np.linspace(856000000, 1711791016, 20)[np.newaxis, :, np.newaxis]
+        mock_frequencies_array = np.linspace(856000000, 1711791016, 20)[np.newaxis, :, np.newaxis]
         self.mock_elevation = DataElementFactory().create(array=mock_elevation_array)
-        self.mock_frequency = DataElementFactory().create(array=mock_frequency_array)
+        self.mock_frequencies = DataElementFactory().create(array=mock_frequencies_array)
 
     def test_temperature(self):
         receiver = Receiver.from_string('m000h')
 
         temperature = self.atmosphere.temperature(receiver=receiver,
                                                   elevation=self.mock_elevation,
-                                                  frequency=self.mock_frequency)
+                                                  frequencies=self.mock_frequencies)
         self.assertTupleEqual((30, 20, 1), temperature.shape)
         self.assertIsInstance(temperature, DataElement)
 
     def test_temperature_expect_receivers_different(self):
         temperatures = np.asarray([self.atmosphere.temperature(receiver=receiver,
                                                                elevation=self.mock_elevation,
-                                                               frequency=self.mock_frequency)
+                                                               frequencies=self.mock_frequencies)
                                    for receiver in self.mock_receivers])
         for i, temp in enumerate(temperatures):
             is_equal = temperatures == temp

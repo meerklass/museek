@@ -34,16 +34,16 @@ class Atmosphere(AbstractModel):
         self.receivers = receivers
         self.heights = self.get_height_of_antennas(antennas=antennas)
 
-    def temperature(self, receiver: Receiver, elevation: DataElement, frequency: DataElement):
+    def temperature(self, receiver: Receiver, elevation: DataElement, frequencies: DataElement) -> DataElement:
         """
         Returns the temperature model as a `DataElement`.
         :param receiver: the height above sea level of the antenna is relevant
         :param elevation: must only contain one non-empty dimension, the time axis
-        :param frequency: must only contain one non-empty dimension, the frequency axis
+        :param frequencies: must only contain one non-empty dimension, the frequency axis
         :return: a `DataElement` with shape `(n_dump, n_freq, 1)` containing the temperature model
         """
         n_dump = elevation.shape[0]
-        n_freq = frequency.shape[1]
+        n_freq = frequencies.shape[1]
         n_recv = 1
         height = self.heights[receiver.antenna_index(receivers=self.receivers)]
         to_shape = (n_dump, n_freq, n_recv)
@@ -57,7 +57,7 @@ class Atmosphere(AbstractModel):
             relative_humidity=air_relative_humidity.fill(to_shape=to_shape).array,
             pressure=self.pressure.fill(to_shape=to_shape).array,
             height=height,
-            frequency=frequency.fill(to_shape=to_shape).array
+            frequency=frequencies.fill(to_shape=to_shape).array
         )
         atmosphere_array = atmosphere_temperature.fill(to_shape=to_shape) * (
                 1 - np.exp(-atmospheric_opacity_ / np.sin(np.radians(elevation.fill(to_shape=to_shape).array)))

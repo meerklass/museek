@@ -27,12 +27,12 @@ class Ground(AbstractModel):
         super().__init__(data_element_factory=data_element_factory)
         self._file_name = file_name
 
-    def temperature(self, receiver: Receiver, elevation: DataElement, frequency: DataElement):
+    def temperature(self, receiver: Receiver, elevation: DataElement, frequencies: DataElement) -> DataElement:
         """
         Returns the temperature model as a `DataElement`.
         :param receiver: the polarisation is relevant
         :param elevation: must only contain one non-empty dimension, the time axis
-        :param frequency: must only contain one non-empty dimension, the frequency axis
+        :param frequencies: must only contain one non-empty dimension, the frequency axis
         :return: a `DataElement` with shape `(n_dump, n_freq, 1)` containing the temperature model
         """
         fit_h, fit_v = self.polarisation_temperature_fits()
@@ -41,7 +41,7 @@ class Ground(AbstractModel):
             'v': fit_v
         }
         # this will evaluate the fit on the grid defined by `elevation` and `frequency`
-        array = fit_dict[receiver.polarisation]((elevation.squeeze, frequency.squeeze / MEGA))
+        array = fit_dict[receiver.polarisation]((elevation.squeeze, frequencies.squeeze / MEGA))
         return self.data_element_factory.create(array=array[:, :, np.newaxis])
 
     def polarisation_temperature_fits(self) -> Tuple[Spline2DGridFit, Spline2DGridFit]:
