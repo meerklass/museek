@@ -10,6 +10,7 @@ setup(
     install_requires=[
         'numpy==1.23.3',
         'scipy',
+        'pyfits',
         'Cython',
         'h5py',
         'mock',
@@ -20,7 +21,8 @@ setup(
         'astropy',
         'scikit-learn',
         'katdal',
-        'sphinx'
+        'sphinx',
+        'pysm3'
     ],
     classifiers=[
         'GPLv3',

@@ -11,3 +11,4 @@ astropy
 scikit-learn
 katdal
 sphinx
+pysm3
