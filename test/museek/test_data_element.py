@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, Mock
 
 import numpy as np
 
@@ -145,6 +145,35 @@ class TestDataElement(unittest.TestCase):
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
 
+    def test_standard_deviation_when_explicit(self):
+        std = self.element.standard_deviation(axis=0)
+        self.assertEqual(3, len(std.array.shape))
+        expect = np.ones((3, 3)) * np.sqrt(54)
+        np.testing.assert_array_equal(expect, std.squeeze)
+
+    @patch('museek.data_element.np')
+    def test_standard_deviation_when_mocked(self, mock_np):
+        mock_np.std.return_value.shape = (1, 1, 1)
+        mock_axis = MagicMock()
+        std = self.element.standard_deviation(axis=mock_axis)
+        self.assertEqual(std.array, mock_np.std.return_value)
+        mock_np.std.assert_called_once_with(self.element.array,
+                                            axis=mock_axis,
+                                            keepdims=True)
+
+    def test_standard_deviation_when_flags_is_not_none(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        std = self.element.standard_deviation(axis=0, flags=flags)
+        self.assertEqual(3, len(std.array.shape))
+        expect = np.asarray([[20.25, 54., 54.],
+                             [54., 81., 54.],
+                             [54., 54., 20.25]]) ** (1 / 2)
+        np.testing.assert_array_equal(expect, std.squeeze)
+
     @patch('museek.data_element.DataElement')
     @patch('museek.data_element.np')
     def test_sum(self, mock_np, mock_data_element):
@@ -274,6 +303,20 @@ class TestDataElement(unittest.TestCase):
             self.assertEqual(self.element.get(freq=i, recv=0), channel)
             np.testing.assert_array_equal(np.asarray([0, 2]), arange)
 
+    @patch('museek.data_element.np')
+    def test__mean(self, mock_np):
+        mock_np.mean.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._mean(axis=mock_axis), DataElement)
+        mock_np.mean.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
+
+    @patch('museek.data_element.np')
+    def test_std(self, mock_np):
+        mock_np.std.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._std(axis=mock_axis), DataElement)
+        mock_np.std.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
+
     def test_flagged_mean(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
@@ -286,3 +329,16 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
+
+    def test_flagged_std(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        std = self.element._flagged_std(axis=0, flags=flags)
+        self.assertEqual(3, len(std.array.shape))
+        expect = np.asarray([[20.25, 54., 54.],
+                             [54., 81., 54.],
+                             [54., 54., 20.25]]) ** (1 / 2)
+        np.testing.assert_array_equal(expect, std.squeeze)
