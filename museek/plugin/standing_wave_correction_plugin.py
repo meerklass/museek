@@ -4,20 +4,22 @@ from typing import Callable
 import numpy as np
 from matplotlib import pyplot as plt
 
+from definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
-from museek.plugin.bandpass_plugin import MEGA
 from museek.time_ordered_data import TimeOrderedData
 
 
 class StandingWaveCorrectionPlugin(AbstractPlugin):
+    """ Experimental plugin to apply the standing wave correction to the data"""
 
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [
             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
+            Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.STANDING_WAVE_CHANNELS, variable='target_channels'),
             Requirement(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT, variable='epsilon_function_dict')
@@ -25,10 +27,11 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
 
     def run(self,
             scan_data: TimeOrderedData,
+            track_data: TimeOrderedData,
             output_path: str,
             target_channels: range | list[int],
             epsilon_function_dict: dict[dict[Callable]]):
-        """ DOC """
+        """ Run the plugin, i.e. apply the standing wave correction. """
         before_or_after = 'before_scan'
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
@@ -46,31 +49,13 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                         epsilon=epsilon,
                                         receiver_path=receiver_path)
 
-            azimuth_digitized, azimuth_bins = self.azimuth_digitizer(azimuth=scan_data.azimuth.get(recv=antenna_index))
-            corrected_azimuth_binned_bandpasses = []
-            for index in range(len(azimuth_bins)):
-                time_dumps = np.where(azimuth_digitized == index)[0]
-                visibility = scan_data.visibility.get(time=time_dumps,
-                                                      freq=target_channels,
-                                                      recv=i_receiver)
-                flag = scan_data.flags.get(time=time_dumps,
-                                           freq=target_channels,
-                                           recv=i_receiver)
-                corrected_azimuth_binned_bandpasses.append(visibility.mean(axis=0, flags=flag).squeeze / (1 + epsilon))
-
-            plt.figure(figsize=(8, 6))
-            for i, bandpass in enumerate(corrected_azimuth_binned_bandpasses):
-                label = ''
-                if i % 7 == 0:
-                    label = f'azimuth {azimuth_bins[i]:.1f}'
-                plt.plot(frequencies.squeeze / MEGA, bandpass, label=label)
-
-            plt.legend()
-            plt.xlabel('frequency [MHz]')
-            plt.ylabel('intensity')
-            plot_name = 'standing_wave_correction_scanning_azimuth_bins.png'
-            plt.savefig(os.path.join(receiver_path, plot_name))
-            plt.close()
+            self.plot_azimuth_bins(scan_data=scan_data,
+                                   i_receiver=i_receiver,
+                                   antenna_index=antenna_index,
+                                   target_channels=target_channels,
+                                   epsilon=epsilon,
+                                   frequencies=frequencies,
+                                   receiver_path=receiver_path)
 
     @staticmethod
     def swing_turnaround_dumps(azimuth: DataElement) -> list[int]:
@@ -142,5 +127,40 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         ax[0].set_xlabel('frequency [MHz]')
         ax[0].set_ylabel('intensity')
         plot_name = 'standing_wave_correction_scanning_swings.png'
+        plt.savefig(os.path.join(receiver_path, plot_name))
+        plt.close()
+
+    def plot_azimuth_bins(self,
+                          scan_data,
+                          i_receiver,
+                          antenna_index,
+                          target_channels,
+                          epsilon,
+                          frequencies,
+                          receiver_path):
+
+        azimuth_digitized, azimuth_bins = self.azimuth_digitizer(azimuth=scan_data.azimuth.get(recv=antenna_index))
+        corrected_azimuth_binned_bandpasses = []
+        for index in range(len(azimuth_bins)):
+            time_dumps = np.where(azimuth_digitized == index)[0]
+            visibility = scan_data.visibility.get(time=time_dumps,
+                                                  freq=target_channels,
+                                                  recv=i_receiver)
+            flag = scan_data.flags.get(time=time_dumps,
+                                       freq=target_channels,
+                                       recv=i_receiver)
+            corrected_azimuth_binned_bandpasses.append(visibility.mean(axis=0, flags=flag).squeeze / (1 + epsilon))
+
+        plt.figure(figsize=(8, 6))
+        for i, bandpass in enumerate(corrected_azimuth_binned_bandpasses):
+            label = ''
+            if i % 7 == 0:
+                label = f'azimuth {azimuth_bins[i]:.1f}'
+            plt.plot(frequencies.squeeze / MEGA, bandpass, label=label)
+
+        plt.legend()
+        plt.xlabel('frequency [MHz]')
+        plt.ylabel('intensity')
+        plot_name = 'standing_wave_correction_scanning_azimuth_bins.png'
         plt.savefig(os.path.join(receiver_path, plot_name))
         plt.close()

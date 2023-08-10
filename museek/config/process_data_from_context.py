@@ -16,6 +16,15 @@ StandingWaveFitPlugin = ConfigSection(
     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
     # target_channels=range(570, 1410),  # 975 to 1151 MHz (yes HI & little RFI)
     # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
+    pointing_labels=['on centre 1',
+                     'off centre top',
+                     'on centre 2',
+                     'off centre right',
+                     'on centre 3',
+                     'off centre down',
+                     'on centre 4',
+                     'off centre left',
+                     'on centre 5']
 )
 
 ScanTrackSplitPlugin = ConfigSection(

@@ -15,7 +15,6 @@ Pipeline = ConfigSection(
         # 'museek.plugin.point_source_flagger_plugin',
         # 'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.apply_external_gain_solution_plugin',
-        'museek.plugin.bandpass_plugin'
     ]
 )
 
@@ -90,13 +89,4 @@ KnownRfiPlugin = ConfigSection(
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=True,
     do_store_context=True
-)
-
-BandpassPlugin = ConfigSection(
-    # target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
-    # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
-    target_channels=None,
-    pointing_threshold=5.,
-    n_pointings=5,
-    n_centre_observations=3
 )
