@@ -10,6 +10,7 @@ from ivory.utils.requirement import Requirement
 from museek.data_element import DataElement
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.track_pointing_iterator import TrackPointingIterator
 
 
 class StandingWaveCorrectionPlugin(AbstractPlugin):
@@ -33,6 +34,15 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             epsilon_function_dict: dict[dict[Callable]]):
         """ Run the plugin, i.e. apply the standing wave correction. """
         before_or_after = 'before_scan'
+        pointing_labels = ['on centre 1',
+                           'off centre top',
+                           'on centre 2',
+                           'off centre right',
+                           'on centre 3',
+                           'off centre down',
+                           'on centre 4',
+                           'off centre left',
+                           'on centre 5']
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
             print(f'Working on {receiver}...')
@@ -56,6 +66,15 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                    epsilon=epsilon,
                                    frequencies=frequencies,
                                    receiver_path=receiver_path)
+
+            self.plot_calibrator_observations(track_data=track_data,
+                                              target_channels=target_channels,
+                                              i_receiver=i_receiver,
+                                              receiver=receiver,
+                                              epsilon=epsilon,
+                                              frequencies=frequencies,
+                                              receiver_path=receiver_path,
+                                              pointing_labels=pointing_labels)
 
     @staticmethod
     def swing_turnaround_dumps(azimuth: DataElement) -> list[int]:
@@ -164,3 +183,35 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         plot_name = 'standing_wave_correction_scanning_azimuth_bins.png'
         plt.savefig(os.path.join(receiver_path, plot_name))
         plt.close()
+
+    def plot_calibrator_observations(self,
+                                     track_data: TimeOrderedData,
+                                     target_channels,
+                                     receiver,
+                                     i_receiver,
+                                     epsilon,
+                                     frequencies,
+                                     receiver_path: str,
+                                     pointing_labels: list[str]):
+        track_pointing_iterator = TrackPointingIterator(track_data=track_data,
+                                                        receiver=receiver,
+                                                        receiver_index=i_receiver)
+        for before_or_after, times, times_list, pointing_centres in track_pointing_iterator.iterate():
+            for i_label, pointing_times in enumerate(times_list):
+                label = pointing_labels[i_label]
+                if 'on centre' not in label:
+                    continue
+                print(f'plotting {before_or_after} {label}')
+                track_times = list(np.asarray(times)[pointing_times])
+                target_visibility = track_data.visibility.get(recv=i_receiver,
+                                                              freq=target_channels,
+                                                              time=track_times)
+                flags = None
+                bandpass_pointing_corrected = target_visibility.mean(axis=0, flags=flags).squeeze / (1 + epsilon)
+                plt.plot(frequencies.squeeze / MEGA, bandpass_pointing_corrected, label=label)
+            plt.legend()
+            plt.xlabel('frequency [MHz]')
+            plt.ylabel('intensity')
+            plot_name = f'standing_wave_correction_tracking_{before_or_after}.png'
+            plt.savefig(os.path.join(receiver_path, plot_name))
+            plt.close()

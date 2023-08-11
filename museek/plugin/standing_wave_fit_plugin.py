@@ -100,6 +100,11 @@ class StandingWaveFitPlugin(AbstractPlugin):
                                                      frequencies=frequencies,
                                                      before_or_after=before_or_after,
                                                      receiver_path=receiver_path)
+                self.plot_bandpasses_and_estimators(bandpasses_dict=bandpasses_dict,
+                                                    estimator=bandpass_estimator,
+                                                    frequencies=frequencies,
+                                                    before_or_after=before_or_after,
+                                                    receiver_path=receiver_path)
                 parameters_dict[receiver.name][before_or_after] = bandpass_model.parameters_dictionary
                 epsilon_function_dict[receiver.name][before_or_after] = bandpass_model.epsilon_function
 
@@ -130,6 +135,8 @@ class StandingWaveFitPlugin(AbstractPlugin):
             target_visibility = track_data.visibility.get(recv=i_receiver,
                                                           freq=self.target_channels,
                                                           time=track_times)
+            # flags = track_data.flags.get(recv=i_receiver, freq=self.target_channels, time=track_times)
+            # flags.remove_flag(index=3)
             flags = None
             bandpass_std_pointing = target_visibility.standard_deviation(axis=0, flags=flags)
             bandpass_pointing = target_visibility.mean(axis=0, flags=flags)
@@ -168,3 +175,21 @@ class StandingWaveFitPlugin(AbstractPlugin):
         if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
             os.makedirs(receiver_path)
         return receiver_path
+
+    def plot_bandpasses_and_estimators(self,
+                                       bandpasses_dict,
+                                       estimator,
+                                       frequencies,
+                                       before_or_after,
+                                       receiver_path):
+        plt.figure()
+        for key, bandpass in bandpasses_dict.items():
+            norm = 1 / bandpass.squeeze.max()
+            plt.plot(frequencies.squeeze / MEGA, bandpass.squeeze * norm, ls=':', label=key)
+        norm = 1 / estimator.squeeze.max()
+        plt.plot(frequencies.squeeze / MEGA, estimator.squeeze * norm, label='estimator')
+        plt.legend()
+        plt.xlabel('frequency [MHz]')
+        plt.ylabel('normalised intensity')
+        plt.savefig(os.path.join(receiver_path, f'{self.plot_name}_estimator_vs_bandpass_{before_or_after}.png'))
+        plt.close()
