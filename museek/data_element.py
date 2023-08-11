@@ -83,8 +83,24 @@ class DataElement(AbstractDataElement):
         :return: `DataElement` containing the mean along `axis`
         """
         if flags is None:
-            return DataElement(array=np.mean(self.array, axis=axis, keepdims=True))
+            return self._mean(axis=axis)
         return self._flagged_mean(axis=axis, flags=flags)
+
+    def standard_deviation(
+            self,
+            axis: int | list[int, int] | tuple[int, int],
+            flags: Union['FlagList', None] = None
+    ) -> 'DataElement':
+        """
+        Return the standard deviation of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the mean
+        :param flags: optional, only entries not flagged by these are used
+        :return: `DataElement` containing the standard deviation along `axis`
+        """
+        if flags is None:
+            return self._std(axis=axis)
+        return self._flagged_std(axis=axis, flags=flags)
 
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
@@ -118,6 +134,14 @@ class DataElement(AbstractDataElement):
                 new_array = np.repeat(new_array, to_shape[i], axis=i)
         return DataElement(array=new_array)
 
+    def _mean(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return a `DataElement` created from the output of `np.mean` applied along `axis`. """
+        return DataElement(array=np.mean(self.array, axis=axis, keepdims=True))
+
+    def _std(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return a `DataElement` created from the output of `np.std` applied along `axis`. """
+        return DataElement(array=np.std(self.array, axis=axis, keepdims=True))
+
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
         Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -129,3 +153,15 @@ class DataElement(AbstractDataElement):
         combined = flags.combine(threshold=1)
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.mean(axis=axis, keepdims=True))
+
+    def _flagged_std(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
+        """
+        Return the standard deviation of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the mean
+        :param flags: only entries not flagged by these are used
+        :return: `DataElement` containing the standard deviation along `axis`
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self.array, combined.array)
+        return DataElement(array=masked.std(axis=axis, keepdims=True))
