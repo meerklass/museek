@@ -33,6 +33,7 @@ class BandpassModel:
         self.variances_dictionary = None  # type: Optional[dict]
         self.parameters_dictionary = None  # type: Optional[dict]
         self.epsilon = None  # type: Optional[np.ndarray]
+        self.model_bandpass = None
 
     def fit(self,
             frequencies: DataElement,
@@ -97,7 +98,11 @@ class BandpassModel:
         def epsilon_function(f):
             return bandpass_model_wrapper(f.squeeze / MEGA, *curve_fit[0]) / smooth_bandpass - 1
 
+        def model_bandpass_function(f):
+            return bandpass_model_wrapper(f.squeeze / MEGA, *curve_fit[0])
+
         self.epsilon_function = epsilon_function
+        self.model_bandpass = model_bandpass_function
         self.variances_dictionary = variances_dict
         self.parameters_dictionary = parameters_dict
         self.epsilon = epsilon

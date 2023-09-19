@@ -14,6 +14,7 @@ from museek.model.bandpass_model import BandpassModel
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.track_pointing_iterator import TrackPointingIterator
+from museek.data_element import DataElement
 
 
 class StandingWaveFitPlugin(AbstractPlugin):
@@ -79,12 +80,13 @@ class StandingWaveFitPlugin(AbstractPlugin):
                     pointing_labels=self.pointing_labels,
                     i_receiver=i_receiver
                 )
-                labels = ['on centre 1',
-                          'on centre 2',
-                          'on centre 3',
-                          'on centre 4',
-                          'on centre 5']
-                bandpass_estimator = np.sum([bandpasses_std_dict[key_] for key_ in labels]) / 5
+                # labels = ['on centre 1',
+                #           'on centre 2',
+                #           'on centre 3',
+                #           'on centre 4',
+                #           'on centre 5']
+                labels = self.pointing_labels
+                bandpass_estimator = np.sum([bandpasses_dict[key_] for key_ in labels]) / len(labels)
                 frequencies = track_data.frequencies.get(freq=self.target_channels)
                 bandpass_model = BandpassModel(
                     plot_name=self.plot_name,
@@ -95,6 +97,11 @@ class StandingWaveFitPlugin(AbstractPlugin):
                                    estimator=bandpass_estimator,
                                    receiver_path=receiver_path,
                                    calibrator_label=before_or_after)
+                chi_square_dd = np.append(times_list[0], times_list[2])
+                chi_square_dd = np.append(chi_square_dd, times_list[4])
+                chi_square_dumps = list(np.asarray(times)[chi_square_dd])  # 0 2 and 4 are on centre
+                chi_square = self.chi_square(data=track_data, i_receiver=i_receiver, time_dumps=chi_square_dumps, target_channels=self.target_channels, bandpass_model=bandpass_model)
+                print(f'chi square = {chi_square}')
                 self.plot_corrected_track_bandpasses(bandpasses_dict=bandpasses_dict,
                                                      epsilon=bandpass_model.epsilon,
                                                      frequencies=frequencies,
@@ -113,6 +120,42 @@ class StandingWaveFitPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
                                       result=self.target_channels,
                                       allow_overwrite=False))
+
+    @staticmethod
+    def chi_square(data: TimeOrderedData, i_receiver: int, time_dumps, target_channels, bandpass_model: BandpassModel) -> float:
+        n_time_dumps = len(time_dumps)
+        degrees_of_freedom = n_time_dumps - 18
+
+        # visibility = data.visibility.get(freq=target_channels, recv=i_receiver, time=time_dumps)
+        # flags = data.flags.get(freq=target_channels, recv=i_receiver, time=time_dumps)
+        # flags.remove_flag(index=-1)
+        frequencies = data.frequencies.get(freq=target_channels)
+        model_bandpass = bandpass_model.model_bandpass(frequencies)
+
+        chi_square = []
+        visibility = data.visibility.get(freq=target_channels, recv=i_receiver, time=time_dumps)
+        flags = data.flags.get(freq=target_channels, recv=i_receiver, time=time_dumps)
+        flags.remove_flag(index=-1)    
+        standard_deviation = visibility.standard_deviation(axis=0, flags=flags)  # shape (1, n_freq, 1)
+        for time_dump in time_dumps:
+            visibility = data.visibility.get(freq=target_channels, recv=i_receiver, time=time_dump)
+            flags = data.flags.get(freq=target_channels, recv=i_receiver, time=time_dump)
+            flags.remove_flag(index=-1)    
+            if all(flags.combine(1).squeeze):
+                continue
+            model = model_bandpass / np.mean(model_bandpass) * np.mean(visibility.squeeze)
+            chi_square.append( np.square(visibility.squeeze - model) / np.square(standard_deviation.squeeze))
+        empt = chi_square
+        # for array in chi_square:
+            # if isinstance(array, np.ndarray) and array.dtype == np.float64 and isinstance(np.mean(array),np.float64) :
+                # empt.append(np.mean(array))
+        empt = np.sum(empt, axis=0) / degrees_of_freedom
+        empt = np.mean(empt)
+        chi_square_reduced = empt
+        # chi_square_reduced_mean = chi_square_reduced.mean(axis=1).squeeze
+        return chi_square_reduced
+
+
 
     def get_bandpasses_std_dicts(self,
                                  track_data: TimeOrderedData,
