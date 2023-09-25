@@ -7,6 +7,11 @@ setup(
     author='',
     author_email='',
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'museek = ivory.cli.main:run',
+        ]
+    },
     install_requires=[
         'numpy==1.23.3',
         'scipy',
