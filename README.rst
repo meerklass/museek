@@ -11,10 +11,16 @@ It is inspired by **SEEK**, developed by the `Software Lab of the Cosmology Rese
 
 The development is coordinated on `GitHub <https://github.com/meerklass/museek>`_ and contributions are welcome. The documentation of **MuSEEK** is not yet available at `readthedocs.org <http://museek.readthedocs.io/>`_ .
 
-Run
+Install and Run
 -----------------------
 `MuSEEK` is run via the workflow engine `Ivory`. Consequently the `Ivory` directory needs to be in the `PYTHONPATH` of your python interpreter.
 A shorthand for running `Ivory` is directly inside `MuSEEK` and allows running the plugins like (assuming working directory in the repository root)
+
+.. code-block:: python
+
+    museek museek.config.demo
+
+which is a shorthand for
 
 .. code-block:: python
 
