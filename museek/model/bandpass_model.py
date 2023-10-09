@@ -77,8 +77,8 @@ class BandpassModel:
                                              bounds=bounds)
 
         model_bandpass = bandpass_model_wrapper(target_frequencies, *curve_fit[0])
-        smooth_bandpass = legendre.legval(target_frequencies, curve_fit[0][:len(starting_legendre_coefficients)])
-        epsilon = model_bandpass / smooth_bandpass - 1
+        legendre_bandpass = legendre.legval(target_frequencies, curve_fit[0][:len(starting_legendre_coefficients)])
+        epsilon = model_bandpass / legendre_bandpass - 1
 
         parameters_dict = self._parameters_to_dictionary(curve_fit[0],
                                                          n_legendre_coefficients=len(starting_legendre_coefficients))
@@ -89,7 +89,7 @@ class BandpassModel:
             self._plot(frequencies=target_frequencies,
                        bandpass=target_estimator,
                        model_bandpass=model_bandpass,
-                       smooth_bandpass=smooth_bandpass,
+                       smooth_bandpass=legendre_bandpass,
                        epsilon=epsilon,
                        receiver_path=receiver_path,
                        before_or_after=calibrator_label)
