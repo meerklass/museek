@@ -60,6 +60,7 @@ class StandingWaveFitPlugin(AbstractPlugin):
 
         parameters_dict = {}  # type: dict[dict[dict[float]]]
         epsilon_function_dict = {}  # type: dict[dict[[Callable]]]
+        legendre_function_dict = {}  # type: dict[dict[[Callable]]]
 
         for i_receiver, receiver in enumerate(track_data.receivers):
             print(f'Working on {receiver}...')
@@ -69,6 +70,7 @@ class StandingWaveFitPlugin(AbstractPlugin):
             receiver_path = self.add_to_dicts_and_receiver_path(receiver=receiver,
                                                                 parameters_dict=parameters_dict,
                                                                 epsilon_function_dict=epsilon_function_dict,
+                                                                legendre_function_dict=legendre_function_dict,
                                                                 output_path=output_path)
 
             for before_or_after, times, times_list, pointing_centres in track_pointing_iterator.iterate():
@@ -102,6 +104,7 @@ class StandingWaveFitPlugin(AbstractPlugin):
                                                      receiver_path=receiver_path)
                 parameters_dict[receiver.name][before_or_after] = bandpass_model.parameters_dictionary
                 epsilon_function_dict[receiver.name][before_or_after] = bandpass_model.epsilon_function
+                legendre_function_dict[receiver.name][before_or_after] = bandpass_model.legendre_function
 
         if self.do_store_parameters:
             with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
@@ -109,6 +112,9 @@ class StandingWaveFitPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
                                       result=epsilon_function_dict,
+                                      allow_overwrite=False))
+        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT,
+                                      result=legendre_function_dict,
                                       allow_overwrite=False))
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
                                       result=self.target_channels,
@@ -158,6 +164,7 @@ class StandingWaveFitPlugin(AbstractPlugin):
             receiver: Receiver,
             parameters_dict: dict,
             epsilon_function_dict: dict,
+            legendre_function_dict: dict,
             output_path: str
     ) -> str:
         """ Create directories if not existing and return default results path. """
@@ -165,6 +172,8 @@ class StandingWaveFitPlugin(AbstractPlugin):
             parameters_dict[receiver.name] = {}  # type: dict[dict[float]]
         if receiver.name not in epsilon_function_dict:
             epsilon_function_dict[receiver.name] = {}  # type: dict[Callable]
+        if receiver.name not in legendre_function_dict:
+            legendre_function_dict[receiver.name] = {}  # type: dict[Callable]
         if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
             os.makedirs(receiver_path)
         return receiver_path
