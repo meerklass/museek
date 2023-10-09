@@ -59,8 +59,6 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         times = range(start_dump_index, end_dump_index)
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            if receiver.name != 'm008v':
-                continue
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             if receiver.name not in epsilon_function_dict:
