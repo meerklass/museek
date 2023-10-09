@@ -26,6 +26,7 @@ Pipeline = ConfigSection(
 #                      'on centre 4',
 #                      'off centre left',
 #                      'on centre 5']
+# )
 
 StandingWaveFitScanPlugin = ConfigSection(
     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
