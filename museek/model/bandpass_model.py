@@ -29,7 +29,10 @@ class BandpassModel:
         self.n_wave = len(standing_wave_displacements)
         self.legendre_degree = legendre_degree
 
+        # function to encapsulate the wiggly structure of the bandpass
         self.epsilon_function = None  # type: Optional[Callable]
+        # function to encapsulate the flat, or legendre-like structure of the bandpass
+        self.legendre_function = None  # type: Optional[Callable]
         self.variances_dictionary = None  # type: Optional[dict]
         self.parameters_dictionary = None  # type: Optional[dict]
         self.epsilon = None  # type: Optional[np.ndarray]
@@ -57,7 +60,8 @@ class BandpassModel:
         starting_coefficients = starting_legendre_coefficients + [0.1 * (i % 2)
                                                                   for i in range(len(self.wavelengths) * 2)]
 
-        def bandpass_model_wrapper(f, *parameters):
+        def bandpass_model_wrapper(f: np.ndarray, *parameters) -> np.ndarray:
+            """ Wrap the bandpass model for the scipy fit. """
             sinus_coefficient_list = self._sinus_parameter_list(
                 parameters=parameters,
                 n_legendre_coefficients=len(starting_legendre_coefficients),
@@ -94,10 +98,16 @@ class BandpassModel:
                        receiver_path=receiver_path,
                        before_or_after=calibrator_label)
 
-        def epsilon_function(f):
-            return bandpass_model_wrapper(f.squeeze / MEGA, *curve_fit[0]) / smooth_bandpass - 1
+        def legendre_function(f: DataElement) -> np.ndarray:
+            """ Return the legendre contribution to the bandpass as a function of frequency. """
+            return legendre.legval(f.squeeze / MEGA, curve_fit[0][:len(starting_legendre_coefficients)])
+
+        def epsilon_function(f: DataElement) -> np.ndarray:
+            """ Return the sinusoidal contribution to the bandpass as a function of frequency. """
+            return bandpass_model_wrapper(f.squeeze / MEGA, *curve_fit[0]) / legendre_function(f) - 1
 
         self.epsilon_function = epsilon_function
+        self.legendre_function = legendre_function
         self.variances_dictionary = variances_dict
         self.parameters_dictionary = parameters_dict
         self.epsilon = epsilon
