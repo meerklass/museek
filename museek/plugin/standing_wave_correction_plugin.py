@@ -19,34 +19,43 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         """ Set the requirements. """
         self.requirements = [
             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-            Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.STANDING_WAVE_CHANNELS, variable='target_channels'),
-            Requirement(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT, variable='epsilon_function_dict')
+            Requirement(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT, variable='epsilon_function_dict'),
+            Requirement(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT, variable='legendre_function_dict'),
+            Requirement(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL, variable='calibrator_label')
         ]
 
     def run(self,
             scan_data: TimeOrderedData,
-            track_data: TimeOrderedData,
             output_path: str,
             target_channels: range | list[int],
-            epsilon_function_dict: dict[dict[Callable]]):
-        """ Run the plugin, i.e. apply the standing wave correction. """
-        before_or_after = 'before_scan'
-
+            epsilon_function_dict: dict[dict[Callable]],
+            legendre_function_dict: dict[dict[Callable]],
+            calibrator_label: str):
+        """
+        Run the plugin, i.e. apply the standing wave correction.
+        :param scan_data: the time ordered data containing the observation's scanning part
+        :param output_path: path to store results
+        :param target_channels: `list` or `range` of channel indices to be examined
+        :param epsilon_function_dict: `dict` containing the epsilon functions of frequency
+        :param legendre_function_dict: `dict` containing the legendre functions of frequency
+        :param calibrator_label: `str` label to identify the standing wave calibrator that was used
+        """
         for i_receiver, receiver in enumerate(scan_data.receivers):
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             antenna_index = receiver.antenna_index(receivers=scan_data.receivers)
             frequencies = scan_data.frequencies.get(freq=target_channels)
-            epsilon = epsilon_function_dict[receiver.name][before_or_after](frequencies)
+            epsilon = epsilon_function_dict[receiver.name][calibrator_label](frequencies)
+            legendre = legendre_function_dict[receiver.name][calibrator_label](frequencies)
             self.plot_individual_swings(scan_data=scan_data,
                                         antenna_index=antenna_index,
-                                        i_receiver=i_receiver,
-                                        before_or_after=before_or_after,
+                                        receiver_index=i_receiver,
                                         target_channels=target_channels,
                                         epsilon=epsilon,
+                                        legendre=legendre,
                                         receiver_path=receiver_path)
 
             self.plot_azimuth_bins(scan_data=scan_data,
@@ -59,73 +68,68 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
 
     @staticmethod
     def swing_turnaround_dumps(azimuth: DataElement) -> list[int]:
-        """ DOC """
+        """ Time dumps for the `azimuth` turnaround moments of the scan. """
         sign = np.sign(np.diff(azimuth.squeeze))
         sign_change = ((np.roll(sign, 1) - sign) != 0).astype(bool)
         return np.where(sign_change)[0]
 
     @staticmethod
     def azimuth_digitizer(azimuth: DataElement) -> tuple[np.ndarray, np.ndarray]:
-        """ DOC """
+        """ Digitize the `azimuth`. """
         bins = np.linspace(azimuth.min(axis=0).squeeze, azimuth.max(axis=0).squeeze, 50)
         return np.digitize(azimuth.squeeze, bins=bins), bins
 
     def plot_individual_swings(self,
                                scan_data,
                                antenna_index,
-                               i_receiver,
-                               before_or_after,
+                               receiver_index,
                                target_channels,
                                epsilon,
+                               legendre,
                                receiver_path):
+        """ Make plots with each individual swing as one line. """
         swing_turnaround_dumps = self.swing_turnaround_dumps(
             azimuth=scan_data.azimuth.get(recv=antenna_index)
         )
         fig = plt.figure(figsize=(8, 12))
 
         ax = fig.subplots(2, 1)
-        ax[1].plot(scan_data.timestamp_dates.squeeze, scan_data.temperature.squeeze)
+        jet = plt.get_cmap('jet')
+        colors = jet(np.arange(len(swing_turnaround_dumps)) / len(swing_turnaround_dumps))
 
-        for i, dump in enumerate(swing_turnaround_dumps):
-            ax[1].text(scan_data.timestamp_dates.get(time=dump).squeeze,
-                       scan_data.temperature.get(time=dump).squeeze,
-                       f'{i}',
-                       fontsize='x-small')
-        if before_or_after == 'after_scan':
-            correction_dump = scan_data.timestamps.shape[0] - 1
-        else:
-            correction_dump = 0
-        ax[1].text(scan_data.timestamp_dates.get(time=correction_dump).squeeze,
-                   scan_data.temperature.get(time=correction_dump).squeeze,
-                   'model fit',
-                   fontsize='small')
-
-        ax[1].set_xlabel('time')
-        ax[1].set_ylabel('temperature')
+        line_width = 0.5
 
         for i in range(len(swing_turnaround_dumps) - 1):
             times = range(swing_turnaround_dumps[i], swing_turnaround_dumps[i + 1])
             flags = scan_data.flags.get(time=times,
                                         freq=target_channels,
-                                        recv=i_receiver)
+                                        recv=receiver_index)
             mean_bandpass = scan_data.visibility.get(time=times,
                                                      freq=target_channels,
-                                                     recv=i_receiver).mean(axis=0, flags=flags)
+                                                     recv=receiver_index).mean(axis=0, flags=flags)
+            bandpass = mean_bandpass.squeeze / mean_bandpass.squeeze[0]
+            model_bandpass = legendre * (1 + epsilon)
+            model_bandpass /= model_bandpass[0]  # normalize
             frequencies = scan_data.frequencies.get(freq=target_channels)
 
-            corrected = mean_bandpass.squeeze / (1 + epsilon)
+            corrected = bandpass / model_bandpass  # this should be constant at 1
+            residual = (corrected - 1) * 100
 
             ax[0].plot(frequencies.squeeze / MEGA,
                        corrected,
-                       label=f'swing {i}')
-            if i % 5 == 0:
-                ax[0].text(frequencies.squeeze[0] / MEGA,
-                           corrected[0],
-                           f'{i}',
-                           fontsize='x-small')
+                       label=f'swing {i}',
+                       c=colors[i],
+                       lw=line_width)
+            ax[1].plot(frequencies.squeeze / MEGA,
+                       residual,
+                       label=f'swing {i}',
+                       c=colors[i],
+                       lw=line_width)
 
         ax[0].set_xlabel('frequency [MHz]')
-        ax[0].set_ylabel('intensity')
+        ax[0].set_ylabel('corrected intensity')
+        ax[1].set_xlabel('frequency [MHz]')
+        ax[1].set_ylabel('correction residual [%]')
         plot_name = 'standing_wave_correction_scanning_swings.png'
         plt.savefig(os.path.join(receiver_path, plot_name))
         plt.close()
@@ -138,6 +142,7 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                           epsilon,
                           frequencies,
                           receiver_path):
+        """ Old plotting function to check for azimuth dependence. """
 
         azimuth_digitized, azimuth_bins = self.azimuth_digitizer(azimuth=scan_data.azimuth.get(recv=antenna_index))
         corrected_azimuth_binned_bandpasses = []
