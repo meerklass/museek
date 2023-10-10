@@ -125,7 +125,7 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                                       f'Available: {self.first_scan_dumps_label} and {self.off_cut_label}')
 
     @staticmethod
-    def first_scan_dump() -> range:
+    def first_scan_dumps() -> range:
         """ Return the first few scan dump indices as `range`. """
         start_dump_index = 0
         end_dump_index = 124  # 124 is the first swing back and forth
