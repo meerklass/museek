@@ -22,7 +22,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.STANDING_WAVE_CHANNELS, variable='target_channels'),
             Requirement(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT, variable='epsilon_function_dict'),
-            Requirement(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT, variable='legendre_function_dict')
+            Requirement(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT, variable='legendre_function_dict'),
+            Requirement(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL, variable='calibrator_label')
         ]
 
     def run(self,
@@ -30,7 +31,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             output_path: str,
             target_channels: range | list[int],
             epsilon_function_dict: dict[dict[Callable]],
-            legendre_function_dict: dict[dict[Callable]]):
+            legendre_function_dict: dict[dict[Callable]],
+            calibrator_label: str):
         """
         Run the plugin, i.e. apply the standing wave correction.
         :param scan_data: the time ordered data containing the observation's scanning part
@@ -38,9 +40,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         :param target_channels: `list` or `range` of channel indices to be examined
         :param epsilon_function_dict: `dict` containing the epsilon functions of frequency
         :param legendre_function_dict: `dict` containing the legendre functions of frequency
+        :param calibrator_label: `str` label to identify the standing wave calibrator that was used
         """
-        calibrator_label = 'first_scan_dumps'
-
         for i_receiver, receiver in enumerate(scan_data.receivers):
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
