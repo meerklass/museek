@@ -10,10 +10,10 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1631379874',  # observation time stamp
+    block_name='1675021905',  # observation time stamp
     receiver_list=None,
     token=None,  # archive token
-    data_folder='/idia/projects/hi_im/SCI-20210212-MS-01/',  # only relevant if `token` is `None`
+    data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
@@ -25,7 +25,7 @@ OutPlugin = ConfigSection(
 )
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=False,
-    do_store_context=False
+    do_store_context=True
 )
 SanityCheckObservationPlugin = ConfigSection(
     # the receiver index to use primarily for plots, relative to the `receiver_list` of `InOutPlugin`.
