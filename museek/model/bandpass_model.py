@@ -208,7 +208,7 @@ class BandpassModel:
         plt.plot(frequencies, model_bandpass, ls=':', color='black', label='model')
         plt.plot(frequencies, smooth_bandpass, label='smooth model')
         plt.xlabel('frequency [MHz]')
-        plt.ylabel('std')
+        plt.ylabel('bandpass mean')
         plt.legend()
 
         plt.subplot(4, 1, 2)
