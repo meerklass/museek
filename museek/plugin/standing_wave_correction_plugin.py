@@ -2,6 +2,7 @@ import os
 from typing import Callable
 
 import numpy as np
+import scipy
 from matplotlib import pyplot as plt
 
 from definitions import MEGA
@@ -110,17 +111,19 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             bandpass = mean_bandpass.squeeze / mean_bandpass.squeeze[0]
             model_bandpass = legendre * (1 + epsilon)
             model_bandpass /= model_bandpass[0]  # normalize
-            frequencies = scan_data.frequencies.get(freq=target_channels)
+            fit_frequencies = scan_data.frequencies.get(freq=target_channels).squeeze / MEGA
 
             corrected = bandpass / model_bandpass  # this should be constant at 1
+            corrected = self.correct_linear(array=corrected, frequencies=fit_frequencies)
+
             residual = (corrected - 1) * 100
 
-            ax[0].plot(frequencies.squeeze / MEGA,
+            ax[0].plot(fit_frequencies,
                        corrected,
                        label=f'swing {i}',
                        c=colors[i],
                        lw=line_width)
-            ax[1].plot(frequencies.squeeze / MEGA,
+            ax[1].plot(fit_frequencies,
                        residual,
                        label=f'swing {i}',
                        c=colors[i],
@@ -133,6 +136,22 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         plot_name = 'standing_wave_correction_scanning_swings.png'
         plt.savefig(os.path.join(receiver_path, plot_name))
         plt.close()
+
+    def correct_linear(self, array: np.ndarray, frequencies: np.ndarray) -> np.ndarray:
+        """
+        Remove any slope from `array` using `scipy.optimize.curve_fit` and return the result.
+        :param array: `numpy` array depending on `frequencies`
+        :param frequencies: in MHz
+        :return: `array` with a linear slope removed
+        """
+        line_fit = scipy.optimize.curve_fit(self.line, frequencies, array, p0=(1, 0))
+        line = self.line(frequencies, *line_fit[0])
+        return array / line
+
+    @staticmethod
+    def line(x: np.ndarray, a: float, b: float) -> np.ndarray:
+        """ Return line with offset `b` and gradient `a` at value `x`. """
+        return a * x + b
 
     def plot_azimuth_bins(self,
                           scan_data,
