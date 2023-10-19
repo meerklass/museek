@@ -1,12 +1,11 @@
 import itertools
 
 import matplotlib.pylab as plt
-from astropy import coordinates, units
-
 from ivory.enum.context_storage_enum import ContextStorageEnum
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
@@ -149,10 +148,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         timestamp_dates = data.timestamp_dates
 
-        sky_coordinates = coordinates.SkyCoord(data.azimuth.squeeze * units.deg,
-                                               data.elevation.squeeze * units.deg,
-                                               frame='altaz')
-
         # mean over dishes
         dish_mean_azimuth = data.azimuth.mean(axis=-1)
         dish_mean_elevation = data.elevation.mean(axis=-1)
@@ -173,7 +168,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                  f'Reference antenna {data.antenna(receiver=reference_receiver).name}.')
 
         plt.figure(figsize=(8, 4))
-        plt.plot(sky_coordinates.az, sky_coordinates.alt, '.-')
+        plt.plot(data.azimuth.squeeze, data.elevation.squeeze, '.-')
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Entire scanning route. '
