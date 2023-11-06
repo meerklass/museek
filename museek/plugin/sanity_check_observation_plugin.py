@@ -81,12 +81,14 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                        f'Observation start time: {timestamp_dates[0]}\n ',
                                        f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
 
+        self.check_closeness_to_sunrise_sunset(data=scan_data, report_writer=report_writer)
         self.check_elevation(data=scan_data, report_writer=report_writer)
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
         self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
         self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
+
 
     def savefig(self, description: str = 'description'):
         """ Save a figure and embed it in the report with `description`. """
@@ -220,3 +222,50 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.hist(data.elevation.squeeze.flatten(), bins=200)
         plt.xlabel('elevation')
         self.savefig(description='Elevation histogram of all dishes during scan.')
+
+
+    def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter):
+
+        import ephem
+        from datetime import datetime, timedelta
+        import numpy as np
+
+        observer = ephem.Observer()
+        observer.lat = '-30.7130'  # Latitude of Meerkat
+        observer.lon = '21.4203'  # Longitude of Meerkat
+
+        # Set the observer's date
+        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
+        observer.date = date_time
+
+        # Calculate sunset and sunrise times
+        sunset_time = observer.previous_setting(ephem.Sun())  # Sunset
+        sunrise_time = observer.next_rising(ephem.Sun())  # Sunrise
+        
+        # Convert times to South Africa local timezone
+        sunset_local_time = datetime.strptime(str(sunset_time), "%Y/%m/%d %H:%M:%S") + timedelta(hours=2)
+        sunrise_local_time = datetime.strptime(str(sunrise_time), "%Y/%m/%d %H:%M:%S") + timedelta(hours=2)
+
+        start_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[0])) + timedelta(hours=2)
+        end_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) + timedelta(hours=2)
+
+        time_difference_sunset = abs(start_local_time - sunset_local_time)
+        time_difference_sunrise = abs(end_local_time - sunrise_local_time)
+
+        report_writer.write_to_report(lines=[
+            '## check closeness to sunrise/sunset',
+            f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST, Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST'])
+
+        if time_difference_sunset < timedelta(minutes=30):
+            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunset and start time is smaller than 30 minutes.")
+        elif time_difference_sunrise < timedelta(minutes=30):
+            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunrise and end time is smaller than 30 minutes.")
+        else:
+            report_writer.print_to_report(f"check closeness to sunrise/sunset: Good, the time difference between sunset/sunrise and start/end time is equal to or greater than 30 minutes.")
+
+
+
+
+
+        
+        
