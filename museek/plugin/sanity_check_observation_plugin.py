@@ -226,6 +226,12 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
     def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter):
 
+        """
+        Check if observation was done within 30 min of sunset or sunrise.
+        :param data: the `TimeOrderedData` to check
+        :param report_writer: the `ReportWriter` object to handle the report
+        """
+
         import ephem
         from datetime import datetime, timedelta
         import numpy as np
