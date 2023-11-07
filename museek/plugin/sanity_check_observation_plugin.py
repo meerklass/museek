@@ -241,7 +241,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         observer.lon = '21.4203'  # Longitude of Meerkat
 
         # Set the observer's date
-        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
+        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1]))
         observer.date = date_time
 
         # Calculate sunset and sunrise times
