@@ -10,7 +10,9 @@ from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScan
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-
+import ephem
+from datetime import datetime, timedelta
+import numpy as np
 
 class SanityCheckObservationPlugin(AbstractPlugin):
     """
@@ -20,6 +22,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
     def __init__(self,
                  reference_receiver_index: int,
+                 closeness_to_sunset_sunrise_threshold: float,
                  elevation_sum_square_difference_threshold: float,
                  elevation_square_difference_threshold: float,
                  elevation_antenna_standard_deviation_threshold=1e-2):
@@ -32,6 +35,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                                       pointing elevation and the overall mean
         :param elevation_antenna_standard_deviation_threshold: threshold on the standard deviation
                                                                on antenna pointing elevation
+        :param closeness_to_sunset_sunrise_threshold: threshold of the time difference between sunset/sunrise and start/end time
         """
         super().__init__()
 
@@ -45,6 +49,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.elevation_sum_square_difference_threshold = elevation_sum_square_difference_threshold
         self.elevation_square_difference_threshold = elevation_square_difference_threshold
         self.elevation_antenna_standard_deviation_threshold = elevation_antenna_standard_deviation_threshold
+        self.closeness_to_sunset_sunrise_threshold = closeness_to_sunset_sunrise_threshold
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -227,21 +232,17 @@ class SanityCheckObservationPlugin(AbstractPlugin):
     def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter):
 
         """
-        Check if observation was done within 30 min of sunset or sunrise.
+        Check the time difference between sunset/sunrise and start/end time.
         :param data: the `TimeOrderedData` to check
         :param report_writer: the `ReportWriter` object to handle the report
         """
 
-        import ephem
-        from datetime import datetime, timedelta
-        import numpy as np
-
         observer = ephem.Observer()
-        observer.lat = '-30.7130'  # Latitude of Meerkat
-        observer.lon = '21.4203'  # Longitude of Meerkat
+        observer.lat = data.antennas[0].ref_observer.lat
+        observer.lon = data.antennas[0].ref_observer.long
 
         # Set the observer's date
-        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1]))
+        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
         observer.date = date_time
 
         # Calculate sunset and sunrise times
@@ -255,19 +256,20 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         start_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[0])) + timedelta(hours=2)
         end_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) + timedelta(hours=2)
 
-        time_difference_sunset = abs(start_local_time - sunset_local_time)
-        time_difference_sunrise = abs(end_local_time - sunrise_local_time)
+        time_difference_sunset = abs((start_local_time.hour*60.+start_local_time.minute+start_local_time.second/60.) - (sunset_local_time.hour*60.+sunset_local_time.minute+sunset_local_time.second/60.))
+        time_difference_sunrise = abs((end_local_time.hour*60.+end_local_time.minute+end_local_time.second/60.) - (sunrise_local_time.hour*60.+sunrise_local_time.minute+sunrise_local_time.second/60.))
 
         report_writer.write_to_report(lines=[
-            '## check closeness to sunrise/sunset',
+            '## check closeness to sunset/sunrise',
+            f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes',
             f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST, Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST'])
 
-        if time_difference_sunset < timedelta(minutes=30):
-            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunset and start time is smaller than 30 minutes.")
-        elif time_difference_sunrise < timedelta(minutes=30):
-            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunrise and end time is smaller than 30 minutes.")
+        if time_difference_sunset < self.closeness_to_sunset_sunrise_threshold:
+            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunset and start time is {time_difference_sunset} minutes.")
+        elif time_difference_sunrise < self.closeness_to_sunset_sunrise_threshold:
+            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunrise and end time is {time_difference_sunrise} minutes.")
         else:
-            report_writer.print_to_report(f"check closeness to sunrise/sunset: Good, the time difference between sunset/sunrise and start/end time is equal to or greater than 30 minutes.")
+            report_writer.print_to_report(f"check closeness to sunset/sunrise: Good, the time difference between sunset/sunrise and start/end time is {time_difference_sunset}/{time_difference_sunrise} minutes.")
 
 
 
