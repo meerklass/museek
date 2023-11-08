@@ -13,7 +13,8 @@ class FromLog:
 
         lines = [s for s in self.obs_script_log if element in s]
         for line in lines:
-            if ('scan' in self.obs_script_log[self.obs_script_log.index(line)-1]) or ('Slew to scan start' in self.obs_script_log[self.obs_script_log.index(line)-2]):
+            if 'scan' in self.obs_script_log[self.obs_script_log.index(line)-1] \
+                or 'Slew to scan start' in self.obs_script_log[self.obs_script_log.index(line)-2]:
                 addition = line[line.index(element)+15:-1].split(', ')
                 for ant in addition:
                     straggler_list.append(ant[1:-1])

@@ -50,8 +50,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='all_data'),
-                             Requirement(location=ResultEnum.SCAN_DATA,
-                                         variable='scan_data'),
+                             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
     def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str):
@@ -73,8 +72,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         timestamp_dates = scan_data.timestamp_dates
         mega = 1e6
 
-        straggler_list = FromLog(
-            obs_script_log=scan_data.obs_script_log).straggler_list()
+        straggler_list = FromLog(obs_script_log=scan_data.obs_script_log).straggler_list()
 
         # start
         report_writer.print_to_report(scan_data)
@@ -92,10 +90,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
-        self.set_result(result=Result(
-            location=ContextStorageEnum.DIRECTORY, result=output_path))
-        self.set_result(result=Result(
-            location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
+        self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
+        self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
 
     def savefig(self, description: str = 'description'):
         """ Save a figure and embed it in the report with `description`. """
@@ -104,8 +100,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         plt.savefig(self.output_path + plot_name)
         plt.close()
-        self.report_writer.write_plot_description_to_report(
-            description=description, plot_name=plot_name)
+        self.report_writer.write_plot_description_to_report(description=description, plot_name=plot_name)
 
     def check_elevation(self, data: TimeOrderedData, report_writer: ReportWriter):
         """
@@ -130,22 +125,18 @@ class SanityCheckObservationPlugin(AbstractPlugin):
     def create_plots_of_complete_observation(self, data: TimeOrderedData):
         """ DOC """
 
-        straggler_list = FromLog(
-            obs_script_log=data.obs_script_log).straggler_list()
+        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
         reference_receiver_index = self.reference_receiver_index
         reference_check = str(data.receivers[reference_receiver_index])[:-1]
         while (reference_check in straggler_list):
             reference_receiver_index += 1
-            reference_check = str(
-                data.receivers[reference_receiver_index])[:-1]
+            reference_check = str(data.receivers[reference_receiver_index])[:-1]
         reference_receiver = data.receivers[reference_receiver_index]
         reference_antenna = data.antenna(receiver=reference_receiver)
 
         plt.figure(figsize=(8, 4))
         plt.plot(data.right_ascension.get(recv=self.reference_receiver_index).squeeze,
-                 data.declination.get(
-                     recv=self.reference_receiver_index).squeeze,
-                 '.-')
+                 data.declination.get(recv=self.reference_receiver_index).squeeze, '.-')
         plt.xlabel('ra')
         plt.ylabel('dec')
         self.savefig(description=f'Pointing route of entire observation. '
@@ -170,14 +161,12 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         timestamp_dates = data.timestamp_dates
 
         # check validity of reference receiver
-        straggler_list = FromLog(
-            obs_script_log=data.obs_script_log).straggler_list()
+        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
         reference_receiver_index = self.reference_receiver_index
         reference_check = str(data.receivers[reference_receiver_index])[:-1]
         while (reference_check in straggler_list):
             reference_receiver_index += 1
-            reference_check = str(
-                data.receivers[reference_receiver_index])[:-1]
+            reference_check = str(data.receivers[reference_receiver_index])[:-1]
         reference_receiver = data.receivers[reference_receiver_index]
 
         # reference coordinates
@@ -185,10 +174,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         reference_azimuth = data.azimuth.get(recv=reference_receiver_index)
 
         # create no straggler list
-        straggler_list_indexes = [
-            int(data._antenna_name_list.index(ii)) for ii in straggler_list]
-        no_straggler_indexes = [int(ii)
-                                for ii in range(len(data._antenna_name_list))]
+        straggler_list_indexes = [int(data._antenna_name_list.index(ii)) for ii in straggler_list]
+        no_straggler_indexes = [int(ii) for ii in range(len(data._antenna_name_list))]
         no_straggler_list = data._antenna_name_list.copy()
         for jj in straggler_list_indexes:
             no_straggler_indexes.remove(jj)
@@ -196,18 +183,13 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             no_straggler_list.remove(jj)
 
         # mean over no straggler dishes
-        dish_mean_azimuth = data.azimuth[:, :,
-                                         no_straggler_indexes].mean(axis=-1)
-        dish_mean_elevation = data.elevation[:,
-                                             :, no_straggler_indexes].mean(axis=-1)
-        dish_mean_ra = data.right_ascension[:,
-                                            :, no_straggler_indexes].mean(axis=-1)
-        dish_mean_dec = data.declination[:, :,
-                                         no_straggler_indexes].mean(axis=-1)
+        dish_mean_azimuth = data.azimuth[:, :, no_straggler_indexes].mean(axis=-1)
+        dish_mean_elevation = data.elevation[:, :, no_straggler_indexes].mean(axis=-1)
+        dish_mean_ra = data.right_ascension[:, :, no_straggler_indexes].mean(axis=-1)
+        dish_mean_dec = data.declination[:, :, no_straggler_indexes].mean(axis=-1)
 
         plt.plot(data.right_ascension.get(recv=reference_receiver_index).squeeze,
-                 data.declination.get(recv=reference_receiver_index).squeeze,
-                 '.-')
+                 data.declination.get(recv=reference_receiver_index).squeeze, '.-')
         plt.xlabel('ra')
         plt.ylabel('dec')
         self.savefig(description=f'Pointing route of entire scan. '
@@ -230,8 +212,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                  f'Straggler(s)')
 
         plt.figure(figsize=(8, 4))
-        plt.plot(data.azimuth.squeeze[:, no_straggler_indexes],
-                 data.elevation.squeeze[:, no_straggler_indexes], '.-')
+        plt.plot(data.azimuth.squeeze[:, no_straggler_indexes], data.elevation.squeeze[:, no_straggler_indexes], '.-')
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Entire scanning route. '
@@ -243,9 +224,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.plot(timestamp_dates.squeeze, reference_azimuth.squeeze, '.')
         plt.ylabel('az [deg]')
         plt.subplot(212)
-        plt.plot(timestamp_dates.squeeze,
-                 reference_elevation.squeeze,
-                 '.')
+        plt.plot(timestamp_dates.squeeze, reference_elevation.squeeze, '.')
         plt.xlabel('time')
         plt.ylabel('el [deg]')
         self.savefig('Azimuth and elevation vs time, during scanning. ')
@@ -254,37 +233,30 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.subplots_adjust(hspace=.5)
         plt.subplot(411)
         for i_antenna in no_straggler_indexes:
-            plt.plot(timestamp_dates.squeeze,
-                     data.azimuth.get(recv=i_antenna).squeeze - dish_mean_azimuth)
+            plt.plot(timestamp_dates.squeeze, data.azimuth.get(recv=i_antenna).squeeze - dish_mean_azimuth)
             plt.ylabel('az [deg]')
             plt.xlabel('time')
 
         plt.subplot(412)
         for i_antenna in no_straggler_indexes:
-            plt.plot(timestamp_dates.squeeze,
-                     data.elevation.get(recv=i_antenna).squeeze - dish_mean_elevation)
+            plt.plot(timestamp_dates.squeeze, data.elevation.get(recv=i_antenna).squeeze - dish_mean_elevation)
         plt.ylabel('el - mean')
         plt.xlabel('time')
 
         plt.subplot(413)
         for i_antenna in no_straggler_indexes:
-            plt.plot(timestamp_dates.squeeze, data.right_ascension.get(
-                recv=i_antenna).squeeze - dish_mean_ra)
+            plt.plot(timestamp_dates.squeeze, data.right_ascension.get(recv=i_antenna).squeeze - dish_mean_ra)
         plt.xlabel('time')
         plt.ylabel('ra - mean')
 
         plt.subplot(414)
         for i_antenna in no_straggler_indexes:
-            plt.plot(timestamp_dates.squeeze, data.declination.get(
-                recv=i_antenna).squeeze - dish_mean_dec)
+            plt.plot(timestamp_dates.squeeze, data.declination.get(recv=i_antenna).squeeze - dish_mean_dec)
         plt.xlabel('time')
         plt.ylabel('dec - mean')
 
-        self.savefig(
-            'All coordinates minus their mean with time. All dishes (excluding stragglers).')
+        self.savefig('All coordinates minus their mean with time. All dishes (excluding stragglers).')
 
-        plt.hist(
-            data.elevation.squeeze[:, no_straggler_indexes].flatten(), bins=200)
+        plt.hist(data.elevation.squeeze[:, no_straggler_indexes].flatten(), bins=200)
         plt.xlabel('elevation')
-        self.savefig(
-            description='Elevation histogram of all dishes during scan (excluding stragglers).')
+        self.savefig(description='Elevation histogram of all dishes during scan (excluding stragglers).')
