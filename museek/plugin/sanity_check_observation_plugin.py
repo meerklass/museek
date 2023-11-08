@@ -265,9 +265,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST, Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST'])
 
         if time_difference_sunset < self.closeness_to_sunset_sunrise_threshold:
-            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunset and start time is {time_difference_sunset} minutes.")
+            report_writer.print_to_report(f"check closeness to sunset/sunrise: NO Good, the time difference between sunset and start time is {time_difference_sunset} minutes.")
         elif time_difference_sunrise < self.closeness_to_sunset_sunrise_threshold:
-            report_writer.print_to_report(f"check closeness to sunrise/sunset: NO Good, the time difference between sunrise and end time is {time_difference_sunrise} minutes.")
+            report_writer.print_to_report(f"check closeness to sunset/sunrise: NO Good, the time difference between sunrise and end time is {time_difference_sunrise} minutes.")
         else:
             report_writer.print_to_report(f"check closeness to sunset/sunrise: Good, the time difference between sunset/sunrise and start/end time is {time_difference_sunset}/{time_difference_sunrise} minutes.")
 
