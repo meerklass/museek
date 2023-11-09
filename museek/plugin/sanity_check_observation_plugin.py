@@ -35,7 +35,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                                       pointing elevation and the overall mean
         :param elevation_antenna_standard_deviation_threshold: threshold on the standard deviation
                                                                on antenna pointing elevation
-        :param closeness_to_sunset_sunrise_threshold: threshold of the time difference between sunset/sunrise and start/end time
+        :param closeness_to_sunset_sunrise_threshold: threshold of the time difference between
+                                                      sunset/sunrise and start/end time
         """
         super().__init__()
 
@@ -55,15 +56,17 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='all_data'),
                              Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
+                             Requirement(location=ResultEnum.OBSERVATION_DATE, variable='observation_date')]
 
-    def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str):
+    def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str, observation_date):
         """
         Runs the observation sanity check.
         Produces a selection of plots and runs a couple of checks.
         :param scan_data: the `TimeOrderedData` object referring to the scanning part
         :param all_data: the `TimeOrderedData` object referring to the complete observation
         :param output_path: the path to store the results and plots
+        :param observation_date: the 'datetime' object referring to the observation date
         """
         self.output_path = output_path
         report_writer = ReportWriter(output_path=output_path,
@@ -86,7 +89,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                        f'Observation start time: {timestamp_dates[0]}\n ',
                                        f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
 
-        self.check_closeness_to_sunrise_sunset(data=scan_data, report_writer=report_writer)
+        self.check_closeness_to_sunrise_sunset(data=scan_data, report_writer=report_writer, observation_date=observation_date)
         self.check_elevation(data=scan_data, report_writer=report_writer)
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
@@ -229,21 +232,21 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.savefig(description='Elevation histogram of all dishes during scan.')
 
 
-    def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter):
+    def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter, observation_date):
 
         """
         Check the time difference between sunset/sunrise and start/end time.
         :param data: the `TimeOrderedData` to check
         :param report_writer: the `ReportWriter` object to handle the report
+        :param observation_date: the 'datetime' object referring to the observation date 
         """
 
         observer = ephem.Observer()
         observer.lat = data.antennas[0].ref_observer.lat
         observer.lon = data.antennas[0].ref_observer.long
 
-        # Set the observer's date
-        date_time = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
-        observer.date = date_time
+        # Set the observer's date in UTC
+        observer.date = observation_date - timedelta(hours=2)
 
         # Calculate sunset and sunrise times
         sunset_time = observer.previous_setting(ephem.Sun())  # Sunset
@@ -261,15 +264,23 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         report_writer.write_to_report(lines=[
             '## check closeness to sunset/sunrise',
-            f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes',
-            f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST, Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST'])
+            f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes\n',
+            f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST', 
+            f'Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST\n',
+            f"In a few cases, previous_setting() or next_rising() would give you the last or next day's ",
+            f"sunset or sunrise date, so considering that sunset/rise times change by about half minute every day, ",
+            f"only hour, minute, and second information is used for calculating time difference"])
 
         if time_difference_sunset < self.closeness_to_sunset_sunrise_threshold:
-            report_writer.print_to_report(f"check closeness to sunset/sunrise: NO Good, the time difference between sunset and start time is {time_difference_sunset} minutes.")
+            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
+            f"NO Good, the time difference between sunset and start time is {round(time_difference_sunset,4)} minutes."])
         elif time_difference_sunrise < self.closeness_to_sunset_sunrise_threshold:
-            report_writer.print_to_report(f"check closeness to sunset/sunrise: NO Good, the time difference between sunrise and end time is {time_difference_sunrise} minutes.")
+            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
+            f"NO Good, the time difference between sunrise and end time is {round(time_difference_sunrise,4)} minutes."])
         else:
-            report_writer.print_to_report(f"check closeness to sunset/sunrise: Good, the time difference between sunset/sunrise and start/end time is {time_difference_sunset}/{time_difference_sunrise} minutes.")
+            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
+            f"Good, the time difference between sunset/sunrise and start/end time is ",
+            f"{round(time_difference_sunset,4)}/{round(time_difference_sunrise,4)} minutes."])
 
 
 
