@@ -10,7 +10,7 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1666024766',  # observation time stamp
+    block_name='1675021905',  # observation time stamp
     receiver_list=None,
     token=None,  # archive token
     data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
@@ -33,5 +33,6 @@ SanityCheckObservationPlugin = ConfigSection(
     elevation_sum_square_difference_threshold=1e-2,  # degrees^2
     elevation_square_difference_threshold=1e-3,  # degrees^2
     elevation_antenna_standard_deviation_threshold=1e-2,  # standard deviation threshold of individual dishes
-    closeness_to_sunset_sunrise_threshold=30., # minute, threshold of the time difference between sunset/sunrise and start/end time
+    closeness_to_sunset_sunrise_threshold=30., # minute, threshold of the time difference 
+    # between sunset/sunrise and start/end time
 )
