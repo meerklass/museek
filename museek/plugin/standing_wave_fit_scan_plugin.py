@@ -67,6 +67,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         parameters_dict = {}  # type: dict[dict[dict[float]]]
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
+            if receiver.name != 'm008v':
+                continue
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
@@ -80,8 +82,11 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
-                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
+                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
+                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8, 24.8, 26.8, 35.8, 32.4],
+                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8, 24.8, 26.8, 35.8, 32.4, 29.4, 39.2, 23.4],  # [, 39.2, 23.4
                 legendre_degree=1,
+                polyphase_parameters=(6, 64, 1.0003)
             )
             flags = scan_data.flags.get(time=times,
                                         freq=self.target_channels,
@@ -128,7 +133,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
     def first_scan_dumps() -> range:
         """ Return the first few scan dump indices as `range`. """
         start_dump_index = 0
-        end_dump_index = 124  # 124 is the first swing back and forth
+        # end_dump_index = 124  # 124 is the first swing back and forth
+        end_dump_index = 2951  # 124 is the first swing back and forth
         return range(start_dump_index, end_dump_index)
 
     def off_cut_dumps(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
@@ -136,9 +142,9 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         Return the scan dump indices of antenna `i_antenna` in `data` that lie outside a defined rectangle in ra-dec.
         """
         coordinates = (data.right_ascension.get(recv=i_antenna), data.declination.get(recv=i_antenna))
-        conditions = [(footprint[0] < coordinate.squeeze) & (footprint[1] > coordinate.squeeze)
+        conditions = [((coordinate.squeeze < footprint[0]) | (footprint[1] < coordinate.squeeze))
                       for footprint, coordinate in zip(self.footprint_ra_dec, coordinates)]
-        return np.where(conditions[0] & conditions[1])[0]
+        return np.where(conditions[0] | conditions[1])[0]
 
     @staticmethod
     def plot_times(data: TimeOrderedData, i_antenna: int, times: range | np.ndarray, output_path: str):

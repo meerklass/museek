@@ -44,6 +44,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         :param calibrator_label: `str` label to identify the standing wave calibrator that was used
         """
         for i_receiver, receiver in enumerate(scan_data.receivers):
+            if receiver.name != 'm008v':
+                continue
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)

@@ -16,11 +16,16 @@ class BandpassModel:
     def __init__(self,
                  standing_wave_displacements: list[float],
                  legendre_degree: int,
+                 polyphase_parameters: tuple[int, int, float],
+                 n_double: int,
                  plot_name: str | None = None):
         """
         Initialise
         :param standing_wave_displacements: list of `float` standing wave displacement distances [m]
         :param legendre_degree: degree of the legendre polynomial
+        :param polyphase_parameters: `tuple` of first dip dump index and dip separation (usually 64)
+                                      and neighbors/dip ratio
+        :param n_double: the most dominant `n_double` wavelengths will be considered in the double reflection model
         :param plot_name: optional plot name, not created if `None`
         """
         self.plot_name = plot_name
@@ -28,6 +33,8 @@ class BandpassModel:
         self.wavelengths = [d * 2 for d in self.standing_wave_displacements]
         self.n_wave = len(standing_wave_displacements)
         self.legendre_degree = legendre_degree
+        self.polyphase_parameters = polyphase_parameters
+        self.n_double = n_double
 
         # function to encapsulate the wiggly structure of the bandpass
         self.epsilon_function = None  # type: Optional[Callable]
@@ -57,8 +64,9 @@ class BandpassModel:
             target_estimator,
             self.legendre_degree
         )]
+        total_n_wavelengths = len(self.wavelengths) + self._n_double_combinations()
         starting_coefficients = starting_legendre_coefficients + [0.1 * (i % 2)
-                                                                  for i in range(len(self.wavelengths) * 2)]
+                                                                  for i in range(total_n_wavelengths * 2)]
 
         def bandpass_model_wrapper(f: np.ndarray, *parameters) -> np.ndarray:
             """ Wrap the bandpass model for the scipy fit. """
@@ -116,7 +124,7 @@ class BandpassModel:
             self,
             frequencies: np.ndarray,
             legendre_coefficients: np.ndarray | tuple,
-            sinus_parameters_list: list[tuple[float, float, float]]
+            sinus_parameters_list: list[tuple[float, float, float]],
     ) -> np.ndarray:
         """
         Bandpass model based on a discrete set of standing waves
@@ -127,13 +135,25 @@ class BandpassModel:
         """
         legendre_ = legendre.legval(frequencies, legendre_coefficients)
         sinusoidal = [self._sinus(frequencies, sinus_parameters) for sinus_parameters in sinus_parameters_list]
-        return legendre_ * (1 + sum(sinusoidal))
+        polyphase_dips = self._polyphase_dips(frequencies=frequencies)
+        return polyphase_dips * legendre_ * (1 + sum(sinusoidal))
+
+    def _polyphase_dips(self, frequencies: np.ndarray) -> np.ndarray:
+        result = np.ones_like(frequencies)
+        for i in range(len(result)):
+            if (i - self.polyphase_parameters[0]) % self.polyphase_parameters[1] == 0:
+                result[i] = 1 / self.polyphase_parameters[2]
+        return result
 
     @staticmethod
     def _sinus(frequencies: np.ndarray, parameters: tuple[float, float, float]) -> np.ndarray:
         """ Simple wrapper of `np.sin` to work on `frequencies` with `parameters`. """
         phase, amplitude, wavelength = parameters
         return amplitude * np.sin(phase + frequencies * 2 * np.pi / (SPEED_OF_LIGHT / wavelength / MEGA))
+
+    def _n_double_combinations(self):
+        """ DOC """
+        return self.n_double ** 2 - (self.n_double - 1) ** 2
 
     def _sinus_parameter_list(
             self,
@@ -149,6 +169,30 @@ class BandpassModel:
              parameters[n_legendre_coefficients + 2 * i + 1],
              w)
             for i, w in enumerate(self.wavelengths)
+        ]
+        double_sinus_parameter_list = self._double_reflection_sinus_parameter_list(
+            parameters=parameters,
+            sinus_parameters=sinus_parameter_list
+        )
+        return sinus_parameter_list + double_sinus_parameter_list
+
+    def _double_reflection_sinus_parameter_list(
+            self,
+            parameters: list[float] | np.ndarray | tuple,
+            sinus_parameters: list[tuple[float, float, float]]
+    ) -> list[tuple[float, float, float]]:
+        """ DOC """
+        start = len(sinus_parameters)
+        amplitudes = [parameters[1] for parameters in sinus_parameters]
+        top_amplitude_indices = np.argsort(amplitudes)[:self.n_double + 1]
+        top_wavelengths = [parameters[2] for parameters in sinus_parameters[top_amplitude_indices]]
+        top_wavelength_combinations = np.array(np.meshgrid(top_wavelengths, top_wavelengths)).T.reshape(-1, 2)
+        double_wavelengths = np.unique(np.sum(top_wavelength_combinations, axis=1))
+        sinus_parameter_list = [
+            (parameters[start + 2 * i],
+             parameters[start + 2 * i + 1],
+             w)
+            for i, w in enumerate(double_wavelengths)
         ]
         return sinus_parameter_list
 
@@ -206,15 +250,17 @@ class BandpassModel:
         plt.subplot(4, 1, 1)
         plt.plot(frequencies, bandpass, label='bandpass mean')
         plt.plot(frequencies, model_bandpass, ls=':', color='black', label='model')
-        plt.plot(frequencies, smooth_bandpass, label='smooth model')
         plt.xlabel('frequency [MHz]')
         plt.ylabel('bandpass mean')
+        # plt.xlim((989, 991))
         plt.legend()
 
         plt.subplot(4, 1, 2)
-        plt.plot(frequencies, epsilon, ls=':', color='black', label='epsilon wiggle model')
         plt.plot(frequencies, bandpass / smooth_bandpass - 1, label='epsilon wiggle data')
+        plt.plot(frequencies, epsilon, ls=':', color='black', label='epsilon wiggle model')
         plt.xlabel('frequency [MHz]')
+        # plt.xlim((989, 991))
+        # plt.ylim((-0.006, -0.004))
         plt.legend()
 
         plt.subplot(4, 1, 3)
@@ -227,5 +273,5 @@ class BandpassModel:
         plt.hist(residual, bins=50, color='black')
         plt.xlabel('residual [%]')
         plt.ylabel('histogram')
-        plt.savefig(os.path.join(receiver_path, f'{self.plot_name}_{before_or_after}.png'))
+        plt.savefig(os.path.join(receiver_path, f'{self.plot_name}_{before_or_after}.png'), dpi=300)
         plt.close()
