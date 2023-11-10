@@ -10,6 +10,7 @@ from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScan
 from museek.enum.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
+from definitions import SECONDS_IN_ONE_DAY
 import ephem
 from datetime import datetime, timedelta
 import numpy as np
@@ -239,6 +240,10 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         :param data: the `TimeOrderedData` to check
         :param report_writer: the `ReportWriter` object to handle the report
         :param observation_date: the 'datetime' object referring to the observation date 
+
+        In a few cases, previous_setting() or next_rising() would give you the last or next day's 
+        sunset or sunrise date, so considering that sunset/rise times change by about half minute every day,
+        only hour, minute, and second information is used for calculating time difference       
         """
 
         observer = ephem.Observer()
@@ -259,15 +264,16 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         start_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[0])) + timedelta(hours=2)
         end_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) + timedelta(hours=2)
 
-        time_difference_sunset = abs((start_local_time.hour*60.+start_local_time.minute+start_local_time.second/60.) - (sunset_local_time.hour*60.+sunset_local_time.minute+sunset_local_time.second/60.))
-        time_difference_sunrise = abs((end_local_time.hour*60.+end_local_time.minute+end_local_time.second/60.) - (sunrise_local_time.hour*60.+sunrise_local_time.minute+sunrise_local_time.second/60.))
+        time_difference_sunset = abs(start_local_time - sunset_local_time).total_seconds()%SECONDS_IN_ONE_DAY/60.
+        time_difference_sunrise = abs(end_local_time - sunrise_local_time).total_seconds()%SECONDS_IN_ONE_DAY/60. 
+
 
         report_writer.write_to_report(lines=[
             '## check closeness to sunset/sunrise',
             f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes\n',
             f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST', 
             f'Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST\n',
-            f"In a few cases, previous_setting() or next_rising() would give you the last or next day's ",
+            f"In a few cases, previous_setting() or next_rising() would give you the last or next day's "
             f"sunset or sunrise date, so considering that sunset/rise times change by about half minute every day, ",
             f"only hour, minute, and second information is used for calculating time difference"])
 
@@ -283,8 +289,3 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             f"{round(time_difference_sunset,4)}/{round(time_difference_sunrise,4)} minutes."])
 
 
-
-
-
-        
-        
