@@ -264,8 +264,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         start_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[0])) + timedelta(hours=2)
         end_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) + timedelta(hours=2)
 
-        time_difference_sunset = abs(start_local_time - sunset_local_time).total_seconds()%SECONDS_IN_ONE_DAY/60.
-        time_difference_sunrise = abs(end_local_time - sunrise_local_time).total_seconds()%SECONDS_IN_ONE_DAY/60. 
+
+        time_difference_sunset = abs((start_local_time.hour*60.+start_local_time.minute+start_local_time.second/60.) - (sunset_local_time.hour*60.+sunset_local_time.minute+sunset_local_time.second/60.))
+        time_difference_sunrise = abs((end_local_time.hour*60.+end_local_time.minute+end_local_time.second/60.) - (sunrise_local_time.hour*60.+sunrise_local_time.minute+sunrise_local_time.second/60.))
 
 
         report_writer.write_to_report(lines=[
@@ -279,13 +280,13 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         if time_difference_sunset < self.closeness_to_sunset_sunrise_threshold:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"NO Good, the time difference between sunset and start time is {round(time_difference_sunset,4)} minutes."])
+            f"NO Good, the time difference between sunset and start time is {time_difference_sunset:.4f} minutes."])
         elif time_difference_sunrise < self.closeness_to_sunset_sunrise_threshold:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"NO Good, the time difference between sunrise and end time is {round(time_difference_sunrise,4)} minutes."])
+            f"NO Good, the time difference between sunrise and end time is {time_difference_sunrise:.4f} minutes."])
         else:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
             f"Good, the time difference between sunset/sunrise and start/end time is ",
-            f"{round(time_difference_sunset,4)}/{round(time_difference_sunrise,4)} minutes."])
+            f"{time_difference_sunset:.4f}/{time_difference_sunrise:.4f} minutes."])
 
 
