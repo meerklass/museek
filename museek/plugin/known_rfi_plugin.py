@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData

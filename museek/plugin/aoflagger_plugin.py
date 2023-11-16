@@ -8,7 +8,7 @@ from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibP
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.data_element import DataElement
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
