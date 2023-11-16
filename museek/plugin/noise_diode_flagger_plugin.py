@@ -39,6 +39,8 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         for i in noise_diode_off_dumps:
             new_mask[i] = False
         data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask))
+        # empty axes for freq and recv
+        data.set_noise_diode_ratios(noise_diode_ratios=noise_diode.noise_diode_ratios[:, np.newaxis, np.newaxis])
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         waterfall(data.visibility.get(recv=0),
