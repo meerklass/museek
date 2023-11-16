@@ -9,7 +9,7 @@ from definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.model.bandpass_model import BandpassModel
 from museek.time_ordered_data import TimeOrderedData
 

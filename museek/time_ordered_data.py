@@ -11,7 +11,7 @@ from katpoint import Target, Antenna
 
 from definitions import ROOT_DIR
 from museek.data_element import DataElement
-from museek.enum.scan_state_enum import ScanStateEnum
+from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory, FlagElementFactory
 from museek.flag_list import FlagList
 from museek.receiver import Receiver

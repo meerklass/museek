@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from museek.enum.scan_state_enum import ScanStateEnum
+from museek.enums.scan_state_enum import ScanStateEnum
 from museek.noise_diode_data import NoiseDiodeData
 
 

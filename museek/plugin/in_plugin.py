@@ -4,7 +4,7 @@ from datetime import datetime
 from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 

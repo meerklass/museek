@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from museek.enum.demo_enum import DemoEnum
+from museek.enums.demo_enum import DemoEnum
 
 
 class DemoPlotPlugin(AbstractPlugin):

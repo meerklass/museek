@@ -1,4 +1,4 @@
-from museek.enum.scan_state_enum import ScanStateEnum
+from museek.enums.scan_state_enum import ScanStateEnum
 from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 
