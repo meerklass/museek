@@ -7,7 +7,7 @@ from PIL import Image
 from definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
-from museek.enum.demo_enum import DemoEnum
+from museek.enums.demo_enum import DemoEnum
 
 
 class DemoLoadPlugin(AbstractPlugin):

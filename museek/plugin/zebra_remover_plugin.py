@@ -4,7 +4,7 @@ from scipy.optimize import curve_fit
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import plot_time_ordered_data_map
 
