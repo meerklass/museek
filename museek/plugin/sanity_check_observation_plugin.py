@@ -14,6 +14,7 @@ from definitions import SECONDS_IN_ONE_DAY
 import ephem
 from datetime import datetime, timedelta
 import numpy as np
+from museek.util.time_analysis import TimeAnalysis
 
 class SanityCheckObservationPlugin(AbstractPlugin):
     """
@@ -90,7 +91,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                        f'Observation start time: {timestamp_dates[0]}\n ',
                                        f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
 
-        self.check_closeness_to_sunrise_sunset(data=scan_data, report_writer=report_writer, observation_date=observation_date)
+        TA = TimeAnalysis(data=scan_data) 
+        self.check_closeness_to_sunrise_sunset(report_writer=report_writer, TA=TA)
         self.check_elevation(data=scan_data, report_writer=report_writer)
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
@@ -233,60 +235,34 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.savefig(description='Elevation histogram of all dishes during scan.')
 
 
-    def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter, observation_date):
+    def check_closeness_to_sunrise_sunset(self, report_writer: ReportWriter, TA):
 
         """
         Check the time difference between sunset/sunrise and start/end time.
-        :param data: the `TimeOrderedData` to check
         :param report_writer: the `ReportWriter` object to handle the report
-        :param observation_date: the 'datetime' object referring to the observation date 
+        :param TA: the `TimeAnalysis` object to handle the time
 
-        In a few cases, previous_setting() or next_rising() would give you the last or next day's 
-        sunset or sunrise date, so considering that sunset/rise times change by about half minute every day,
-        only hour, minute, and second information is used for calculating time difference       
         """
 
-        observer = ephem.Observer()
-        observer.lat = data.antennas[0].ref_observer.lat
-        observer.lon = data.antennas[0].ref_observer.long
-
-        # Set the observer's date in UTC
-        observer.date = observation_date - timedelta(hours=2)
-
-        # Calculate sunset and sunrise times
-        sunset_time = observer.previous_setting(ephem.Sun())  # Sunset
-        sunrise_time = observer.next_rising(ephem.Sun())  # Sunrise
-        
-        # Convert times to South Africa local timezone
-        sunset_local_time = datetime.strptime(str(sunset_time), "%Y/%m/%d %H:%M:%S") + timedelta(hours=2)
-        sunrise_local_time = datetime.strptime(str(sunrise_time), "%Y/%m/%d %H:%M:%S") + timedelta(hours=2)
-
-        start_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[0])) + timedelta(hours=2)
-        end_local_time = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) + timedelta(hours=2)
-
-
-        time_difference_sunset = abs((start_local_time.hour*60.+start_local_time.minute+start_local_time.second/60.) - (sunset_local_time.hour*60.+sunset_local_time.minute+sunset_local_time.second/60.))
-        time_difference_sunrise = abs((end_local_time.hour*60.+end_local_time.minute+end_local_time.second/60.) - (sunrise_local_time.hour*60.+sunrise_local_time.minute+sunrise_local_time.second/60.))
-
+        sunset_time_start, sunrise_time_end, end_to_sunrise_diff, start_to_sunset_diff = TA.time_difference_to_sunset_sunrise(timezone = 2)
 
         report_writer.write_to_report(lines=[
             '## check closeness to sunset/sunrise',
             f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes\n',
-            f'Sunset time: {sunset_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST', 
-            f'Sunrise time: {sunrise_local_time.strftime("%Y-%m-%d %H:%M:%S %Z")}SAST\n',
-            f"In a few cases, previous_setting() or next_rising() would give you the last or next day's "
-            f"sunset or sunrise date, so considering that sunset/rise times change by about half minute every day, ",
-            f"only hour, minute, and second information is used for calculating time difference"])
+            f'Sunset time: {sunset_time_start.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC',
+            f'Sunrise time: {sunrise_time_end.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC\n'
+            f"When start before sunset or end after sunrise, previous_setting() or next_rising() would give you "
+            f"the last or next day's sunset or sunrise date"
+            ])
 
-        if time_difference_sunset < self.closeness_to_sunset_sunrise_threshold:
+
+        if start_to_sunset_diff/60. > self.closeness_to_sunset_sunrise_threshold and start_to_sunset_diff/60. < 720. and abs(end_to_sunrise_diff/60.) > self.closeness_to_sunset_sunrise_threshold and abs(end_to_sunrise_diff/60.) < 720.:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"NO Good, the time difference between sunset and start time is {time_difference_sunset:.4f} minutes."])
-        elif time_difference_sunrise < self.closeness_to_sunset_sunrise_threshold:
-            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"NO Good, the time difference between sunrise and end time is {time_difference_sunrise:.4f} minutes."])
+            f"Good, the time difference between start/end time and sunset/sunrise is ",
+            f"{start_to_sunset_diff/60.:.4f}/{end_to_sunrise_diff/60.:.4f} minutes."])
         else:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"Good, the time difference between sunset/sunrise and start/end time is ",
-            f"{time_difference_sunset:.4f}/{time_difference_sunrise:.4f} minutes."])
+            f"No Good, the time difference between start/end time and sunset/sunrise is ",
+            f"{start_to_sunset_diff/60.:.4f}/{end_to_sunrise_diff/60.:.4f} minutes."])
 
 
