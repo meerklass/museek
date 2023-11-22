@@ -1,6 +1,6 @@
-import numpy as np
 from datetime import datetime, timedelta
 import ephem
+
 
 class TimeAnalysis:
     """ Class to do time-related analysis. """
@@ -14,20 +14,22 @@ class TimeAnalysis:
         self.latitude = latitude
         self.longitude = longitude
 
-    def time_difference_to_sunset_sunrise(self, obs_start, obs_end, utcoffset):
-
+    def time_difference_to_sunset_sunrise(
+        self,
+        obs_start: datetime,
+        obs_end: datetime,
+        utcoffset: float
+    ) -> tuple[datetime, datetime, float, float]:
         """
         Calculate the closeness between start/end time and sunset/sunrise time
         :param obs_start: the start time of whole observation
         :param obs_end: the end time of whole observation
         :param utcoffset: float, offset between local time and the UTC in hours
-        
-        Returns
-        -------
-        sunset_start.datetime(), sunrise_end.datetime() : datetime object
-                the nearest sunset/sunrise time before/after observation started/ended
-        end_sunrise_diff, start_sunset_diff : float 
-                the time difference between end/start and sunrise/sunset in float 
+        :return: `tuple` of 
+                - sunset_start.datetime(), sunrise_end.datetime() : datetime object
+                - the nearest sunset/sunrise time before/after observation started/ended
+                - end_sunrise_diff, start_sunset_diff : float [seconds] 
+                - the time difference between end/start and sunrise/sunset in float [seconds]
 
         Notes
         -----
@@ -46,10 +48,8 @@ class TimeAnalysis:
         # Calculate sunset and sunrise times for start time / end time (in UTC)
         observer.date = obs_start_local
         sunset_start = observer.previous_setting(ephem.Sun())
-        sunrise_start = observer.next_rising(ephem.Sun())
 
         observer.date = obs_end_local
-        sunset_end = observer.previous_setting(ephem.Sun())
         sunrise_end = observer.next_rising(ephem.Sun())
 
         # Calculate time differences
@@ -57,4 +57,3 @@ class TimeAnalysis:
         start_sunset_diff = (obs_start - sunset_start.datetime()).total_seconds()
 
         return sunset_start.datetime(), sunrise_end.datetime(), end_sunrise_diff, start_sunset_diff
-
