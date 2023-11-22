@@ -7,7 +7,7 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from definitions import SECONDS_IN_ONE_DAY

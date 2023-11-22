@@ -1,6 +1,6 @@
 import unittest
 
-from museek.enum.scan_state_enum import ScanStateEnum
+from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import ScanElementFactory
 
 
