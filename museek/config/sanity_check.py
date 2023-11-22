@@ -33,4 +33,6 @@ SanityCheckObservationPlugin = ConfigSection(
     elevation_sum_square_difference_threshold=1e-2,  # degrees^2
     elevation_square_difference_threshold=1e-3,  # degrees^2
     elevation_antenna_standard_deviation_threshold=1e-2,  # standard deviation threshold of individual dishes
+    closeness_to_sunset_sunrise_threshold=30., # minute, threshold of the time difference 
+    # between sunset/sunrise and start/end time
 )

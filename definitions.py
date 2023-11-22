@@ -6,3 +6,4 @@ MEGA = 1e6
 GIGA = 1e9
 
 SPEED_OF_LIGHT = 3e8  # m/s
+SECONDS_IN_ONE_DAY = 86400 # s
