@@ -1,48 +1,60 @@
 import numpy as np
 from datetime import datetime, timedelta
 import ephem
-from museek.time_ordered_data import TimeOrderedData
 
 class TimeAnalysis:
     """ Class to do time-related analysis. """
 
-    def __init__(self, data: TimeOrderedData):
+    def __init__(self, latitude: str, longitude: str):
         """
         Initialise
-        :param data: the analysed `TimeOrderedData` object
+        :param latitude: latitude of the telescope
+        :param longitude: longitude of the telescope
         """
-        self.obs_start = datetime.utcfromtimestamp(float(data.original_timestamps[0])) 
-        self.obs_end = datetime.utcfromtimestamp(float(data.original_timestamps[-1])) 
-        self.lat = data.antennas[0].ref_observer.lat
-        self.long = data.antennas[0].ref_observer.long
+        self.latitude = latitude
+        self.longitude = longitude
 
-    def time_difference_to_sunset_sunrise(self, timezone):
+    def time_difference_to_sunset_sunrise(self, obs_start, obs_end, utcoffset):
 
         """
         Calculate the closeness between start/end time and sunset/sunrise time
-        :param timezone: float, the time zone where the observer is located
+        :param obs_start: the start time of whole observation
+        :param obs_end: the end time of whole observation
+        :param utcoffset: float, offset between local time and the UTC in hours
+        
+        Returns
+        -------
+        sunset_start.datetime(), sunrise_end.datetime() : datetime object
+                the nearest sunset/sunrise time before/after observation started/ended
+        end_sunrise_diff, start_sunset_diff : float 
+                the time difference between end/start and sunrise/sunset in float 
+
+        Notes
+        -----
+        When observations start before sunset or end after sunrise, 
+        previous_setting() or next_rising() would give you the last or next day's sunset or sunrise date
         """
 
         observer = ephem.Observer()
-        observer.lat = self.lat
-        observer.lon = self.long
+        observer.lat = self.latitude
+        observer.lon = self.longitude
 
         # Set the observer's date (in local time)
-        obs_start_local = self.obs_start + timedelta(hours=timezone)
-        obs_end_local = self.obs_end + timedelta(hours=timezone)
+        obs_start_local = obs_start + timedelta(hours=utcoffset)
+        obs_end_local = obs_end + timedelta(hours=utcoffset)
 
         # Calculate sunset and sunrise times for start time / end time (in UTC)
         observer.date = obs_start_local
-        sunset_time_start = observer.previous_setting(ephem.Sun())
-        sunrise_time_start = observer.next_rising(ephem.Sun())
+        sunset_start = observer.previous_setting(ephem.Sun())
+        sunrise_start = observer.next_rising(ephem.Sun())
 
         observer.date = obs_end_local
-        sunset_time_end = observer.previous_setting(ephem.Sun())
-        sunrise_time_end = observer.next_rising(ephem.Sun())
+        sunset_end = observer.previous_setting(ephem.Sun())
+        sunrise_end = observer.next_rising(ephem.Sun())
 
         # Calculate time differences
-        end_to_sunrise_diff = (self.obs_end - sunrise_time_end.datetime()).total_seconds()
-        start_to_sunset_diff = (self.obs_start - sunset_time_start.datetime()).total_seconds()
+        end_sunrise_diff = (obs_end - sunrise_end.datetime()).total_seconds()
+        start_sunset_diff = (obs_start - sunset_start.datetime()).total_seconds()
 
-        return sunset_time_start.datetime(), sunrise_time_end.datetime(), end_to_sunrise_diff, start_to_sunset_diff
+        return sunset_start.datetime(), sunrise_end.datetime(), end_sunrise_diff, start_sunset_diff
 
