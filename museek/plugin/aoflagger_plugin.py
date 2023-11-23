@@ -118,6 +118,8 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         waterfall(scan_data.visibility.get(recv=0),
                   scan_data.flags.get(recv=0),
                   cmap='gist_ncar')
+        plt.xlabel('time stamps')
+        plt.ylabel('channels')
         plt.savefig(os.path.join(output_path, 'rfi_mitigation_result_receiver_0.png'), dpi=1000)
         plt.close()
 
