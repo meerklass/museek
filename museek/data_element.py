@@ -2,6 +2,7 @@ import numbers
 from typing import Union
 
 import numpy as np
+import scipy
 
 from museek.abstract_data_element import AbstractDataElement
 
@@ -101,6 +102,19 @@ class DataElement(AbstractDataElement):
             return self._std(axis=axis)
         return self._flagged_std(axis=axis, flags=flags)
 
+    def kurtosis(
+            self,
+            flags: Union['FlagList', None] = None
+    ):
+        """
+        Return the kurtosis of the unflagged entries in `self` as a float
+        :param flags: optional, only entries not flagged by these are used
+        :return: float, the kurtosis
+        """
+        if flags is None:
+            return self._kurtosis()
+        return self._flagged_kurtosis(flags=flags)
+
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
@@ -120,6 +134,10 @@ class DataElement(AbstractDataElement):
     def _std(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return a `DataElement` created from the output of `np.std` applied along `axis`. """
         return DataElement(array=np.std(self.array, axis=axis, keepdims=True))
+
+    def _kurtosis(self):
+        """ Return the number from the output of `scipy.stats.kurtosis`. """
+        return scipy.stats.kurtosis(self.array.flatten())
 
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
@@ -144,3 +162,13 @@ class DataElement(AbstractDataElement):
         combined = flags.combine(threshold=1)
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.std(axis=axis, keepdims=True))
+
+    def _flagged_kurtosis(self, flags: 'FlagList'):
+        """
+        Return the kurtosis of the unflagged entries in `self` as a float
+        :param flags: only entries not flagged by these are used
+        :return: float the kurtosis
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self.array, combined.array)
+        return scipy.stats.kurtosis(masked.flatten())
