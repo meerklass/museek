@@ -31,6 +31,7 @@ Pipeline = ConfigSection(
 StandingWaveFitScanPlugin = ConfigSection(
     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
     footprint_ra_dec=None,
+    do_store_parameters=True
     # footprint_ra_dec=((332.41, 357.85), (-35.35, -25.96))  # roughly a 2 % degree margin around the footprint
     # target_channels=range(570, 1410),  # 975 to 1151 MHz (yes HI & little RFI)
     # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
