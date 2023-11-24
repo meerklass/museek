@@ -67,8 +67,9 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         parameters_dict = {}  # type: dict[dict[dict[float]]]
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            if receiver.name != 'm008v':
-                continue
+            # if receiver.name != 'm008v':
+            #     continue
+            print(f'Working on {receiver.name}...')
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
@@ -82,22 +83,29 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
-                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8, 24.8, 26.8, 35.8, 32.4],
-                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8, 24.8, 26.8, 35.8, 32.4, 29.4, 39.2, 23.4],  # [, 39.2, 23.4
+                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
                 legendre_degree=1,
                 polyphase_parameters=(6, 64, 1.0003)
             )
             flags = scan_data.flags.get(time=times,
                                         freq=self.target_channels,
                                         recv=i_receiver)
+            if flags.combine().squeeze.all():
+                print('Everything flagged... - continue')
+                continue
             bandpass_estimator = scan_data.visibility.get(time=times,
                                                           freq=self.target_channels,
                                                           recv=i_receiver).mean(axis=0, flags=flags)
-            bandpass_model.fit(frequencies,
-                               estimator=bandpass_estimator,
-                               receiver_path=receiver_path,
-                               calibrator_label=self.calibrator_label)
+            bandpass_estimator /= bandpass_estimator.max(axis=1).squeeze
+            fit_args = dict(frequencies=frequencies,
+                            estimator=bandpass_estimator,
+                            receiver_path=receiver_path,
+                            calibrator_label=self.calibrator_label)
+            bandpass_model.fit(**fit_args)
+            try:
+                bandpass_model.double_fit(n_double=2, **fit_args)
+            except RuntimeError:
+                print('warning: fit did not converge?')
             epsilon_function_dict[receiver.name][self.calibrator_label] = bandpass_model.epsilon_function
             legendre_function_dict[receiver.name][self.calibrator_label] = bandpass_model.legendre_function
             parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
