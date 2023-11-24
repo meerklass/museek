@@ -3,7 +3,7 @@ from typing import Generator
 
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.result import Result
-from museek.enum.demo_enum import DemoEnum
+from museek.enums.demo_enum import DemoEnum
 
 
 class DemoJoblibPlugin(AbstractParallelJoblibPlugin):

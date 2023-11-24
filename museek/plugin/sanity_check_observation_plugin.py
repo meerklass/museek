@@ -1,17 +1,19 @@
 import itertools
 
 import matplotlib.pylab as plt
-from astropy import coordinates, units
-
 from ivory.enum.context_storage_enum import ContextStorageEnum
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-
+from definitions import SECONDS_IN_ONE_DAY
+from datetime import datetime, timedelta
+import numpy as np
+from museek.util.time_analysis import TimeAnalysis
 
 class SanityCheckObservationPlugin(AbstractPlugin):
     """
@@ -21,6 +23,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
     def __init__(self,
                  reference_receiver_index: int,
+                 closeness_to_sunset_sunrise_threshold: float,
                  elevation_sum_square_difference_threshold: float,
                  elevation_square_difference_threshold: float,
                  elevation_antenna_standard_deviation_threshold=1e-2):
@@ -33,6 +36,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                                       pointing elevation and the overall mean
         :param elevation_antenna_standard_deviation_threshold: threshold on the standard deviation
                                                                on antenna pointing elevation
+        :param closeness_to_sunset_sunrise_threshold: threshold of the time difference between
+                                                      sunset/sunrise and start/end time
         """
         super().__init__()
 
@@ -46,20 +51,23 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.elevation_sum_square_difference_threshold = elevation_sum_square_difference_threshold
         self.elevation_square_difference_threshold = elevation_square_difference_threshold
         self.elevation_antenna_standard_deviation_threshold = elevation_antenna_standard_deviation_threshold
+        self.closeness_to_sunset_sunrise_threshold = closeness_to_sunset_sunrise_threshold
 
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='all_data'),
                              Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
+                             Requirement(location=ResultEnum.OBSERVATION_DATE, variable='observation_date')]
 
-    def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str):
+    def run(self, scan_data: TimeOrderedData, all_data: TimeOrderedData, output_path: str, observation_date):
         """
         Runs the observation sanity check.
         Produces a selection of plots and runs a couple of checks.
         :param scan_data: the `TimeOrderedData` object referring to the scanning part
         :param all_data: the `TimeOrderedData` object referring to the complete observation
         :param output_path: the path to store the results and plots
+        :param observation_date: the 'datetime' object referring to the observation date
         """
         self.output_path = output_path
         report_writer = ReportWriter(output_path=output_path,
@@ -82,12 +90,19 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                        f'Observation start time: {timestamp_dates[0]}\n ',
                                        f'\t \t and duration: {timestamp_dates[-1] - timestamp_dates[0]}'])
 
+        time_analysis = TimeAnalysis(latitude=scan_data.antennas[0].ref_observer.lat,
+                                     longitude=scan_data.antennas[0].ref_observer.long) 
+
+        self.check_closeness_to_sunrise_sunset(data=scan_data, 
+                                               report_writer=report_writer, 
+                                               time_analysis=time_analysis)
         self.check_elevation(data=scan_data, report_writer=report_writer)
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
         self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
         self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
+
 
     def savefig(self, description: str = 'description'):
         """ Save a figure and embed it in the report with `description`. """
@@ -149,10 +164,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         timestamp_dates = data.timestamp_dates
 
-        sky_coordinates = coordinates.SkyCoord(data.azimuth.squeeze * units.deg,
-                                               data.elevation.squeeze * units.deg,
-                                               frame='altaz')
-
         # mean over dishes
         dish_mean_azimuth = data.azimuth.mean(axis=-1)
         dish_mean_elevation = data.elevation.mean(axis=-1)
@@ -173,7 +184,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                                  f'Reference antenna {data.antenna(receiver=reference_receiver).name}.')
 
         plt.figure(figsize=(8, 4))
-        plt.plot(sky_coordinates.az, sky_coordinates.alt, '.-')
+        plt.plot(data.azimuth.squeeze, data.elevation.squeeze, '.-')
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Entire scanning route. '
@@ -225,3 +236,41 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.hist(data.elevation.squeeze.flatten(), bins=200)
         plt.xlabel('elevation')
         self.savefig(description='Elevation histogram of all dishes during scan.')
+
+
+    def check_closeness_to_sunrise_sunset(self, data: TimeOrderedData, report_writer: ReportWriter, time_analysis: TimeAnalysis):
+
+        """
+        Check the time difference between sunset/sunrise and start/end time.
+        :param data: the `TimeOrderedData` object to check
+        :param report_writer: the `ReportWriter` object to handle the report
+        :param time_analysis: the `TimeAnalysis` object to handle the time
+
+        """
+
+        sunset_start, sunrise_end, end_sunrise_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
+                obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
+                obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
+                utcoffset=2.)
+
+        report_writer.write_to_report(lines=[
+            '## check closeness to sunset/sunrise',
+            f'performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes\n',
+            f'Sunset time: {sunset_start.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC',
+            f'Sunrise time: {sunrise_end.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC'])
+
+
+        if (start_sunset_diff/60. > self.closeness_to_sunset_sunrise_threshold
+                and start_sunset_diff/60. < 720.
+                and abs(end_sunrise_diff/60.) > self.closeness_to_sunset_sunrise_threshold
+                and abs(end_sunrise_diff/60.) < 720.):
+
+            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
+            f"Good, the time difference between start/end time and sunset/sunrise is ",
+            f"{start_sunset_diff/60.:.4f}/{end_sunrise_diff/60.:.4f} minutes."])
+        else:
+            report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
+            f"No Good, the time difference between start/end time and sunset/sunrise is ",
+            f"{start_sunset_diff/60.:.4f}/{end_sunrise_diff/60.:.4f} minutes."])
+
+

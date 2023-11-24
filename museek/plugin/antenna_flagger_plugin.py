@@ -6,7 +6,7 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
 from museek.data_element import DataElement
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
 from museek.flag_list import FlagList
