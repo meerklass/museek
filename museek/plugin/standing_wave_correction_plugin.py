@@ -44,14 +44,18 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         :param calibrator_label: `str` label to identify the standing wave calibrator that was used
         """
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            if receiver.name != 'm008v':
-                continue
+            # if receiver.name != 'm008v':
+            #     continue
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             antenna_index = receiver.antenna_index(receivers=scan_data.receivers)
             frequencies = scan_data.frequencies.get(freq=target_channels)
-            epsilon = epsilon_function_dict[receiver.name][calibrator_label](frequencies)
+            try:
+                epsilon = epsilon_function_dict[receiver.name][calibrator_label](frequencies)
+            except (KeyError, IndexError):
+                print('Results are not available... - continue')
+                continue
             legendre = legendre_function_dict[receiver.name][calibrator_label](frequencies)
             self.plot_individual_swings(scan_data=scan_data,
                                         antenna_index=antenna_index,
