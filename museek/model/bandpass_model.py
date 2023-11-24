@@ -17,7 +17,6 @@ class BandpassModel:
                  standing_wave_displacements: list[float],
                  legendre_degree: int,
                  polyphase_parameters: tuple[int, int, float],
-                 n_double: int,
                  plot_name: str | None = None):
         """
         Initialise
@@ -25,7 +24,6 @@ class BandpassModel:
         :param legendre_degree: degree of the legendre polynomial
         :param polyphase_parameters: `tuple` of first dip dump index and dip separation (usually 64)
                                       and neighbors/dip ratio
-        :param n_double: the most dominant `n_double` wavelengths will be considered in the double reflection model
         :param plot_name: optional plot name, not created if `None`
         """
         self.plot_name = plot_name
@@ -34,7 +32,6 @@ class BandpassModel:
         self.n_wave = len(standing_wave_displacements)
         self.legendre_degree = legendre_degree
         self.polyphase_parameters = polyphase_parameters
-        self.n_double = n_double
 
         # function to encapsulate the wiggly structure of the bandpass
         self.epsilon_function = None  # type: Optional[Callable]
@@ -44,42 +41,58 @@ class BandpassModel:
         self.parameters_dictionary = None  # type: Optional[dict]
         self.epsilon = None  # type: Optional[np.ndarray]
 
+        self._curve_fit: list | None = None
+
+    def _reset_wavelengths(self, wavelengths: list[float] | np.ndarray):
+        """
+        Set `self.n_wave`, `self.wavelengths` and `self.standing_wave_displacements` according to input `wavelengths`.
+        """
+        self.wavelengths = wavelengths
+        self.standing_wave_displacements = [w / 2 for w in self.wavelengths]
+        self.n_wave = len(self.standing_wave_displacements)
+
     def fit(self,
             frequencies: DataElement,
             estimator: DataElement,
             receiver_path: str,
-            calibrator_label: str):
+            calibrator_label: str,
+            starting_coefficients: list[float] | None = None):
         """
         Fit the standing wave model to a single receiver.
         :param frequencies: the frequencies as a `DataElement`
         :param estimator: the bandpass itself or an estimator thereof as `DataElement`
         :param receiver_path: path to store results specific to this receiver
         :param calibrator_label: usually 'before_scan' or 'after_scan' or similar
+        :param starting_coefficients: optional `list` of `float` starting coefficients
         """
         target_frequencies = frequencies.squeeze / MEGA
         target_estimator = estimator.squeeze
 
-        starting_legendre_coefficients = [x for x in legendre.legfit(
+        legendre_start_fit = legendre.legfit(
             target_frequencies,
             target_estimator,
             self.legendre_degree
-        )]
-        total_n_wavelengths = len(self.wavelengths) + self._n_double_combinations()
-        starting_coefficients = starting_legendre_coefficients + [0.1 * (i % 2)
-                                                                  for i in range(total_n_wavelengths * 2)]
+        )
+        n_legendre_coeff = len(legendre_start_fit)
+        total_n_wavelengths = len(self.wavelengths)
+
+        if starting_coefficients is None:
+            starting_legendre_coefficients = [x for x in legendre_start_fit]
+            starting_coefficients = starting_legendre_coefficients + [0.1 * (i % 2)
+                                                                      for i in range(total_n_wavelengths * 2)]
 
         def bandpass_model_wrapper(f: np.ndarray, *parameters) -> np.ndarray:
             """ Wrap the bandpass model for the scipy fit. """
             sinus_coefficient_list = self._sinus_parameter_list(
                 parameters=parameters,
-                n_legendre_coefficients=len(starting_legendre_coefficients),
+                n_legendre_coefficients=n_legendre_coeff,
             )
             return self._bandpass_model(frequencies=f,
-                                        legendre_coefficients=parameters[:len(starting_legendre_coefficients)],
+                                        legendre_coefficients=parameters[:n_legendre_coeff],
                                         sinus_parameters_list=sinus_coefficient_list)
 
-        lower_bounds = np.asarray([-np.inf for _ in starting_legendre_coefficients] + [-np.pi, 0] * self.n_wave)
-        upper_bounds = np.asarray([np.inf for _ in starting_legendre_coefficients] + [np.pi, 1] * self.n_wave)
+        lower_bounds = np.asarray([-np.inf for _ in range(n_legendre_coeff)] + [-np.pi, 0] * self.n_wave)
+        upper_bounds = np.asarray([np.inf for _ in range(n_legendre_coeff)] + [np.pi, 10] * self.n_wave)
         bounds = (lower_bounds, upper_bounds)
 
         curve_fit = scipy.optimize.curve_fit(bandpass_model_wrapper,
@@ -89,13 +102,11 @@ class BandpassModel:
                                              bounds=bounds)
 
         model_bandpass = bandpass_model_wrapper(target_frequencies, *curve_fit[0])
-        legendre_bandpass = legendre.legval(target_frequencies, curve_fit[0][:len(starting_legendre_coefficients)])
+        legendre_bandpass = legendre.legval(target_frequencies, curve_fit[0][:n_legendre_coeff])
         epsilon = model_bandpass / legendre_bandpass - 1
 
-        parameters_dict = self._parameters_to_dictionary(curve_fit[0],
-                                                         n_legendre_coefficients=len(starting_legendre_coefficients))
-        variances_dict = self._parameters_to_dictionary(np.diag(curve_fit[1]),
-                                                        n_legendre_coefficients=len(starting_legendre_coefficients))
+        parameters_dict = self._parameters_to_dictionary(curve_fit[0], n_legendre_coefficients=n_legendre_coeff)
+        variances_dict = self._parameters_to_dictionary(np.diag(curve_fit[1]), n_legendre_coefficients=n_legendre_coeff)
 
         if self.plot_name is not None:
             self._plot(frequencies=target_frequencies,
@@ -108,7 +119,7 @@ class BandpassModel:
 
         def legendre_function(f: DataElement) -> np.ndarray:
             """ Return the legendre contribution to the bandpass as a function of frequency. """
-            return legendre.legval(f.squeeze / MEGA, curve_fit[0][:len(starting_legendre_coefficients)])
+            return legendre.legval(f.squeeze / MEGA, curve_fit[0][:n_legendre_coeff])
 
         def epsilon_function(f: DataElement) -> np.ndarray:
             """ Return the sinusoidal contribution to the bandpass as a function of frequency. """
@@ -119,6 +130,35 @@ class BandpassModel:
         self.variances_dictionary = variances_dict
         self.parameters_dictionary = parameters_dict
         self.epsilon = epsilon
+        self._curve_fit = curve_fit
+
+    def double_fit(self,
+                   n_double: int,
+                   frequencies: DataElement,
+                   estimator: DataElement,
+                   receiver_path: str,
+                   calibrator_label: str):
+        """
+        Fit the standing wave model including `n_double` double reflections to a single receiver.
+        :param n_double: number of high-amplitude wavelengths to consider for double reflections
+        :param frequencies: the frequencies as a `DataElement`
+        :param estimator: the bandpass itself or an estimator thereof as `DataElement`
+        :param receiver_path: path to store results specific to this receiver
+        :param calibrator_label: usually 'before_scan' or 'after_scan' or similar
+        """
+        if self.epsilon_function is None:
+            raise ValueError('Method `fit` must be run beforehand.')
+        maximum_wavelengths = self._maximum_wavelengths(n=n_double)
+        double_wavelengths = self._double_wavelengths(wavelengths_to_double=maximum_wavelengths)
+        starting_coefficients = list(self._curve_fit[0]) + [0.001 * (i % 2)
+                                                            for i in range(len(double_wavelengths) * 2)]
+        wavelengths = np.append(self.wavelengths, double_wavelengths)
+        self._reset_wavelengths(wavelengths=wavelengths)
+        self.fit(frequencies=frequencies,
+                 estimator=estimator,
+                 receiver_path=receiver_path,
+                 calibrator_label=calibrator_label,
+                 starting_coefficients=starting_coefficients)
 
     def _bandpass_model(
             self,
@@ -151,10 +191,6 @@ class BandpassModel:
         phase, amplitude, wavelength = parameters
         return amplitude * np.sin(phase + frequencies * 2 * np.pi / (SPEED_OF_LIGHT / wavelength / MEGA))
 
-    def _n_double_combinations(self):
-        """ DOC """
-        return self.n_double ** 2 - (self.n_double - 1) ** 2
-
     def _sinus_parameter_list(
             self,
             parameters: list[float] | np.ndarray | tuple,
@@ -169,30 +205,6 @@ class BandpassModel:
              parameters[n_legendre_coefficients + 2 * i + 1],
              w)
             for i, w in enumerate(self.wavelengths)
-        ]
-        double_sinus_parameter_list = self._double_reflection_sinus_parameter_list(
-            parameters=parameters,
-            sinus_parameters=sinus_parameter_list
-        )
-        return sinus_parameter_list + double_sinus_parameter_list
-
-    def _double_reflection_sinus_parameter_list(
-            self,
-            parameters: list[float] | np.ndarray | tuple,
-            sinus_parameters: list[tuple[float, float, float]]
-    ) -> list[tuple[float, float, float]]:
-        """ DOC """
-        start = len(sinus_parameters)
-        amplitudes = [parameters[1] for parameters in sinus_parameters]
-        top_amplitude_indices = np.argsort(amplitudes)[:self.n_double + 1]
-        top_wavelengths = [parameters[2] for parameters in sinus_parameters[top_amplitude_indices]]
-        top_wavelength_combinations = np.array(np.meshgrid(top_wavelengths, top_wavelengths)).T.reshape(-1, 2)
-        double_wavelengths = np.unique(np.sum(top_wavelength_combinations, axis=1))
-        sinus_parameter_list = [
-            (parameters[start + 2 * i],
-             parameters[start + 2 * i + 1],
-             w)
-            for i, w in enumerate(double_wavelengths)
         ]
         return sinus_parameter_list
 
@@ -227,6 +239,34 @@ class BandpassModel:
             raise ValueError(f'The number of parameters must be equal to the number of legendre coefficients + twice'
                              f'the number of wavelengths, got {len(parameters)} and {must_be_equal}.')
 
+    def _all_amplitudes_all_wavelengths(self) -> tuple[list[float], list[float]]:
+        """ Return a `tuple` of all amplitudes and all corresponding wavelengths. """
+        all_wavelengths = []  # type: list[float]
+        all_amplitudes = []  # type: list[float]
+        for key_, value_ in self.parameters_dictionary.items():
+            if 'wavelength' in key_ and '_amplitude' in key_:
+                wavelength = float(key_.split('_')[1])
+                all_wavelengths.append(wavelength)
+                all_amplitudes.append(value_)
+        return all_amplitudes, all_wavelengths
+
+    def _maximum_wavelengths(self, n: int) -> list[float]:
+        """ Return all wavelengths sorted for amplitudes. """
+        all_amplitudes, all_wavelengths = self._all_amplitudes_all_wavelengths()
+        sort_args = np.argsort(all_amplitudes)[::-1]
+        return np.asarray(all_wavelengths)[sort_args[:n]]
+
+    @staticmethod
+    def _double_wavelengths(wavelengths_to_double: list[float]) -> np.ndarray:
+        """
+        Return a unique `np.ndarray` of all possible additive combinations of the elements in `wavelengths_to_double`.
+        Example: `[1, 2]` will become `[1+1, 2+1, 2+2] = [2, 3, 4]`
+        """
+        top_wavelength_combinations = np.array(np.meshgrid(wavelengths_to_double,
+                                                           wavelengths_to_double)).T.reshape(-1, 2)
+        wavelengths_to_double = np.unique(np.sum(top_wavelength_combinations, axis=1))
+        return wavelengths_to_double
+
     def _plot(self,
               frequencies: np.ndarray,
               bandpass: np.ndarray,
@@ -252,15 +292,12 @@ class BandpassModel:
         plt.plot(frequencies, model_bandpass, ls=':', color='black', label='model')
         plt.xlabel('frequency [MHz]')
         plt.ylabel('bandpass mean')
-        # plt.xlim((989, 991))
         plt.legend()
 
         plt.subplot(4, 1, 2)
         plt.plot(frequencies, bandpass / smooth_bandpass - 1, label='epsilon wiggle data')
         plt.plot(frequencies, epsilon, ls=':', color='black', label='epsilon wiggle model')
         plt.xlabel('frequency [MHz]')
-        # plt.xlim((989, 991))
-        # plt.ylim((-0.006, -0.004))
         plt.legend()
 
         plt.subplot(4, 1, 3)
