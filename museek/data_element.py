@@ -109,7 +109,7 @@ class DataElement(AbstractDataElement):
         """
         Return the kurtosis of the unflagged entries in `self` as a float
         :param flags: optional, only entries not flagged by these are used
-        :return: float, the kurtosis
+        :return: a list of float containing the kurtosis for each receiver
         """
         if flags is None:
             return self._kurtosis()
@@ -136,7 +136,7 @@ class DataElement(AbstractDataElement):
         return DataElement(array=np.std(self.array, axis=axis, keepdims=True))
 
     def _kurtosis(self):
-        """ Return the number from the output of `scipy.stats.kurtosis`. """
+        """ Return the list of float from the output of `scipy.stats.kurtosis`. """
         kurtosis_list = []
         for i_recv in np.arange(np.shape(self)[-1]):
             kurtosis_list.append(scipy.stats.kurtosis(self.array[:,:,i_recv].flatten()))
@@ -168,9 +168,9 @@ class DataElement(AbstractDataElement):
 
     def _flagged_kurtosis(self, flags: 'FlagList'):
         """
-        Return the kurtosis of the unflagged entries in `self` as a float
+        Return the kurtosis of the unflagged entries in `self` as a list
         :param flags: only entries not flagged by these are used
-        :return: float the kurtosis
+        :return: a list of float containing the kurtosis for each receiver
         """
         combined = flags.combine(threshold=1)
         kurtosis_list = []
