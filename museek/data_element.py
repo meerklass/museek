@@ -137,7 +137,10 @@ class DataElement(AbstractDataElement):
 
     def _kurtosis(self):
         """ Return the number from the output of `scipy.stats.kurtosis`. """
-        return scipy.stats.kurtosis(self.array.flatten())
+        kurtosis_list = []
+        for i_recv in np.arange(np.shape(self)[-1]):
+            kurtosis_list.append(scipy.stats.kurtosis(self.array[:,:,i_recv].flatten()))
+        return kurtosis_list
 
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
@@ -170,5 +173,8 @@ class DataElement(AbstractDataElement):
         :return: float the kurtosis
         """
         combined = flags.combine(threshold=1)
-        masked = np.ma.masked_array(self.array, combined.array)
-        return scipy.stats.kurtosis(masked.flatten())
+        kurtosis_list = []
+        for i_recv in np.arange(np.shape(self)[-1]):
+            masked = np.ma.masked_array(self.array[:,:,i_recv], combined.array[:,:,i_recv])
+            kurtosis_list.append(scipy.stats.kurtosis(masked.flatten()))
+        return kurtosis_list
