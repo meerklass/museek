@@ -144,3 +144,27 @@ class DataElement(AbstractDataElement):
         combined = flags.combine(threshold=1)
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.std(axis=axis, keepdims=True))
+
+    def _flagged_min(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
+        """
+        Return the minimum of the unflagged entries in self along axis as a DataElement,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the min
+        :param flags: only entries not flagged by these are used
+        :return: DataElement containing the minimum along axis
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self.array, combined.array)
+        return DataElement(array=masked.min(axis=axis, keepdims=True))
+        
+    def _flagged_max(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
+        """
+        Return the maximum of the unflagged entries in self along axis as a DataElement,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the max
+        :param flags: only entries not flagged by these are used
+        :return: DataElement containing the max along axis
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self.array, combined.array)
+        return DataElement(array=masked.max(axis=axis, keepdims=True))
