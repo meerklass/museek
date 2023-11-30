@@ -156,6 +156,7 @@ class DataElement(AbstractDataElement):
         combined = flags.combine(threshold=1)
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.min(axis=axis, keepdims=True))
+        
     def _flagged_max(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
         Return the maximum of the unflagged entries in self along axis as a DataElement,
