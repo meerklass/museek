@@ -114,6 +114,8 @@ class TimeOrderedData:
 
         self.gain_solution: DataElement | None = None
 
+        self.noise_diode_ratios: DataElement | None = None
+
     def __str__(self):
         """ Returns the same `str` as `katdal`. """
         return self._data_str
@@ -176,6 +178,22 @@ class TimeOrderedData:
             return
         return self.visibility / self.gain_solution
 
+    def set_noise_diode_ratios(self, noise_diode_ratios: np.ndarray):
+        """
+        Set the `noise_diode_ratios` as a `DataElement` attribute to `self`.
+        :raise ValueError: if the length of the input array does not match the number of timestamps,
+                           or if the input array is not 1-dimensional
+        """
+        if (len_n := noise_diode_ratios.shape[0]) != self.timestamps.shape[0]:
+            raise ValueError(
+                f'The length of the noise diode ratios array needs to be equal to the number of time dumps. Got {len_n}.'
+            )
+        if noise_diode_ratios.shape[1] != 1 or noise_diode_ratios.shape[2] != 1:
+            raise ValueError(
+                f'The noise diode ratios array needs to be 1-dimensional. Got shape {noise_diode_ratios.shape}.'
+            )
+        self.noise_diode_ratios = self._element_factory.create(array=noise_diode_ratios)
+
     def _set_data_elements_from_katdal(self, scan_state: ScanStateEnum | None, data: DataSet | None = None):
         """
         Initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
@@ -195,8 +213,7 @@ class TimeOrderedData:
         if self.original_timestamps is None:
             self.original_timestamps = copy(self.timestamps)
         self.timestamp_dates = self._element_factory.create(
-            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis,
-                  np.newaxis]
+            array=np.asarray([datetime.fromtimestamp(stamp) for stamp in data.timestamps])[:, np.newaxis, np.newaxis]
         )
         self.frequencies = self._element_factory.create(array=data.freqs[np.newaxis, :, np.newaxis])
 
@@ -246,6 +263,10 @@ class TimeOrderedData:
             self.visibility = self._element_factory.create(array=self.visibility.array)
             self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
             self.weights = self._element_factory.create(array=self.weights.array)
+
+        # noise diode
+        if self.noise_diode_ratios is not None:
+            self.noise_diode_ratios = self._element_factory.create(self.noise_diode_ratios.array)
 
     def _get_data(self) -> DataSet:
         """

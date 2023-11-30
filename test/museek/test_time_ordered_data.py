@@ -178,6 +178,20 @@ class TestTimeOrderedData(unittest.TestCase):
         self.time_ordered_data.gain_solution = 3
         self.assertEqual(2 / 3, self.time_ordered_data.corrected_visibility())
 
+    def test_set_noise_diode_ratios(self):
+        mock_ratios = MagicMock(array=1, shape=[self.time_ordered_data.timestamps.shape[0], 1, 1])
+        self.assertIsNone(self.time_ordered_data.set_noise_diode_ratios(mock_ratios))
+        self.assertEqual(self.time_ordered_data._element_factory.create(),
+                         self.time_ordered_data.noise_diode_ratios)
+
+    def test_set_noise_diode_ratios_when_wrong_length_expect_value_error(self):
+        mock_ratios = MagicMock(array=1, shape=[1, 1, 1])
+        self.assertRaises(ValueError, self.time_ordered_data.set_noise_diode_ratios, mock_ratios)
+
+    def test_set_noise_diode_ratios_when_wrong_dimensions_expect_value_error(self):
+        mock_ratios = MagicMock(array=1, shape=[self.time_ordered_data.timestamps.shape[0], 2, 1])
+        self.assertRaises(ValueError, self.time_ordered_data.set_noise_diode_ratios, mock_ratios)
+
     def test_set_data_elements_from_katdal(self):
         mock_scan_state = Mock()
         mock_data = MagicMock()
@@ -227,7 +241,20 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(expect, self.time_ordered_data.pressure)
         self.assertEqual(expect, self.time_ordered_data.visibility)
         self.assertEqual(expect, self.time_ordered_data.weights)
+        self.assertIsNone(self.time_ordered_data.noise_diode_ratios)
         self.assertEqual(mock_from_array.return_value, self.time_ordered_data.flags)
+        mock_from_array.assert_called_once()
+
+    @patch.object(FlagList, 'from_array')
+    def test_set_data_elements_from_self_when_noise_diode_ratios_not_none(self, mock_from_array):
+        mock_scan_state = Mock()
+        self.time_ordered_data.visibility = Mock(array=1)
+        self.time_ordered_data.flags = Mock(array=1)
+        self.time_ordered_data.weights = Mock(array=1)
+        self.time_ordered_data.noise_diode_ratios = Mock(array=1)
+        self.time_ordered_data._set_data_elements_from_self(scan_state=mock_scan_state)
+        expect = mock_scan_state.factory().create.return_value
+        self.assertEqual(expect, self.time_ordered_data.noise_diode_ratios)
         mock_from_array.assert_called_once()
 
     @patch.object(TimeOrderedData, 'set_data_elements')
@@ -596,3 +623,7 @@ class TestTimeOrderedData(unittest.TestCase):
                            [6, 7, 8, 9, 10]])
         shifted = self.time_ordered_data._shift_right_ascension(right_ascension=mock_right_ascension)
         np.testing.assert_array_equal(expect, shifted)
+
+
+if __name__ == '__main__':
+    unittest.main()
