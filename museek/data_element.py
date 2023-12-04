@@ -165,7 +165,7 @@ class DataElement(AbstractDataElement):
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.std(axis=axis, keepdims=True))
 
-    def _flagged_kurtosis((self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement'::
+    def _flagged_kurtosis(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
         Return the kurtosis of the unflagged entries in `self` along `axis` as a `DataElement`,
         i.e. the dimensions are kept.
