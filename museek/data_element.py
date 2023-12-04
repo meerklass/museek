@@ -104,16 +104,18 @@ class DataElement(AbstractDataElement):
 
     def kurtosis(
             self,
+            axis: int | list[int, int] | tuple[int, int],
             flags: Union['FlagList', None] = None
-    ):
+    ) -> 'DataElement':
         """
-        Return the kurtosis of the unflagged entries in `self` as a float
+        Return the kurtosis of the unflagged entries in `self` along `axis` as a `DataElement`,
+        :param axis: axis along which to calculate the kurtosis
         :param flags: optional, only entries not flagged by these are used
-        :return: a list of float containing the kurtosis for each receiver
+        :return: `DataElement` containing the kurtosis along `axis`
         """
         if flags is None:
-            return self._kurtosis()
-        return self._flagged_kurtosis(flags=flags)
+            return self._kurtosis(axis=axis)
+        return self._flagged_kurtosis(axis=axis, flags=flags)
 
     def sum(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
@@ -135,12 +137,9 @@ class DataElement(AbstractDataElement):
         """ Return a `DataElement` created from the output of `np.std` applied along `axis`. """
         return DataElement(array=np.std(self.array, axis=axis, keepdims=True))
 
-    def _kurtosis(self):
-        """ Return the list of float from the output of `scipy.stats.kurtosis`. """
-        kurtosis_list = []
-        for i_recv in np.arange(np.shape(self)[-1]):
-            kurtosis_list.append(scipy.stats.kurtosis(self.array[:,:,i_recv].flatten()))
-        return kurtosis_list
+    def _kurtosis(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return a `DataElement` created from the output of `scipy.stats.kurtosis` applied along `axis`. """
+        return DataElement(array=scipy.stats.kurtosis(self.array, axis=axis, keepdims=True))
 
     def _flagged_mean(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
@@ -166,15 +165,15 @@ class DataElement(AbstractDataElement):
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.std(axis=axis, keepdims=True))
 
-    def _flagged_kurtosis(self, flags: 'FlagList'):
+    def _flagged_kurtosis((self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement'::
         """
-        Return the kurtosis of the unflagged entries in `self` as a list
+        Return the kurtosis of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the kurtosis
         :param flags: only entries not flagged by these are used
-        :return: a list of float containing the kurtosis for each receiver
+        :return: `DataElement` containing the kurtosis along `axis`
         """
         combined = flags.combine(threshold=1)
-        kurtosis_list = []
-        for i_recv in np.arange(np.shape(self)[-1]):
-            masked = np.ma.masked_array(self.array[:,:,i_recv], combined.array[:,:,i_recv])
-            kurtosis_list.append(scipy.stats.kurtosis(masked.flatten()))
-        return kurtosis_list
+        masked = np.ma.masked_array(self.array, combined.array)
+        return DataElement(array=scipy.stats.kurtosis(masked, axis=axis, keepdims=True))
+
