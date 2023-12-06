@@ -251,7 +251,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         sunset_start, sunrise_end, end_sunrise_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
                 obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
                 obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
-                utcoffset=2.)
+                )
 
         report_writer.write_to_report(lines=[
             '## check closeness to sunset/sunrise',
