@@ -42,6 +42,8 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         scan_data = deepcopy(data)
         scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
 
+        scan_observation_start, scan_observation_end = self._observation_start_end(data=scan_data)
+
         track_data = deepcopy(data)
         track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
@@ -51,6 +53,12 @@ class ScanTrackSplitPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_START,
+                                      result=scan_observation_start,
+                                      allow_overwrite=False))
+        self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_END,
+                                      result=scan_observation_end,
+                                      allow_overwrite=False))
 
         if self.do_store_context:
             context_file_name = 'scan_track_split_plugin.pickle'
@@ -58,3 +66,8 @@ class ScanTrackSplitPlugin(AbstractPlugin):
             context_directory = os.path.join(context_folder, f'{block_name}/')
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=context_directory)
+
+    @staticmethod
+    def _observation_start_end(data: TimeOrderedData) -> tuple[float, float]:
+        """ Return first and last timestamp in `data` as a `tuple`. """
+        return data.timestamps.get(time=0).squeeze, data.timestamps.get(time=-1).squeeze
