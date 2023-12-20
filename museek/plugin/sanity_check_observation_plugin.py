@@ -42,6 +42,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.reference_receiver_index = reference_receiver_index
         self.plot_count = itertools.count()
         self.report_writer = None
+        self.straggler_list = None
 
         self.elevation_sum_square_difference_threshold = elevation_sum_square_difference_threshold
         self.elevation_square_difference_threshold = elevation_square_difference_threshold
@@ -73,6 +74,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         mega = 1e6
 
         straggler_list = FromLog(obs_script_log=scan_data.obs_script_log).straggler_list()
+        self.straggler_list = straggler_list
 
         # start
         report_writer.print_to_report(scan_data)
@@ -118,17 +120,18 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             threshold=self.elevation_antenna_standard_deviation_threshold
         )
         if bad_antennas:
-            report_writer.write_to_report(
-                lines=['The following antennas fail the test: '])
+            report_writer.write_to_report(lines=['The following antennas fail the test: '])
             report_writer.print_to_report(bad_antennas)
-
+            
     def create_plots_of_complete_observation(self, data: TimeOrderedData):
-        """ DOC """
+        """ 
+        Create and save a plot showing the pointing route of a reference antenna.
+        Also create a plot to report the variation of temperature, humidity and pressure during the observation. 
+        """
 
-        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
         reference_receiver_index = self.reference_receiver_index
         reference_check = str(data.receivers[reference_receiver_index])[:-1]
-        while (reference_check in straggler_list):
+        while (reference_check in self.straggler_list):
             reference_receiver_index += 1
             reference_check = str(data.receivers[reference_receiver_index])[:-1]
         reference_receiver = data.receivers[reference_receiver_index]
@@ -161,10 +164,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         timestamp_dates = data.timestamp_dates
 
         # check validity of reference receiver
-        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
         reference_receiver_index = self.reference_receiver_index
         reference_check = str(data.receivers[reference_receiver_index])[:-1]
-        while (reference_check in straggler_list):
+        while (reference_check in self.straggler_list):
             reference_receiver_index += 1
             reference_check = str(data.receivers[reference_receiver_index])[:-1]
         reference_receiver = data.receivers[reference_receiver_index]
@@ -174,12 +176,12 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         reference_azimuth = data.azimuth.get(recv=reference_receiver_index)
 
         # create no straggler list
-        straggler_list_indexes = [int(data._antenna_name_list.index(ii)) for ii in straggler_list]
+        straggler_list_indexes = [int(data._antenna_name_list.index(ii)) for ii in self.straggler_list]
         no_straggler_indexes = [int(ii) for ii in range(len(data._antenna_name_list))]
         no_straggler_list = data._antenna_name_list.copy()
         for jj in straggler_list_indexes:
             no_straggler_indexes.remove(jj)
-        for jj in straggler_list:
+        for jj in self.straggler_list:
             no_straggler_list.remove(jj)
 
         # mean over no straggler dishes
@@ -205,7 +207,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.figure(figsize=(8, 4))
         plt.plot(data.azimuth.squeeze[:, straggler_list_indexes],
                  data.elevation.squeeze[:, straggler_list_indexes], '.-')
-        plt.legend(straggler_list)
+        plt.legend(self.straggler_list)
         plt.xlabel('az')
         plt.ylabel('el')
         self.savefig(description=f'Entire scanning route. '
