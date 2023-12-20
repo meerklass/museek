@@ -12,6 +12,7 @@ Pipeline = ConfigSection(
         'museek.plugin.aoflagger_plugin',
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.antenna_flagger_plugin',
+        'museek.plugin.point_source_calibrator_plugin',
         # 'museek.plugin.point_source_flagger_plugin',
         # 'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.apply_external_gain_solution_plugin',
