@@ -8,7 +8,7 @@ from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibP
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.data_element import DataElement
-from museek.enum.result_enum import ResultEnum
+from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
@@ -55,30 +55,32 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         self.do_store_context = do_store_context
 
     def set_requirements(self):
-        """ Set the requirements, the entire `data`, a path to store results and the name of the data block. """
-        self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+        """
+        Set the requirements, the scanning data `scan_data`, a path to store results and the name of the data block.
+        """
+        self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
 
     def map(self,
-            data: TimeOrderedData,
+            scan_data: TimeOrderedData,
             output_path: str,
             block_name: str) \
             -> Generator[tuple[str, DataElement, FlagElement], None, None]:
         """
-        Yield a `tuple` of the results path for one receiver, the visibility data for one receiver and the
+        Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
         initial flags for one receiver.
-        :param data: time ordered data containing the entire observation
+        :param scan_data: time ordered data containing the scanning part of the observation
         :param output_path: path to store results
-        :param block_name: name of the data block
+        :param block_name: name of the data block, not used here but for setting results
         """
-        data.load_visibility_flags_weights()
-        initial_flags = data.flags.combine(threshold=self.flag_combination_threshold)
+        scan_data.load_visibility_flags_weights()
+        initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
 
-        for i_receiver, receiver in enumerate(data.receivers):
+        for i_receiver, receiver in enumerate(scan_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
-            visibility = data.visibility.get(recv=i_receiver)
+            visibility = scan_data.visibility.get(recv=i_receiver)
             initial_flag = initial_flags.get(recv=i_receiver)
             yield receiver_path, visibility, initial_flag
 
@@ -100,26 +102,28 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
 
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
-                              data: TimeOrderedData,
+                              scan_data: TimeOrderedData,
                               output_path: str,
                               block_name: str):
         """
         Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
-        :param data: `TimeOrderedData` containing the entire observation
+        :param scan_data: `TimeOrderedData` containing the scanning part of the observation
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        data.flags.add_flag(flag=new_flag)
+        scan_data.flags.add_flag(flag=new_flag)
 
-        waterfall(data.visibility.get(recv=0),
-                  data.flags.get(recv=0),
+        waterfall(scan_data.visibility.get(recv=0),
+                  scan_data.flags.get(recv=0),
                   cmap='gist_ncar')
+        plt.xlabel('time stamps')
+        plt.ylabel('channels')
         plt.savefig(os.path.join(output_path, 'rfi_mitigation_result_receiver_0.png'), dpi=1000)
         plt.close()
 
-        self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         if self.do_store_context:
             context_file_name = 'aoflagger_plugin.pickle'
             context_folder = os.path.join(ROOT_DIR, 'results/')

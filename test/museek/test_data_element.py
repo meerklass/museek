@@ -311,6 +311,12 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
 
     @patch('museek.data_element.np')
+    def test_kurtosis(self, mock_np):
+        mock_np.kurtosis.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._kurtosis(axis=1), DataElement)
+
+    @patch('museek.data_element.np')
     def test_std(self, mock_np):
         mock_np.std.return_value.shape = (1, 1, 1)
         mock_axis = Mock()
@@ -329,6 +335,19 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
+
+    def test_flagged_kurtosis(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        kurtosis = self.element._flagged_kurtosis(axis=0,flags=flags)
+        self.assertEqual(3, len(kurtosis.array.shape))
+        expect = np.asarray([[-2. , -1.5, -1.5],
+                             [-1.5, -2. , -1.5],
+                             [-1.5, -1.5, -2. ]])
+        np.testing.assert_array_equal(expect, kurtosis.squeeze)
 
     def test_flagged_std(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
