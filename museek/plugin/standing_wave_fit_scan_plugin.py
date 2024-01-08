@@ -84,7 +84,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
                 standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                legendre_degree=1,
+                # legendre_degree=1,  # works well with narrow frequency range
+                legendre_degree=5,
                 polyphase_parameters=(6, 64, 1.0003)
             )
             flags = scan_data.flags.get(time=times,
@@ -102,10 +103,11 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                             receiver_path=receiver_path,
                             calibrator_label=self.calibrator_label)
             bandpass_model.fit(**fit_args)
-            try:
-                bandpass_model.double_fit(n_double=2, **fit_args)
-            except RuntimeError:
-                print('warning: fit did not converge?')
+            print('no double fit')
+            # try:
+            #     bandpass_model.double_fit(n_double=2, **fit_args)
+            # except RuntimeError:
+            #     print('warning: fit did not converge?')
             epsilon_function_dict[receiver.name][self.calibrator_label] = bandpass_model.epsilon_function
             legendre_function_dict[receiver.name][self.calibrator_label] = bandpass_model.legendre_function
             parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
@@ -142,7 +144,7 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         """ Return the first few scan dump indices as `range`. """
         start_dump_index = 0
         # end_dump_index = 124  # 124 is the first swing back and forth
-        end_dump_index = 2951  # 124 is the first swing back and forth
+        end_dump_index = 2951
         return range(start_dump_index, end_dump_index)
 
     def off_cut_dumps(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
