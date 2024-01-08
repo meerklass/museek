@@ -32,11 +32,11 @@ class TrackPointingIterator:
         :param plot_dir: optional directory to store diagnostic plots
         :param scan_start: time dump [s] of scan observation start
         :param scan_end: time dump [s] of scan observation end
-        :param n_calibrator_observations: number of calibrator observations, typically 2
+        :param n_calibrator_observations: number of calibrator observations, typically 2, i.e. 1 before 1 after scan
         :param calibrator_observation_labels: `tuple` of `str` labels for the calibrator observations
         :param n_pointings: number of pointings, typically 5 for centre, up, left, down and right off-centre
-        :param n_centre_observations: number of pointings onto the centre
-        :param distance_threshold: forwarded to `Clustering`
+        :param n_centre_observations: number of pointings onto the centre of the calibrator
+        :param distance_threshold: forwarded to `Clustering`, pointings beyond this threshold are considered outliers
         :param pointing_slewing_thresholds: `tuple` of lower and upper `float` seconds thresholds for telescope slew 
                                             movement in between single dish calibrator pointings
         :param min_max_pointing_time: `tuple` of minimum and maximum `float` seconds observation times for individual
@@ -79,7 +79,7 @@ class TrackPointingIterator:
             target_dumps_list = self._target_dumps_one_calibrator()
         target_dumps_list = self._single_dish_calibrators(
             target_dumps_list=target_dumps_list,
-            n_calibrator_observations=self._n_pointings+self._n_centre_observations - 1,
+            n_calibrator_pointings=self._n_pointings + self._n_centre_observations - 1,
         )
         for label, times in zip(self._calibrator_observation_labels, target_dumps_list):
             if times is None:
@@ -138,14 +138,14 @@ class TrackPointingIterator:
     def _single_dish_calibrators(
         self,
         target_dumps_list: list[range],
-        n_calibrator_observations: int = 7,
+        n_calibrator_pointings: int = 7,
     ) -> list[range | None]:
         """
-        Returns a `list` of `range`s of target dump indices contained in `target_dumps_list` that belong to single dish calibrators only.
-        It is assumed that single dish calibrators always have pointings onto the centre and to the right, left, up and
-        down.
+        Returns a `list` of `range`s of target dump indices contained in `target_dumps_list` that belong to single dish
+        calibrators only. It is assumed that single dish calibrators always have pointings onto the centre and to the
+        right, left, up and down.
         :param target_dumps_list: `list` of `range`s defining the calibrator dumps to be weeded for single dish
-        :param n_calibrator_observations: number of observations of the single dish calibrator, defaults to 7 for
+        :param n_calibrator_pointings: number of observations of the single dish calibrator, defaults to 7 for
                                           right, centre, up, centre, left, centre, down
         """
         result = []
@@ -198,7 +198,7 @@ class TrackPointingIterator:
                 plt.savefig(os.path.join(self._plot_dir, plot_name))
                 plt.close()
 
-            if len(pointing_change_indices) != n_calibrator_observations - 1 or valid_indices is None:
+            if len(pointing_change_indices) != n_calibrator_pointings - 1 or valid_indices is None:
                 print(f'No single dish calibrator found {label} - continue ...')
                 result.append(None)
             else:

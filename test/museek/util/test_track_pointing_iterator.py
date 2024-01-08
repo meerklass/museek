@@ -82,7 +82,7 @@ class TestTrackPointingIterator(unittest.TestCase):
         )
         mock_single_dish_calibrators.assert_called_once_with(
             target_dumps_list=mock_target_dumps_two_calibrators.return_value,
-            n_calibrator_observations=-1
+            n_calibrator_pointings=-1
         )
 
     @patch.object(TrackPointingIterator, '_target_dumps_one_calibrator')
@@ -125,7 +125,7 @@ class TestTrackPointingIterator(unittest.TestCase):
         )
         mock_single_dish_calibrators.assert_called_once_with(
             target_dumps_list=mock_target_dumps_one_calibrator.return_value,
-            n_calibrator_observations=-1
+            n_calibrator_pointings=-1
         )
 
     @patch.object(Clustering, 'split_pointings')
@@ -270,7 +270,7 @@ class TestTrackPointingIterator(unittest.TestCase):
                                                         scan_end=1,
                                                         pointing_slewing_thresholds=(4, 30))
         result = track_pointing_iterator._single_dish_calibrators(target_dumps_list=mock_target_dumps_list,
-                                                                  n_calibrator_observations=2)
+                                                                  n_calibrator_pointings=2)
         mock_plt.scatter.assert_called()
         self.assertIsNone(result[0])
         self.assertEqual(result[1], range(1, 6))
@@ -293,7 +293,7 @@ class TestTrackPointingIterator(unittest.TestCase):
                                                         scan_end=1,
                                                         pointing_slewing_thresholds=(4, 30))
         result = track_pointing_iterator._single_dish_calibrators(target_dumps_list=mock_target_dumps_list,
-                                                                  n_calibrator_observations=2)
+                                                                  n_calibrator_pointings=2)
         mock_plt.scatter.assert_called()
         self.assertIsNone(result[1])
         self.assertEqual(result[0], range(0, 6))

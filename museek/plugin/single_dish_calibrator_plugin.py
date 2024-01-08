@@ -11,7 +11,7 @@ from museek.util.track_pointing_iterator import TrackPointingIterator
 
 
 class SingleDishCalibratorPlugin(AbstractPlugin):
-    """ Incomplete plugin to calibrate from point sources. For later completion. """
+    """ Incomplete plugin to calibrate from specific known sources. For later completion. """
 
     def set_requirements(self):
         """ Define the plugin requirements """
