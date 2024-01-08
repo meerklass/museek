@@ -10,7 +10,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.track_pointing_iterator import TrackPointingIterator
 
 
-class PointSourceCalibratorPlugin(AbstractPlugin):
+class SingleDishCalibratorPlugin(AbstractPlugin):
     """ Incomplete plugin to calibrate from point sources. For later completion. """
 
     def set_requirements(self):
@@ -44,7 +44,7 @@ class PointSourceCalibratorPlugin(AbstractPlugin):
                                                             scan_end=scan_end)
             i_antenna = track_data.antenna_index_of_receiver(receiver=receiver)
             for before_or_after, times, pointing_times_list, pointing_centres in track_pointing_iterator.iterate():
-                plot_name = os.path.join(receiver_path, f'point_source_calibrator_plugin_{before_or_after}.png')
+                plot_name = os.path.join(receiver_path, f'single_dish_calibrator_plugin_{before_or_after}.png')
                 print(f'Saving plot {plot_name}.')
                 colors = ['red', 'blue', 'green', 'orange', 'yellow', 'black', 'purple']
                 for centre, pointing_times, color in zip(pointing_centres, pointing_times_list, colors):
