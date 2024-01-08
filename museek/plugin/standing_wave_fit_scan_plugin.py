@@ -144,7 +144,7 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         """ Return the first few scan dump indices as `range`. """
         start_dump_index = 0
         # end_dump_index = 124  # 124 is the first swing back and forth
-        end_dump_index = 2951
+        end_dump_index = 2700  # this can't be too beg to make it work with all blocks
         return range(start_dump_index, end_dump_index)
 
     def off_cut_dumps(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
