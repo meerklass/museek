@@ -105,11 +105,11 @@ class DataElement(AbstractDataElement):
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
 
-    def min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+    def _min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.min()`. """
         return DataElement(array=np.min(self.array, axis=axis, keepdims=True))
 
-    def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+    def _max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
         return DataElement(array=np.max(self.array, axis=axis, keepdims=True))
 
