@@ -47,7 +47,6 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         track_data.load_visibility_flags_weights()
         for data in [scan_data, track_data]:
             self.flag_outlier_antennas(data=data)
-        print(scan_data.flags.flag_names)
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
 
