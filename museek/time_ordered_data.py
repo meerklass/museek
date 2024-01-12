@@ -247,7 +247,9 @@ class TimeOrderedData:
         # visibility, flags and weights
         if self.visibility is not None:
             self.visibility = self._element_factory.create(array=self.visibility.array)
-            self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
+            self.flags = FlagList.from_array(array=self.flags.array,
+                                             element_factory=self._flag_element_factory,
+                                             flag_names=self.flags._flag_names)  # TODO(amadeus): don't access private
             self.weights = self._element_factory.create(array=self.weights.array)
 
     def _get_data(self) -> DataSet:
