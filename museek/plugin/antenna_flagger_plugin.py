@@ -6,6 +6,7 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
 from museek.data_element import DataElement
+from museek.enums.flag_enum import FlagEnum
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
@@ -28,6 +29,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         super().__init__()
         self.elevation_threshold = elevation_threshold
         self.outlier_threshold = outlier_threshold
+        self.flag_names = [FlagEnum.ANTENNA]
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -45,13 +47,14 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         track_data.load_visibility_flags_weights()
         for data in [scan_data, track_data]:
             self.flag_outlier_antennas(data=data)
+        print(scan_data.flags.flag_names)
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
 
     def flag_outlier_antennas(self, data: TimeOrderedData):
         """ Add a new flag to `data` to exclude antennas with non-constant elevation readings. """
         shape = data.visibility.shape
-        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])
+        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)], flag_names=self.flag_names)
         full_flag = FlagElement(array=np.ones((shape[0], shape[1], 1)))
         _, antennas = self.outlier_antenna_indices(data=data, distance_threshold=self.outlier_threshold)
         for antenna in antennas:
@@ -59,7 +62,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             i_receiver_list = data.receiver_indices_of_antenna(antenna)
             for i_receiver in i_receiver_list:
                 new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
-        data.flags.add_flag(flag=new_flag)
+        data.flags.add_flag(flag=new_flag, flag_names=self.flag_names)
 
     @staticmethod
     def outlier_antenna_indices(data: TimeOrderedData, distance_threshold: float) -> tuple[list[int], list[Antenna]]:
@@ -88,7 +91,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
     def flag_for_elevation(self, data: TimeOrderedData):
         """ Add a new flag to `data` to exclude antennas with non-constant elevation readings. """
         shape = data.visibility.shape
-        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])
+        new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)], flag_names=None)
         full_flag = DataElement(array=np.ones((shape[0], shape[1], 1)))
         for antenna in ConstantElevationScans.get_antennas_with_non_constant_elevation(
                 data=data,
@@ -98,3 +101,4 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             i_receiver_list = data.receiver_indices_of_antenna(antenna)
             for i_receiver in i_receiver_list:
                 new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
+        data.flags.add_flag(flag=new_flag, flag_names=self.flag_names)
