@@ -347,6 +347,14 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
                 )
 
+        sunrise_end_diff = -end_sunrise_diff
+        if start_sunset_diff/60. > 720:
+            start_sunset_diff = 1440.*60. - start_sunset_diff
+        if abs(end_sunrise_diff/60.) > 720:
+            sunrise_end_diff = 1440.*60. - sunrise_end_diff
+        else:
+            pass
+
         straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
 
         dishnum_used = len(data.all_antennas) - len(straggler_list)
@@ -365,7 +373,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         targets = targets.split('Observation')[-1]
 
         header = "block number  |  Description  |  observation start date/time (UTC)  |  observation duration (minutes) |  scan start date/time  | scan duration (minutes) |  observation start - nearest sunset (minutes)  | nearest sunrise - observation end (minutes)  |  number of dishes used after stragglers are removed  |  elevation check  |  elevation mean |  azimuth range  |  declination range  |  ra range  |  targets observed" 
-        formatted_output = f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | {scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.)%1440:.4f} | {(-end_sunrise_diff/60.)%1440:.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | {azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
+        formatted_output = f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | {scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | {(sunrise_end_diff/60.):.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | {azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
         with open(output_path+'/formatted_output.txt', 'w') as file:
             file.write(header + '\n')
             file.write(formatted_output)
