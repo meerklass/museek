@@ -110,6 +110,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
         self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
+        self.save_output(data=scan_data,
+                         output_path=output_path,
+                         time_analysis=time_analysis)
 
 
     def savefig(self, description: str = 'description'):
@@ -317,3 +320,52 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             f"{start_sunset_diff/60.:.4f}/{end_sunrise_diff/60.:.4f} minutes."])
 
 
+    def save_output(self, data: TimeOrderedData, time_analysis: TimeAnalysis, output_path=str):
+
+        """
+        save contents in a formatted text
+        :param data: the `TimeOrderedData` object to check
+        :param time_analysis: the `TimeAnalysis` object to handle the time
+        :param output_path: the path to store the results
+        """
+
+        block_num = data.name
+        description = [i for i in data.obs_script_log if 'Description' in i][0]
+        description = 'Description' + description.split('Description')[-1]
+        observation_start = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
+        observation_duration = data.original_timestamps[-1] - data.original_timestamps[0]
+        scan_start = datetime.utcfromtimestamp(float(data.timestamps[0]))
+        scan_duration = data.timestamps[-1] - data.timestamps[0]
+
+        bad_antennas = ConstantElevationScans.get_antennas_with_non_constant_elevation(
+            data=data,
+            threshold=self.elevation_antenna_standard_deviation_threshold
+        )
+
+        sunset_start, sunrise_end, end_sunrise_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
+                obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
+                obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
+                )
+
+        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
+
+        dishnum_used = len(data.all_antennas) - len(straggler_list)
+        elevation_mean = np.median(data.elevation.array)
+        if bad_antennas:
+            elevation_check = 'bad antennas found'
+        else:
+            elevation_check = 'OK'
+        azimuth_min = np.min(data.azimuth.array)
+        azimuth_max = np.max(data.azimuth.array)
+        dec_min = np.min(data.declination.array)
+        dec_max = np.max(data.declination.array)
+        ra_min = np.min(data.right_ascension.array)
+        ra_max = np.max(data.right_ascension.array)
+        targets = [i for i in data.obs_script_log if 'Observation targets' in i][0]
+        targets = targets.split('Observation')[-1]
+
+        header = "block number  |  Description  |  observation start date/time (UTC)  |  observation duration (minutes) |  scan start date/time  | scan duration (minutes) |  observation start - nearest sunset (minutes)  | nearest sunrise - observation end (minutes)  |  number of dishes used after stragglers are removed  |  elevation check  |  elevation mean |  azimuth range  |  declination range  |  ra range  |  targets observed" 
+        formatted_output = f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | {scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.)%1440:.4f} | {(-end_sunrise_diff/60.)%1440:.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | {azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
+        with open(output_path+'/formatted_output.txt', 'w') as file:
+            file.write(header + '\n')
+            file.write(formatted_output)
