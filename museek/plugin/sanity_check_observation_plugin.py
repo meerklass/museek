@@ -110,9 +110,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
         self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
-        self.save_output(data=scan_data,
-                         output_path=output_path,
-                         time_analysis=time_analysis)
+        #self.save_output(data=scan_data,
+        #                 output_path=output_path,
+        #                 time_analysis=time_analysis)
 
 
     def savefig(self, description: str = 'description'):
@@ -294,7 +294,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         """
 
-        sunset_start, sunrise_end, end_sunrise_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
+        sunset_start, sunrise_end, sunrise_end_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
                 obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
                 obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
                 )
@@ -305,19 +305,16 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             f'Sunset time: {sunset_start.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC',
             f'Sunrise time: {sunrise_end.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC'])
 
-
-        if (start_sunset_diff/60. > self.closeness_to_sunset_sunrise_threshold
-                and start_sunset_diff/60. < 720.
-                and abs(end_sunrise_diff/60.) > self.closeness_to_sunset_sunrise_threshold
-                and abs(end_sunrise_diff/60.) < 720.):
+        if (start_sunset_diff/60. > self.closeness_to_sunset_sunrise_threshold and 
+                sunrise_end_diff/60. > self.closeness_to_sunset_sunrise_threshold):
 
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"Good, the time difference between start/end time and sunset/sunrise is ",
-            f"{start_sunset_diff/60.:.4f}/{end_sunrise_diff/60.:.4f} minutes."])
+            f"Good, the time difference between start/sunrise time and sunset/end is ",
+            f"{start_sunset_diff/60.:.4f}/{sunrise_end_diff/60.:.4f} minutes."])
         else:
             report_writer.print_to_report([f"check closeness to sunset/sunrise: ",
-            f"No Good, the time difference between start/end time and sunset/sunrise is ",
-            f"{start_sunset_diff/60.:.4f}/{end_sunrise_diff/60.:.4f} minutes."])
+            f"No Good, the time difference between start/sunrise time and sunset/end is ",
+            f"{start_sunset_diff/60.:.4f}/{sunrise_end_diff/60.:.4f} minutes."])
 
 
     def save_output(self, data: TimeOrderedData, time_analysis: TimeAnalysis, output_path=str):
@@ -342,22 +339,12 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             threshold=self.elevation_antenna_standard_deviation_threshold
         )
 
-        sunset_start, sunrise_end, end_sunrise_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
+        sunset_start, sunrise_end, sunrise_end_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
                 obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
                 obs_end=datetime.utcfromtimestamp(float(data.original_timestamps[-1])),
                 )
 
-        sunrise_end_diff = -end_sunrise_diff
-        if start_sunset_diff/60. > 720:
-            start_sunset_diff = 1440.*60. - start_sunset_diff
-        if abs(end_sunrise_diff/60.) > 720:
-            sunrise_end_diff = 1440.*60. - sunrise_end_diff
-        else:
-            pass
-
-        straggler_list = FromLog(obs_script_log=data.obs_script_log).straggler_list()
-
-        dishnum_used = len(data.all_antennas) - len(straggler_list)
+        dishnum_used = len(data.all_antennas) - len(self.straggler_list)
         elevation_mean = np.median(data.elevation.array)
         if bad_antennas:
             elevation_check = 'bad antennas found'
@@ -372,8 +359,21 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         targets = [i for i in data.obs_script_log if 'Observation targets' in i][0]
         targets = targets.split('Observation')[-1]
 
-        header = "block number  |  Description  |  observation start date/time (UTC)  |  observation duration (minutes) |  scan start date/time  | scan duration (minutes) |  observation start - nearest sunset (minutes)  | nearest sunrise - observation end (minutes)  |  number of dishes used after stragglers are removed  |  elevation check  |  elevation mean |  azimuth range  |  declination range  |  ra range  |  targets observed" 
-        formatted_output = f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | {scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | {(sunrise_end_diff/60.):.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | {azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
+        header = (
+                "block number | Description | observation start date/time (UTC) | "
+                "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
+                "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
+                "num of dishes used (after stragglers are removed) | elevation check | elevation mean | "
+                "azimuth range | declination range | ra range | targets observed"
+                )
+                
+        formatted_output = (
+                f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
+                f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
+                f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | "
+                f"{azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
+                )
+
         with open(output_path+'/formatted_output.txt', 'w') as file:
             file.write(header + '\n')
             file.write(formatted_output)
