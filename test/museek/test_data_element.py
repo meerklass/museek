@@ -343,28 +343,28 @@ class TestDataElement(unittest.TestCase):
                              [54., 54., 20.25]]) ** (1 / 2)
         np.testing.assert_array_equal(expect, std.squeeze)
 
-        def test_flagged_min(self):
-            flag_array = np.zeros((3, 3, 3), dtype=bool)
-            flag_array[0, 0, 0] = True
-            flag_array[1, 1, 1] = True
-            flag_array[2, 2, 2] = True
-            flags = FlagList(flags=[FlagElement(array=flag_array)])
-            min = self.element._flagged_min(axis=0, flags=flags)
-            self.assertEqual(3, len(min.array.shape))
-            expect = np.asarray([[13.5, 10., 11.],
-                                 [12., 13., 14.],
-                             [    15., 16., 12.5]])
-            np.testing.assert_array_equal(expect, min.squeeze)
+    def test_flagged_min(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        min = self.element._flagged_min(axis=0, flags=flags)
+        self.assertEqual(3, len(min.array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, min.squeeze)
 
-        def test_flagged_max(self):
-            flag_array = np.zeros((3, 3, 3), dtype=bool)
-            flag_array[0, 0, 0] = True
-            flag_array[1, 1, 1] = True
-            flag_array[2, 2, 2] = True
-            flags = FlagList(flags=[FlagElement(array=flag_array)])
-            max = self.element._flagged_max(axis=0, flags=flags)
-            self.assertEqual(3, len(max.array.shape))
-            expect = np.asarray([[13.5, 10., 11.],
-                                 [12., 13., 14.],
-                             [    15., 16., 12.5]])
-            np.testing.assert_array_equal(expect, max.squeeze)
+    def test_flagged_max(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        max = self.element._flagged_max(axis=0, flags=flags)
+        self.assertEqual(3, len(max.array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, max.squeeze)
