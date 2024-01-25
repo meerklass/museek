@@ -48,7 +48,7 @@ class TimeAnalysis:
 
         # Calculate time differences
         sunrise_end_diff = (sunrise_end.datetime() - obs_end).total_seconds()
-        start_sunset_diff = (obs_start - sunset_start.datetime()).total_seconds
+        start_sunset_diff = (obs_start - sunset_start.datetime()).total_seconds()
 
         # Correct for the time difference if the estimated sunrise/sunset time are in next/previous day 
         if start_sunset_diff/60. > 720:

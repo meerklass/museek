@@ -110,9 +110,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
         self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
-        #self.save_output(data=scan_data,
-        #                 output_path=output_path,
-        #                 time_analysis=time_analysis)
+        self.save_output(data=scan_data,
+                         output_path=output_path,
+                         time_analysis=time_analysis)
 
 
     def savefig(self, description: str = 'description'):
