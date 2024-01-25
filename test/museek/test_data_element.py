@@ -311,6 +311,20 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
 
     @patch('museek.data_element.np')
+    def test_min(self, mock_np):
+        mock_np.min.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._min(axis=mock_axis), DataElement)
+        mock_np.min.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
+
+    @patch('museek.data_element.np')
+    def test_max(self, mock_np):
+        mock_np.max.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._max(axis=mock_axis), DataElement)
+        mock_np.max.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
+
+    @patch('museek.data_element.np')
     def test_std(self, mock_np):
         mock_np.std.return_value.shape = (1, 1, 1)
         mock_axis = Mock()
@@ -343,7 +357,7 @@ class TestDataElement(unittest.TestCase):
                              [54., 54., 20.25]]) ** (1 / 2)
         np.testing.assert_array_equal(expect, std.squeeze)
 
-        def test_flagged_min(self):
+    def test_flagged_min(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
         flag_array[1, 1, 1] = True
@@ -356,7 +370,7 @@ class TestDataElement(unittest.TestCase):
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, min.squeeze)
 
-        def test_flagged_max(self):
+    def test_flagged_max(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
         flag_array[1, 1, 1] = True
