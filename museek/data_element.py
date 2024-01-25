@@ -85,6 +85,41 @@ class DataElement(AbstractDataElement):
             return self._mean(axis=axis)
         return self._flagged_mean(axis=axis, flags=flags)
 
+
+    def min(
+            self,
+            axis: int | list[int, int] | tuple[int, int],
+            flags: Union['FlagList', None] = None
+    ) -> 'DataElement':
+        """
+        Return the min of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the min
+        :param flags: optional, only entries not flagged by these are used
+        :return: `DataElement` containing the min along `axis`
+        """
+        if flags is None:
+            return self._min(axis=axis)
+        return self._flagged_min(axis=axis, flags=flags)
+
+
+    def max(
+            self,
+            axis: int | list[int, int] | tuple[int, int],
+            flags: Union['FlagList', None] = None
+    ) -> 'DataElement':
+        """
+        Return the max of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the max
+        :param flags: optional, only entries not flagged by these are used
+        :return: `DataElement` containing the min along `axis`
+        """
+        if flags is None:
+            return self._max(axis=axis)
+        return self._flagged_max(axis=axis, flags=flags)
+
+    
     def standard_deviation(
             self,
             axis: int | list[int, int] | tuple[int, int],
@@ -105,11 +140,11 @@ class DataElement(AbstractDataElement):
         """ Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept. """
         return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
 
-    def min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+    def _min(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.min()`. """
         return DataElement(array=np.min(self.array, axis=axis, keepdims=True))
 
-    def max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+    def _max(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Wrapper of `numpy.max(). """
         return DataElement(array=np.max(self.array, axis=axis, keepdims=True))
 
