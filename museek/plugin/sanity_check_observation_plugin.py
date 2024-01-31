@@ -326,7 +326,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         :param output_path: the path to store the results
         """
 
-        block_num = data.name
+        block_num = data.name.split('_')[0]
         description = [i for i in data.obs_script_log if 'Description' in i][0]
         description = 'Description' + description.split('Description')[-1]
         observation_start = datetime.utcfromtimestamp(float(data.original_timestamps[0]))
@@ -334,10 +334,16 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         scan_start = datetime.utcfromtimestamp(float(data.timestamps[0]))
         scan_duration = data.timestamps[-1] - data.timestamps[0]
 
-        bad_antennas = ConstantElevationScans.get_antennas_with_non_constant_elevation(
+        bad_elevation = ConstantElevationScans.get_antennas_with_non_constant_elevation(
             data=data,
             threshold=self.elevation_antenna_standard_deviation_threshold
         )
+
+        # create no straggler list
+        straggler_list_indexes = [int(data._antenna_name_list.index(ii)) for ii in self.straggler_list]
+        no_straggler_indexes = [int(ii) for ii in range(len(data._antenna_name_list))]
+        for jj in straggler_list_indexes:
+            no_straggler_indexes.remove(jj)
 
         sunset_start, sunrise_end, sunrise_end_diff, start_sunset_diff = time_analysis.time_difference_to_sunset_sunrise(
                 obs_start=datetime.utcfromtimestamp(float(data.original_timestamps[0])),
@@ -345,17 +351,18 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 )
 
         dishnum_used = len(data.all_antennas) - len(self.straggler_list)
-        elevation_mean = np.median(data.elevation.array)
-        if bad_antennas:
-            elevation_check = 'bad antennas found'
+        elevation_mean = np.median(data.elevation.array[:, :, no_straggler_indexes])
+        if bad_elevation:
+            elevation_check = 'FAIL'
         else:
             elevation_check = 'OK'
-        azimuth_min = np.min(data.azimuth.array)
-        azimuth_max = np.max(data.azimuth.array)
-        dec_min = np.min(data.declination.array)
-        dec_max = np.max(data.declination.array)
-        ra_min = np.min(data.right_ascension.array)
-        ra_max = np.max(data.right_ascension.array)
+
+        azimuth_min = np.min(data.azimuth.array[:, :, no_straggler_indexes])
+        azimuth_max = np.max(data.azimuth.array[:, :, no_straggler_indexes])
+        dec_min = np.min(data.declination.array[:, :, no_straggler_indexes])
+        dec_max = np.max(data.declination.array[:, :, no_straggler_indexes])
+        ra_min = np.min(data.right_ascension.array[:, :, no_straggler_indexes])
+        ra_max = np.max(data.right_ascension.array[:, :, no_straggler_indexes])
         targets = [i for i in data.obs_script_log if 'Observation targets' in i][0]
         targets = targets.split('Observation')[-1]
 
@@ -364,14 +371,15 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
                 "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
                 "num of dishes used (after stragglers are removed) | elevation check | elevation mean | "
-                "azimuth range | declination range | ra range | targets observed"
+                "azimuth min | azimuth max | declination min | declination max | ra min | ra max | targets observed"
                 )
                 
         formatted_output = (
                 f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
                 f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
                 f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | "
-                f"{azimuth_min:.4f}~{azimuth_max:.4f} | {dec_min:.4f}~{dec_max:.4f} | {ra_min:.4f}~{ra_max:.4f} | {targets}"
+                f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
+                f"{ra_max:.4f} | {targets}"
                 )
 
         with open(output_path+'/formatted_output.txt', 'w') as file:
