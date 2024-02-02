@@ -352,10 +352,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
 
         dishnum_used = len(data.all_antennas) - len(self.straggler_list)
         elevation_mean = np.median(data.elevation.array[:, :, no_straggler_indexes])
-        if bad_elevation:
-            elevation_check = 'FAIL'
-        else:
-            elevation_check = 'OK'
+        
+        bad_elevation_num = len(bad_elevation)
 
         azimuth_min = np.min(data.azimuth.array[:, :, no_straggler_indexes])
         azimuth_max = np.max(data.azimuth.array[:, :, no_straggler_indexes])
@@ -370,14 +368,14 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 "block number | Description | observation start date/time (UTC) | "
                 "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
                 "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
-                "num of dishes used (after stragglers are removed) | elevation check | elevation mean | "
+                "num of dishes used (after stragglers are removed) | num of dishes with bad elevation | elevation mean | "
                 "azimuth min | azimuth max | declination min | declination max | ra min | ra max | targets observed"
                 )
                 
         formatted_output = (
                 f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
                 f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
-                f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {elevation_check} | {elevation_mean:.4f} | "
+                f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {bad_elevation_num} | {elevation_mean:.4f} | "
                 f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
                 f"{ra_max:.4f} | {targets}"
                 )
