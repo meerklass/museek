@@ -11,8 +11,6 @@ Pipeline = ConfigSection(
         'museek.plugin.known_rfi_plugin',
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.aoflagger_plugin',
-        'museek.plugin.antenna_flagger_plugin',
-        'museek.plugin.single_dish_calibrator_plugin',
         # 'museek.plugin.point_source_flagger_plugin',
         # 'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.apply_external_gain_solution_plugin',
@@ -20,7 +18,7 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1677195529',  # observation time stamp
+    block_name='1675210948',  # observation time stamp
     receiver_list=['m000h',
                    'm000v',
                    'm008h',

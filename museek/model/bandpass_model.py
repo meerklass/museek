@@ -81,12 +81,15 @@ class BandpassModel:
             sinus_start_amplitude = 0.1  # original
             # sinus_start_amplitude = 1.  # experimental
             starting_legendre_coefficients = [x for x in legendre_start_fit]
-            starting_coefficients = starting_legendre_coefficients + [sinus_start_amplitude * (i % 2)
-                                                                      for i in range(total_n_wavelengths * 2)]
+            # starting_coefficients = starting_legendre_coefficients + [sinus_start_amplitude * (i % 2)
+            #                                                           for i in range(total_n_wavelengths * 2)]
+            starting_coefficients = starting_legendre_coefficients
+            for i in range(total_n_wavelengths):
+                starting_coefficients += [0, sinus_start_amplitude, self.wavelengths[i]]
 
         def bandpass_model_wrapper(f: np.ndarray, *parameters) -> np.ndarray:
             """ Wrap the bandpass model for the scipy fit. """
-            sinus_coefficient_list = self._sinus_parameter_list(
+            sinus_coefficient_list = self._sinus_parameter_list_free_wavelengths(
                 parameters=parameters,
                 n_legendre_coefficients=n_legendre_coeff,
             )
@@ -97,10 +100,11 @@ class BandpassModel:
         # the amplitude limits seem to depend on case
         # sinus_upper_amplitude = 0.01  # recommended value
         # sinus_upper_amplitude = 0.1
-        sinus_upper_amplitude = 10  # original value, works best, but not physical
-        lower_bounds = np.asarray([-np.inf for _ in range(n_legendre_coeff)] + [-np.pi, 0] * self.n_wave)
+        sinus_upper_amplitude = 100  # original value, works best, but not physical
+        # lower_bounds = np.asarray([-np.inf for _ in range(n_legendre_coeff)] + [-np.pi, 0, 0.2] * self.n_wave)
+        lower_bounds = np.asarray([-np.inf for _ in range(n_legendre_coeff)] + [-np.pi, 0, 0.5] * self.n_wave)
         upper_bounds = np.asarray(
-            [np.inf for _ in range(n_legendre_coeff)] + [np.pi, sinus_upper_amplitude] * self.n_wave
+            [np.inf for _ in range(n_legendre_coeff)] + [np.pi, sinus_upper_amplitude, 50] * self.n_wave
         )
         bounds = (lower_bounds, upper_bounds)
 
@@ -108,7 +112,8 @@ class BandpassModel:
                                              target_frequencies,
                                              target_estimator,
                                              p0=starting_coefficients,
-                                             bounds=bounds)
+                                             bounds=bounds,
+                                             method='dogbox')
 
         model_bandpass = bandpass_model_wrapper(target_frequencies, *curve_fit[0])
         legendre_bandpass = legendre.legval(target_frequencies, curve_fit[0][:n_legendre_coeff])
@@ -218,6 +223,23 @@ class BandpassModel:
             for i, w in enumerate(self.wavelengths)
         ]
         return sinus_parameter_list
+    
+    def _sinus_parameter_list_free_wavelengths(
+            self,
+            parameters: list[float] | np.ndarray | tuple,
+            n_legendre_coefficients: int,
+    ) -> list[tuple[float, float, float]]:
+        """
+        Returns the elements in `parameters` that belong to the sinus function
+        by ignoring the first `n_legendre_coefficients` entries.
+        """
+        sinus_parameter_list = [
+            (parameters[n_legendre_coefficients + 3 * i],
+             parameters[n_legendre_coefficients + 3 * i + 1],
+             parameters[n_legendre_coefficients + 3 * i + 2])
+            for i, _ in enumerate(self.wavelengths)
+        ]
+        return sinus_parameter_list
 
     def _parameters_to_dictionary(
             self,
@@ -246,7 +268,7 @@ class BandpassModel:
         """
         :raise ValueError: if `len(parameters)` does not match with `self.n_wave` and `n_legendre_coefficients`
         """
-        if (must_be_equal := 2 * self.n_wave + n_legendre_coefficients) != len(parameters):
+        if (must_be_equal := 3 * self.n_wave + n_legendre_coefficients) != len(parameters):
             raise ValueError(f'The number of parameters must be equal to the number of legendre coefficients + twice'
                              f'the number of wavelengths, got {len(parameters)} and {must_be_equal}.')
 
@@ -327,7 +349,7 @@ class BandpassModel:
         plt.ylabel('histogram')
 
         plt.subplot(6, 1, 3)
-        sinus_parameters_list = self._sinus_parameter_list(
+        sinus_parameters_list = self._sinus_parameter_list_free_wavelengths(
             parameters=parameters,
             n_legendre_coefficients=n_legendre_coeff,
         )
@@ -346,15 +368,21 @@ class BandpassModel:
         fftfreq = fftfreq[fftfreq >= 0]
         on_x_axis = fftfreq / MEGA * SPEED_OF_LIGHT / 2  # [m]
         on_y_axis = abs(fft) / max(abs(fft))
-        plt.plot(on_x_axis, on_y_axis, label='residual')
+        plt.semilogy(on_x_axis, on_y_axis, label='residual')
 
-        epsilon_data = bandpass / smooth_bandpass - 1
+        # epsilon_data = bandpass / smooth_bandpass - 1
+        epsilon_data = bandpass
         fft = np.fft.fft(epsilon_data)
         fftfreq = np.fft.fftfreq(len(epsilon_data), d=0.2)
         fft = fft[fftfreq >= 0]
         on_y_axis = abs(fft) / max(abs(fft))
-        plt.plot(on_x_axis, on_y_axis, label='epsilon data')
+        plt.semilogy(on_x_axis, on_y_axis, label='bandpass data')
         plt.axvline(25, color='black')
+        for p in self.standing_wave_displacements:
+            plt.axvline(p, color='grey', ls='-')
+        for p in sinus_parameters_list:
+            plt.axvline(p[2]/2, color='black', ls=':')
+
         plt.ylabel('fft abs normalised')
         plt.xlabel('[m]')
         plt.xlim((0, 30))

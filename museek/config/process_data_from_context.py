@@ -5,19 +5,10 @@ from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
     plugins=[
-        'museek.plugin.out_plugin',
-        'museek.plugin.noise_diode_flagger_plugin',
-        'museek.plugin.known_rfi_plugin',
-        'museek.plugin.scan_track_split_plugin',
         'museek.plugin.standing_wave_fit_scan_plugin',
         # 'museek.plugin.standing_wave_correction_plugin'
     ],
-    context=os.path.join(ROOT_DIR, 'results/1631379874/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1633970780/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1638898468/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1632760885/in_plugin.pickle')  # missing 008
-    # context=os.path.join(ROOT_DIR, 'results/1634252028/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1632184922/in_plugin.pickle')  # missing 008
+    context=os.path.join(ROOT_DIR, 'results/1675210948/scan_track_split_plugin.pickle')
 )
 
 # StandingWaveFitPlugin = ConfigSection(
@@ -36,7 +27,10 @@ Pipeline = ConfigSection(
 # )
 
 StandingWaveFitScanPlugin = ConfigSection(
-    target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    # target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    # target_channels=range(573, 2681),  # UHF 620 to 920 MHz (yes HI & no RFI)
+    target_channels=range(573, 2500),  # UHF 620 to 876 MHz (yes HI & no RFI)
+    # target_channels=range(1573, 2000),  # play UHF
     footprint_ra_dec=None,
     do_store_parameters=True
     # footprint_ra_dec=((332.41, 357.85), (-35.35, -25.96))  # roughly a 2 % degree margin around the footprint
