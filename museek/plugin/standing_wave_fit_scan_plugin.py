@@ -67,8 +67,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         parameters_dict = {}  # type: dict[dict[dict[float]]]
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            # if receiver.name != 'm008v':
-            #     continue
+            # if receiver.name != 'm008v' and receiver.name != 'm008h':
+                # continue
             print(f'Working on {receiver.name}...')
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
@@ -83,10 +83,13 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
-                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                # legendre_degree=1,  # works well with narrow frequency range
-                legendre_degree=5,
-                polyphase_parameters=(6, 64, 1.0003)
+                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
+                # standing_wave_displacements=[0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+                # standing_wave_displacements=[1],
+                standing_wave_displacements=[0.5, 5, 6, 9, 16.2, 17.9],
+                legendre_degree=6,
+                # polyphase_parameters=(6, 64, 1.0003)
+                polyphase_parameters=(6, 64, 1.0)
             )
             flags = scan_data.flags.get(time=times,
                                         freq=self.target_channels,
