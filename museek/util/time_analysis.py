@@ -39,23 +39,24 @@ class TimeAnalysis:
         observer.lat = self.latitude
         observer.lon = self.longitude
 
-        # Calculate sunset and sunrise times for start time / end time (in UTC)
+        # Calculate closest sunset and sunrise times for start time / end time (in UTC)
         observer.date = obs_start
-        sunset_start = observer.previous_setting(ephem.Sun())
+        if abs(obs_start - observer.previous_setting(ephem.Sun()).datetime()).total_seconds() > \
+           abs(obs_start - observer.next_setting(ephem.Sun()).datetime()).total_seconds():
+            sunset_start = observer.next_setting(ephem.Sun())
+        else:
+            sunset_start = observer.previous_setting(ephem.Sun())
 
         observer.date = obs_end
-        sunrise_end = observer.next_rising(ephem.Sun())
+        if abs(obs_end - observer.previous_rising(ephem.Sun()).datetime()).total_seconds() > \
+           abs(obs_end - observer.next_rising(ephem.Sun()).datetime()).total_seconds():
+            sunrise_end = observer.next_rising(ephem.Sun())
+        else:
+            sunrise_end = observer.previous_rising(ephem.Sun())
+
 
         # Calculate time differences
         sunrise_end_diff = (sunrise_end.datetime() - obs_end).total_seconds()
         start_sunset_diff = (obs_start - sunset_start.datetime()).total_seconds()
-
-        # Correct for the time difference if the estimated sunrise/sunset time are in next/previous day 
-        if start_sunset_diff/60. > 720:
-            start_sunset_diff = 1440.*60. - start_sunset_diff
-        if abs(sunrise_end_diff/60.) > 720:
-            sunrise_end_diff = 1440.*60. - sunrise_end_diff
-        else:
-            pass
 
         return sunset_start.datetime(), sunrise_end.datetime(), sunrise_end_diff, start_sunset_diff
