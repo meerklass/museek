@@ -5,19 +5,9 @@ from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
     plugins=[
-        'museek.plugin.out_plugin',
-        'museek.plugin.noise_diode_flagger_plugin',
-        'museek.plugin.known_rfi_plugin',
-        'museek.plugin.scan_track_split_plugin',
         'museek.plugin.standing_wave_fit_scan_plugin',
-        # 'museek.plugin.standing_wave_correction_plugin'
     ],
-    context=os.path.join(ROOT_DIR, 'results/1631379874/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1633970780/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1638898468/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1632760885/in_plugin.pickle')  # missing 008
-    # context=os.path.join(ROOT_DIR, 'results/1634252028/in_plugin.pickle')  # done
-    # context=os.path.join(ROOT_DIR, 'results/1632184922/in_plugin.pickle')  # missing 008
+    context=os.path.join(ROOT_DIR, 'results/1634252028/scan_track_split_plugin.pickle')
 )
 
 # StandingWaveFitPlugin = ConfigSection(
