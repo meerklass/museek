@@ -10,9 +10,9 @@ Pipeline = ConfigSection(
         'museek.plugin.noise_diode_flagger_plugin',
         'museek.plugin.known_rfi_plugin',
         'museek.plugin.scan_track_split_plugin',
-        'museek.plugin.aoflagger_plugin',
-        'museek.plugin.antenna_flagger_plugin',
-        'museek.plugin.single_dish_calibrator_plugin',
+        # 'museek.plugin.aoflagger_plugin',
+        # 'museek.plugin.antenna_flagger_plugin',
+        # 'museek.plugin.single_dish_calibrator_plugin',
         # 'museek.plugin.point_source_flagger_plugin',
         # 'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.apply_external_gain_solution_plugin',
@@ -20,19 +20,8 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1677195529',  # observation time stamp
-    receiver_list=['m000h',
-                   'm000v',
-                   'm008h',
-                   'm008v',
-                   'm013h',
-                   'm013v',
-                   'm028h',
-                   'm028v',
-                   'm037h',
-                   'm037v',
-                   'm063h',
-                   'm063v'],
+    block_name='1634252028',  # observation time stamp
+    receiver_list=None,
     token=None,  # archive token
     data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored

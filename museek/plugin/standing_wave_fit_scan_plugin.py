@@ -84,8 +84,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
                 standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                # legendre_degree=1,  # works well with narrow frequency range
-                legendre_degree=5,
+                legendre_degree=1,  # works well with narrow frequency range
+                # legendre_degree=5,
                 polyphase_parameters=(6, 64, 1.0003)
             )
             flags = scan_data.flags.get(time=times,
@@ -103,18 +103,24 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                             receiver_path=receiver_path,
                             calibrator_label=self.calibrator_label)
             bandpass_model.fit(**fit_args)
-            print('no double fit')
-            # try:
-            #     bandpass_model.double_fit(n_double=2, **fit_args)
-            # except RuntimeError:
-            #     print('warning: fit did not converge?')
+            # print('no double fit')
+            try:
+                bandpass_model.double_fit(n_double=2, **fit_args)
+            except RuntimeError:
+                print('warning: fit did not converge?')
             epsilon_function_dict[receiver.name][self.calibrator_label] = bandpass_model.epsilon_function
             legendre_function_dict[receiver.name][self.calibrator_label] = bandpass_model.legendre_function
             parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
 
+            if self.do_store_parameters:
+                np.savez(os.path.join(receiver_path, 'standing_wave_epsilon_and_frequencies'),
+                        epsilon=bandpass_model.epsilon,
+                        frequencies=frequencies*MEGA)
+
         if self.do_store_parameters:
             with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
                 json.dump(parameters_dict, f)
+
 
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
                                       result=epsilon_function_dict,
