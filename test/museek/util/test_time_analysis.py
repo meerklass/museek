@@ -11,7 +11,6 @@ class TestTimeAnalysis(unittest.TestCase):
         start, end, end_diff, start_diff = time_analysis.time_difference_to_sunset_sunrise(obs_start=obs_start, 
                                                                                            obs_end=obs_end)
 
-        print ('start, end, end_diff, start_diff',start, end, end_diff, start_diff)
         self.assertEqual(datetime(1969, 12, 31, 18, 7, 1, 543037), start)
         self.assertEqual(datetime(1970, 1, 1, 5, 59, 31, 249269), end)
         self.assertAlmostEqual(10771, end_diff, 0)
