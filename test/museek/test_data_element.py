@@ -121,6 +121,14 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 17.]])
         np.testing.assert_array_equal(expect, mean.squeeze)
+        
+    def test_median_when_explicit(self):
+        median = self.element.median(axis=0)
+        self.assertEqual(3, len(median.array.shape))
+        expect = np.asarray([[9., 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 17.]])
+        np.testing.assert_array_equal(expect, median.squeeze)    
 
     @patch('museek.data_element.np')
     def test_mean_when_mocked(self, mock_np):
@@ -131,6 +139,16 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.assert_called_once_with(self.element.array,
                                              axis=mock_axis,
                                              keepdims=True)
+        
+    @patch('museek.data_element.np')
+    def test_median_when_mocked(self, mock_np):
+        mock_np.median.return_value.shape = (1, 1, 1)
+        mock_axis = MagicMock()
+        median = self.element.median(axis=mock_axis)
+        self.assertEqual(median.array, mock_np.median.return_value)
+        mock_np.median.assert_called_once_with(self.element.array,
+                                             axis=mock_axis,
+                                             keepdims=True)    
 
     def test_mean_when_flags_is_not_none(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
@@ -144,6 +162,19 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
+    
+    def test_median_when_flags_is_not_none(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        median = self.element.median(axis=0, flags=flags)
+        self.assertEqual(3, len(median.array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, median.squeeze)
 
     def test_standard_deviation_when_explicit(self):
         std = self.element.standard_deviation(axis=0)
@@ -309,6 +340,13 @@ class TestDataElement(unittest.TestCase):
         mock_axis = Mock()
         self.assertIsInstance(self.element._mean(axis=mock_axis), DataElement)
         mock_np.mean.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
+        
+    @patch('museek.data_element.np')
+    def test__median(self, mock_np):
+        mock_np.median.return_value.shape = (1, 1, 1)
+        mock_axis = Mock()
+        self.assertIsInstance(self.element._median(axis=mock_axis), DataElement)
+        mock_np.median.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
 
     @patch('museek.data_element.np')
     def test_kurtosis(self, mock_np):
@@ -335,6 +373,21 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
+
+
+    def test_flagged_median(self):
+        flag_array = np.zeros((3, 3, 3), dtype=bool)
+        flag_array[0, 0, 0] = True
+        flag_array[1, 1, 1] = True
+        flag_array[2, 2, 2] = True
+        flags = FlagList(flags=[FlagElement(array=flag_array)])
+        median = self.element._flagged_median(axis=0, flags=flags)
+        self.assertEqual(3, len(median.array.shape))
+        expect = np.asarray([[13.5, 10., 11.],
+                             [12., 13., 14.],
+                             [15., 16., 12.5]])
+        np.testing.assert_array_equal(expect, median.squeeze)
+
 
     def test_flagged_kurtosis(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
