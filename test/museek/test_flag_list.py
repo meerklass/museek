@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 import numpy as np
+from museek.enums.flag_enum import FlagEnum
 
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
@@ -11,7 +12,7 @@ from museek.flag_list import FlagList
 class TestFlagList(unittest.TestCase):
     def setUp(self):
         flags = [FlagElement(array=np.zeros((3, 3, 3))) for _ in range(3)]
-        self.flag_list = FlagList(flags=flags)
+        self.flag_list = FlagList(flags=flags, flag_names=[FlagEnum.ONE, FlagEnum.TWO, FlagEnum.THREE])
 
     def test_len(self):
         self.assertEqual(3, len(self.flag_list))
@@ -34,7 +35,9 @@ class TestFlagList(unittest.TestCase):
 
     def test_from_array(self):
         flag_array = np.zeros((3, 3, 3, 3))
-        self.assertEqual(self.flag_list, FlagList.from_array(flag_array, element_factory=FlagElementFactory()))
+        self.assertEqual(self.flag_list, FlagList.from_array(flag_array,
+                                                             element_factory=FlagElementFactory(),
+                                                             flag_names=[FlagEnum.ONE, FlagEnum.TWO, FlagEnum.THREE]))
 
     def test_from_array_when_3_dimensional(self):
         flag_array = np.zeros((3, 3, 3))
@@ -57,9 +60,11 @@ class TestFlagList(unittest.TestCase):
         np.testing.assert_array_equal(mock_flags._flags[0].array, self.flag_list._flags[0].array)
 
     def test_remove_flag(self):
-        flag_list = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in range(3)])
+        flag_list = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in range(3)],
+                             flag_names=[FlagEnum.ONE, FlagEnum.TWO, FlagEnum.THREE])
         flag_list.remove_flag(index=1)
-        expect = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in [0, 2]])
+        expect = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in [0, 2]],
+                          flag_names=[FlagEnum.ONE, FlagEnum.THREE])
         self.assertEqual(expect, flag_list)
 
     def test_combine_when_empty(self):
@@ -102,7 +107,8 @@ class TestFlagList(unittest.TestCase):
     def test_get(self, mock_check_flags):
         mock_flag = MagicMock(shape=1)
         mock_flag.get.return_value = mock_flag
-        flag_list = FlagList(flags=[mock_flag])
+        mock_flag_name = MagicMock()
+        flag_list = FlagList(flags=[mock_flag], flag_names=[mock_flag_name])
         kwargs = {'mock': 'mock'}
         self.assertEqual(flag_list._flags[0], flag_list.get(**kwargs)._flags[0])
         mock_flag.get.assert_called_once_with(mock='mock')
@@ -126,7 +132,7 @@ class TestFlagList(unittest.TestCase):
 
     def test_insert_receiver_flag_when_one_channel(self):
         flags = [FlagElement(array=np.zeros((3, 1, 3))) for _ in range(3)]
-        flag_list = FlagList(flags=flags)
+        flag_list = FlagList(flags=flags, flag_names=[FlagEnum.ONE, FlagEnum.TWO, FlagEnum.THREE])
 
         mock_flag = FlagElement(array=np.ones((3, 1, 1), dtype=bool))
         flag_list.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
@@ -159,3 +165,7 @@ class TestFlagList(unittest.TestCase):
     def test_check_flag_types_expect_raise(self):
         flags = [FlagElement(array=np.zeros((3, 3, 3))), np.zeros((1, 1, 1))]
         self.assertRaises(ValueError, FlagList, flags=flags)
+
+
+if __name__ == '__main__':
+    unittest.main()
