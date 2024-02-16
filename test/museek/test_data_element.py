@@ -121,14 +121,14 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 17.]])
         np.testing.assert_array_equal(expect, mean.squeeze)
-        
+
     def test_median_when_explicit(self):
         median = self.element.median(axis=0)
         self.assertEqual(3, len(median.array.shape))
         expect = np.asarray([[9., 10., 11.],
                              [12., 13., 14.],
                              [15., 16., 17.]])
-        np.testing.assert_array_equal(expect, median.squeeze)    
+        np.testing.assert_array_equal(expect, median.squeeze)
 
     @patch('museek.data_element.np')
     def test_mean_when_mocked(self, mock_np):
@@ -139,7 +139,7 @@ class TestDataElement(unittest.TestCase):
         mock_np.mean.assert_called_once_with(self.element.array,
                                              axis=mock_axis,
                                              keepdims=True)
-        
+
     @patch('museek.data_element.np')
     def test_median_when_mocked(self, mock_np):
         mock_np.median.return_value.shape = (1, 1, 1)
@@ -147,8 +147,8 @@ class TestDataElement(unittest.TestCase):
         median = self.element.median(axis=mock_axis)
         self.assertEqual(median.array, mock_np.median.return_value)
         mock_np.median.assert_called_once_with(self.element.array,
-                                             axis=mock_axis,
-                                             keepdims=True)    
+                                               axis=mock_axis,
+                                               keepdims=True)
 
     def test_mean_when_flags_is_not_none(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
@@ -162,7 +162,7 @@ class TestDataElement(unittest.TestCase):
                              [12., 13., 14.],
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
-    
+
     def test_median_when_flags_is_not_none(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
@@ -340,7 +340,7 @@ class TestDataElement(unittest.TestCase):
         mock_axis = Mock()
         self.assertIsInstance(self.element._mean(axis=mock_axis), DataElement)
         mock_np.mean.assert_called_once_with(self.element.array, axis=mock_axis, keepdims=True)
-        
+
     @patch('museek.data_element.np')
     def test__median(self, mock_np):
         mock_np.median.return_value.shape = (1, 1, 1)
@@ -374,7 +374,6 @@ class TestDataElement(unittest.TestCase):
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, mean.squeeze)
 
-
     def test_flagged_median(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
@@ -388,18 +387,17 @@ class TestDataElement(unittest.TestCase):
                              [15., 16., 12.5]])
         np.testing.assert_array_equal(expect, median.squeeze)
 
-
     def test_flagged_kurtosis(self):
         flag_array = np.zeros((3, 3, 3), dtype=bool)
         flag_array[0, 0, 0] = True
         flag_array[1, 1, 1] = True
         flag_array[2, 2, 2] = True
         flags = FlagList(flags=[FlagElement(array=flag_array)])
-        kurtosis = self.element._flagged_kurtosis(axis=0,flags=flags)
+        kurtosis = self.element._flagged_kurtosis(axis=0, flags=flags)
         self.assertEqual(3, len(kurtosis.array.shape))
-        expect = np.asarray([[-2. , -1.5, -1.5],
-                             [-1.5, -2. , -1.5],
-                             [-1.5, -1.5, -2. ]])
+        expect = np.asarray([[-2., -1.5, -1.5],
+                             [-1.5, -2., -1.5],
+                             [-1.5, -1.5, -2.]])
         np.testing.assert_array_equal(expect, kurtosis.squeeze)
 
     def test_flagged_std(self):
@@ -414,3 +412,7 @@ class TestDataElement(unittest.TestCase):
                              [54., 81., 54.],
                              [54., 54., 20.25]]) ** (1 / 2)
         np.testing.assert_array_equal(expect, std.squeeze)
+
+
+if __name__ == '__main__':
+    unittest.main()
