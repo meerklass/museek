@@ -240,13 +240,13 @@ def _sum_threshold_mask(
 
 def plot_moments(data, output_path: str):
     """
-    Plot standard divation and mean of data.
+    Plot standard deviation and mean of data.
     """
 
     std_time = np.std(data, axis=0)
     mean_time = np.mean(data, axis=0)
-    std_freuqency = np.std(data, axis=1)
-    mean_freuqency = np.mean(data, axis=1)
+    std_frequency = np.std(data, axis=1)
+    mean_frequency = np.mean(data, axis=1)
     plt.subplot(221)
     plt.plot(mean_time)
     plt.xlabel('time')
@@ -256,12 +256,12 @@ def plot_moments(data, output_path: str):
     plt.xlabel('time')
     plt.ylabel('std')
     plt.subplot(223)
-    plt.plot(mean_freuqency)
-    plt.xlabel('freuqency')
+    plt.plot(mean_frequency)
+    plt.xlabel('frequency')
     plt.ylabel('mean')
     plt.subplot(224)
-    plt.plot(std_freuqency)
-    plt.xlabel('freuqency')
+    plt.plot(std_frequency)
+    plt.xlabel('frequency')
     plt.ylabel('std')
     plt.tight_layout()
     plot_name = 'standard_deviation_and_mean.png'
