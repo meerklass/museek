@@ -14,7 +14,9 @@ from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
+from museek.util.tools import flag_percent_recv
 
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
@@ -53,6 +55,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
+        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """
@@ -60,10 +63,12 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         """
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def map(self,
             scan_data: TimeOrderedData,
+            flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) \
             -> Generator[tuple[str, DataElement, FlagElement], None, None]:
@@ -103,6 +108,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
                               scan_data: TimeOrderedData,
+                              flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
         """
@@ -114,6 +120,10 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
         scan_data.flags.add_flag(flag=new_flag)
+
+        receivers_list, flag_percent = flag_percent_recv(scan_data)
+        lines = ['...........................', 'Running AoflaggerPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
         waterfall(scan_data.visibility.get(recv=0),
                   scan_data.flags.get(recv=0),
