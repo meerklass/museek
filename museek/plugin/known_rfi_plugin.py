@@ -10,7 +10,9 @@ from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
+from museek.util.tools import flag_percent_recv
 
 
 class KnownRfiPlugin(AbstractPlugin):
@@ -39,13 +41,15 @@ class KnownRfiPlugin(AbstractPlugin):
             rfi_list.extend(extra_rfi)
         self.rfi_list = [rfi for rfi in rfi_list if rfi is not None]
         self.data_element_factory = FlagElementFactory()
+        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, data: TimeOrderedData, output_path: str):
+    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str):
         """
         Flag all channels defined by `self.rfi_list` and save the result to the context.
         :param data: time ordered data of the entire block
@@ -61,6 +65,10 @@ class KnownRfiPlugin(AbstractPlugin):
                     continue
         data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+
+        receivers_list, flag_percent = flag_percent_recv(data)
+        lines = ['...........................', 'Running KnownRfiPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
         waterfall(data.visibility.get(recv=0),
                   data.flags.get(recv=0),
