@@ -9,6 +9,7 @@ Pipeline = ConfigSection(
         'museek.plugin.out_plugin',
         'museek.plugin.noise_diode_flagger_plugin',
         'museek.plugin.known_rfi_plugin',
+        'museek.plugin.rawdata_flagger_plugin',
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
@@ -85,6 +86,10 @@ KnownRfiPlugin = ConfigSection(
     gsm_1800_uplink=(1710, 1785),
     gps=(1170, 1390),
     extra_rfi=[(1524, 1630)]
+)
+
+RawdataFlaggerPlugin = ConfigSection(
+    flag_minimum=5.0
 )
 
 ScanTrackSplitPlugin = ConfigSection(
