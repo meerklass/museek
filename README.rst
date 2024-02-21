@@ -118,6 +118,8 @@ More information on these are included in their class documentations.
 
 10. `BandpassPlugin`
 
+11. `RawdataFlaggerPlugin`
+
 
 Ilifu
 -----------------------
