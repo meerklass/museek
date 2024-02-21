@@ -17,14 +17,15 @@ class RawdataFlaggerPlugin(AbstractPlugin):
     """ Plugin to flag raw data with values below a minimum """
 
     def __init__(self,
-                 flag_minimum: float):
+                 flag_lower_threshold: float):
         """
         Initialise
-        :param flag_minimum: lower threshold to flag the data
+        :param flag_lower_threshold: lower threshold to flag the data, 
+                                     it relates to raw correlator units without any normalisation.
         """
         super().__init__()
         self.data_element_factory = FlagElementFactory()
-        self.flag_minimum = flag_minimum
+        self.flag_lower_threshold = flag_lower_threshold
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -38,8 +39,9 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         :param output_path: path to store results
         """
         data.load_visibility_flags_weights()
-        new_flag = np.zeros(data.shape, dtype=bool)
-        new_flag[data.visibility.array < self.flag_minimum] = True
+        new_flag = np.zeros(data.visibility.shape, dtype=bool)
+        new_flag[data.visibility.array < self.flag_lower_threshold] = True
 
         data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+
