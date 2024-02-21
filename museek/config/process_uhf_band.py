@@ -89,7 +89,7 @@ KnownRfiPlugin = ConfigSection(
 )
 
 RawdataFlaggerPlugin = ConfigSection(
-    flag_minimum=5.0
+    flag_lower_threshold=5.0
 )
 
 ScanTrackSplitPlugin = ConfigSection(
