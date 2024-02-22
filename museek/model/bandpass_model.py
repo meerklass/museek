@@ -1,5 +1,6 @@
 import os
 from typing import Callable, Optional
+import emcee
 
 import numpy as np
 import scipy
@@ -108,12 +109,11 @@ class BandpassModel:
         )
         bounds = (lower_bounds, upper_bounds)
 
-        curve_fit = scipy.optimize.curve_fit(bandpass_model_wrapper,
-                                             target_frequencies,
-                                             target_estimator,
-                                             p0=starting_coefficients,
-                                             bounds=bounds,
-                                             method='dogbox')
+        curve_fit = self._fit(executable=bandpass_model_wrapper,
+                              on_x_axis=target_frequencies,
+                              estimator=target_estimator,
+                              p0=starting_coefficients,
+                              bounds=bounds)
 
         model_bandpass = bandpass_model_wrapper(target_frequencies, *curve_fit[0])
         legendre_bandpass = legendre.legval(target_frequencies, curve_fit[0][:n_legendre_coeff])
@@ -147,6 +147,25 @@ class BandpassModel:
         self.parameters_dictionary = parameters_dict
         self.epsilon = epsilon
         self._curve_fit = curve_fit
+
+    @staticmethod
+    def _fit(executable, on_x_axis, estimator, p0, bounds):
+        return scipy.optimize.curve_fit(executable,
+                                        on_x_axis,
+                                        estimator,
+                                        p0=p0,
+                                        bounds=bounds,
+                                        method='dogbox')
+        
+    @staticmethod
+    def _fit_mcmc(executable, on_x_axis, estimator, p0, bounds):
+        nwalkers=50
+        ndim=len(p0)
+        log_prob=1
+        ivar = 1
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=[ivar])
+        sampler.run_mcmc(p0, 10000)
+        return None
 
     def double_fit(self,
                    n_double: int,
@@ -223,7 +242,7 @@ class BandpassModel:
             for i, w in enumerate(self.wavelengths)
         ]
         return sinus_parameter_list
-    
+
     def _sinus_parameter_list_free_wavelengths(
             self,
             parameters: list[float] | np.ndarray | tuple,
