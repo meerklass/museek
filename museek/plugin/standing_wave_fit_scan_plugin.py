@@ -9,9 +9,11 @@ from definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.model.bandpass_model import BandpassModel
 from museek.time_ordered_data import TimeOrderedData
+from numpy.polynomial import legendre
 
 
 class StandingWaveFitScanPlugin(AbstractPlugin):
@@ -63,12 +65,11 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
 
         scan_data.load_visibility_flags_weights()
         epsilon_function_dict = {}  # type: dict[dict[[Callable]]]
-        legendre_function_dict = {}  # type: dict[dict[[Callable]]]
         parameters_dict = {}  # type: dict[dict[dict[float]]]
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            # if receiver.name != 'm008v' and receiver.name != 'm008h':
-                # continue
+            if receiver.name != 'm008v':
+                continue
             print(f'Working on {receiver.name}...')
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
@@ -77,18 +78,14 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             self.plot_times(data=scan_data, times=times, i_antenna=i_antenna, output_path=receiver_path)
             if receiver.name not in epsilon_function_dict:
                 epsilon_function_dict[receiver.name] = {}  # type: dict[Callable]
-                legendre_function_dict[receiver.name] = {}  # type: dict[Callable]
                 parameters_dict[receiver.name] = {}  # type: dict[dict[float]]
 
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
-                # standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                # standing_wave_displacements=[0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-                # standing_wave_displacements=[1],
-                standing_wave_displacements=[0.5, 5, 6, 9, 16.2, 17.9],
-                legendre_degree=6,
-                # polyphase_parameters=(6, 64, 1.0003)
+                # standing_wave_displacements=[5.8, 11.7, 12.4, 13.4, 14.7,  16.2, 17.9, 19.6],
+                # standing_wave_displacements=[0.4, 0.7, 1.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
+                standing_wave_displacements=[0.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
                 polyphase_parameters=(6, 64, 1.0)
             )
             flags = scan_data.flags.get(time=times,
@@ -100,9 +97,26 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             bandpass_estimator = scan_data.visibility.get(time=times,
                                                           freq=self.target_channels,
                                                           recv=i_receiver).mean(axis=0, flags=flags)
-            bandpass_estimator /= bandpass_estimator.max(axis=1).squeeze
+            bandpass_normaliser = bandpass_estimator.max(axis=1).squeeze
+            bandpass_estimator /= bandpass_normaliser
+            bandpass_estimator_error = scan_data.visibility.get(time=times,
+                                                                freq=self.target_channels,
+                                                                recv=i_receiver).standard_deviation(axis=0,
+                                                                                                    flags=flags)
+            bandpass_estimator_error /= bandpass_normaliser
+
+            legendre_degree = 3
+            legendre_start_fit = legendre.legfit(
+                frequencies.squeeze / MEGA,
+                bandpass_estimator.squeeze,
+                legendre_degree
+            )
+            legendre_bandpass = legendre.legval(frequencies.squeeze / MEGA, legendre_start_fit)
+            legendre_bandpass = np.reshape(legendre_bandpass, bandpass_estimator.shape)
+
             fit_args = dict(frequencies=frequencies,
-                            estimator=bandpass_estimator,
+                            estimator=bandpass_estimator/legendre_bandpass,
+                            estimator_error=bandpass_estimator_error/legendre_bandpass,
                             receiver_path=receiver_path,
                             calibrator_label=self.calibrator_label)
             bandpass_model.fit(**fit_args)
@@ -111,8 +125,6 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             #     bandpass_model.double_fit(n_double=2, **fit_args)
             # except RuntimeError:
             #     print('warning: fit did not converge?')
-            epsilon_function_dict[receiver.name][self.calibrator_label] = bandpass_model.epsilon_function
-            legendre_function_dict[receiver.name][self.calibrator_label] = bandpass_model.legendre_function
             parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
 
         if self.do_store_parameters:
@@ -121,9 +133,6 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
                                       result=epsilon_function_dict,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT,
-                                      result=legendre_function_dict,
                                       allow_overwrite=False))
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
                                       result=self.target_channels,
