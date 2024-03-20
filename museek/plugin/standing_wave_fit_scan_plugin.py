@@ -84,8 +84,8 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             bandpass_model = BandpassModel(
                 plot_name=self.plot_name,
                 # standing_wave_displacements=[5.8, 11.7, 12.4, 13.4, 14.7,  16.2, 17.9, 19.6],
-                # standing_wave_displacements=[0.4, 0.7, 1.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
-                standing_wave_displacements=[0.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
+                standing_wave_displacements=[0.4, 0.7, 1.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
+                # standing_wave_displacements=[0.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
                 polyphase_parameters=(6, 64, 1.0)
             )
             flags = scan_data.flags.get(time=times,

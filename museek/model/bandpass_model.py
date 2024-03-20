@@ -120,38 +120,35 @@ class BandpassModel:
         # best_fit = curve_fit[0]
         # variances = curve_fit[1]
 
-            sampler = self._fit_mcmc(frequencies=target_frequencies,
-                                    estimator=target_estimator,
-                                    estimator_error=target_estimator_error,
-                                    p0=starting_coefficients)
-            samples = sampler.get_chain()
-            ndim = len(starting_coefficients)
-            thin = 1
-            # discard = 8000
-            discard = 40000
-            # discard = 50
-            _, axes = plt.subplots(ndim, figsize=(10, 50), sharex=True)
-            for i in range(ndim):
-                ax = axes[i]
-                ax.plot(samples[:, :, i], "k", alpha=0.3)
-                # ax.set_xlim(0, len(samples))
-                ax.set_ylabel(self.parameter_names[i])
-                ax.yaxis.set_label_coords(-0.1, 0.5)
-                ax.axvline(discard)
+        sampler = self._fit_mcmc(frequencies=target_frequencies,
+                                 estimator=target_estimator,
+                                 estimator_error=target_estimator_error,
+                                 p0=starting_coefficients)
+        samples = sampler.get_chain()
+        ndim = len(starting_coefficients)
+        thin = 1
+        # discard = 8000
+        discard = 40000
+        # discard = 50
+        _, axes = plt.subplots(ndim, figsize=(10, 50), sharex=True)
+        for i in range(ndim):
+            ax = axes[i]
+            ax.plot(samples[:, :, i], "k", alpha=0.3)
+            # ax.set_xlim(0, len(samples))
+            ax.set_ylabel(self.parameter_names[i])
+            ax.yaxis.set_label_coords(-0.1, 0.5)
+            ax.axvline(discard)
 
-            axes[-1].set_xlabel("step number")
-            plt.savefig(os.path.join(receiver_path, f'{self.plot_name}_mcmc_walkers.png'))
-            plt.close()
-            
-            flat_samples = sampler.get_chain(discard=discard, flat=True, thin=thin)
-            log_probability = sampler.get_log_prob(discard=discard, flat=True, thin=thin)
+        axes[-1].set_xlabel("step number")
+        plt.savefig(os.path.join(receiver_path, f'{self.plot_name}_mcmc_walkers.png'))
+        plt.close()
 
-            np.savez(os.path.join(receiver_path, 'samples.npz'),
-                     flat_samples=flat_samples,
-                    log_probability=log_probability)
+        flat_samples = sampler.get_chain(discard=discard, flat=True, thin=thin)
+        log_probability = sampler.get_log_prob(discard=discard, flat=True, thin=thin)
 
-
-
+        np.savez(os.path.join(receiver_path, 'samples.npz'),
+                 flat_samples=flat_samples,
+                 log_probability=log_probability)
 
         # histograms_bins = [np.histogram(flat, bins=100) for flat in flat_samples.T]
         # half_bins = [(hb[1][1:] + hb[1][:-1])/2 for hb in histograms_bins]
@@ -171,10 +168,9 @@ class BandpassModel:
         for i in range(0, flat_samples.shape[0], 100000):
             best_fit = flat_samples[i]
             model_bandpass = bandpass_model_wrapper(target_frequencies, best_fit)
-            plt.plot(target_frequencies, model_bandpass, ls = ':')
+            plt.plot(target_frequencies, model_bandpass, ls=':')
         plt.savefig(os.path.join(receiver_path, f'test.png'))
         plt.close()
-
 
         model_bandpass = bandpass_model_wrapper(target_frequencies, best_fit)
         epsilon = model_bandpass - 1
