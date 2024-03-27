@@ -24,6 +24,6 @@ class FromLog:
                 for antenna_name in addition:
                     straggler_list.append(antenna_name[1:-1])
 
-                unique_straggler_list = sorted(set(straggler_list))
+        unique_straggler_list = sorted(set(straggler_list))
 
         return unique_straggler_list

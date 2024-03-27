@@ -85,6 +85,23 @@ class DataElement(AbstractDataElement):
         if flags is None:
             return self._mean(axis=axis)
         return self._flagged_mean(axis=axis, flags=flags)
+    
+    def median(
+            self,
+            axis: int | list[int, int] | tuple[int, int],
+            flags: Union['FlagList', None] = None
+    ) -> 'DataElement':
+        """
+        Return the median of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the median
+        :param flags: optional, only entries not flagged by these are used
+        :return: `DataElement` containing the median along `axis`
+        """
+        if flags is None:
+            return self._median(axis=axis)
+        return self._flagged_median(axis=axis, flags=flags)
+    
 
     def standard_deviation(
             self,
@@ -133,6 +150,10 @@ class DataElement(AbstractDataElement):
         """ Return a `DataElement` created from the output of `np.mean` applied along `axis`. """
         return DataElement(array=np.mean(self.array, axis=axis, keepdims=True))
 
+    def _median(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
+        """ Return a `DataElement` created from the output of `np.median` applied along `axis`. """
+        return DataElement(array=np.median(self.array, axis=axis, keepdims=True))
+
     def _std(self, axis: int | list[int, int] | tuple[int, int]) -> 'DataElement':
         """ Return a `DataElement` created from the output of `np.std` applied along `axis`. """
         return DataElement(array=np.std(self.array, axis=axis, keepdims=True))
@@ -152,6 +173,19 @@ class DataElement(AbstractDataElement):
         combined = flags.combine(threshold=1)
         masked = np.ma.masked_array(self.array, combined.array)
         return DataElement(array=masked.mean(axis=axis, keepdims=True))
+
+    def _flagged_median(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
+        """
+        Return the median of the unflagged entries in `self` along `axis` as a `DataElement`,
+        i.e. the dimensions are kept.
+        :param axis: axis along which to calculate the median
+        :param flags: only entries not flagged by these are used
+        :return: `DataElement` containing the median along `axis`
+        """
+        combined = flags.combine(threshold=1)
+        masked = np.ma.masked_array(self.array, combined.array)
+        return DataElement(array=np.ma.median(masked, axis=axis, keepdims=True))
+
 
     def _flagged_std(self, axis: int | list[int, int] | tuple[int, int], flags: 'FlagList') -> 'DataElement':
         """
