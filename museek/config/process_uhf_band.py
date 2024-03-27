@@ -9,10 +9,11 @@ Pipeline = ConfigSection(
         'museek.plugin.out_plugin',
         'museek.plugin.noise_diode_flagger_plugin',
         'museek.plugin.known_rfi_plugin',
+        'museek.plugin.rawdata_flagger_plugin',
         'museek.plugin.scan_track_split_plugin',
-        'museek.plugin.aoflagger_plugin',
         'museek.plugin.antenna_flagger_plugin',
-        'museek.plugin.single_dish_calibrator_plugin',
+        'museek.plugin.aoflagger_plugin',
+#        'museek.plugin.single_dish_calibrator_plugin',
         # 'museek.plugin.point_source_flagger_plugin',
         # 'museek.plugin.zebra_remover_plugin',
         # 'museek.plugin.apply_external_gain_solution_plugin',
@@ -20,7 +21,7 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1677195529',  # observation time stamp
+    block_name='1677777992',  # observation time stamp
     receiver_list=['m000h',
                    'm000v',
                    'm008h',
@@ -85,6 +86,10 @@ KnownRfiPlugin = ConfigSection(
     gsm_1800_uplink=(1710, 1785),
     gps=(1170, 1390),
     extra_rfi=[(1524, 1630)]
+)
+
+RawdataFlaggerPlugin = ConfigSection(
+    flag_lower_threshold=5.0
 )
 
 ScanTrackSplitPlugin = ConfigSection(
