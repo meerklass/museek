@@ -11,7 +11,7 @@ from museek.flag_element import FlagElement
 class FlagList:
     """ Class to contain a `list` of flags encapsulated as `FlagElement`s each. """
 
-    def __init__(self, flags: list[FlagElement], flag_names: Union[list[Enum], None]):
+    def __init__(self, flags: list[FlagElement], flag_names: Union[list[Enum], None] = None):
         """
         Initialise with `flags`, a `list of `FlagElement`s and optional names `flag_names`.
         :raise ValueError: if the lengths of `flags` and `flag_names` are not equal
@@ -92,8 +92,12 @@ class FlagList:
         self._check_flags()
         self._check_flag_names()
 
-    def remove_flag(self, index: int):
+    def remove_flag(self, index_or_name: int | Enum):
         """ Remove `flag` at `index` in `self.flags`. """
+        if isinstance(index_or_name, int):
+            index = index_or_name
+        else:
+            index = self.flag_names.index(index_or_name.name)
         self._flags = [flag for i, flag in enumerate(self._flags) if i != index]
         self._flag_names = [name for i, name in enumerate(self._flag_names) if i != index]
         self._check_flags()
