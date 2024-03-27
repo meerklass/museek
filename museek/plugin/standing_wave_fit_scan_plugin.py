@@ -102,7 +102,11 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                             estimator=bandpass_estimator,
                             receiver_path=receiver_path,
                             calibrator_label=self.calibrator_label)
-            bandpass_model.fit(**fit_args)
+            try:
+                bandpass_model.fit(**fit_args)
+            except RuntimeError:
+                print('RuntimeError: continue...')
+                continue
             # print('no double fit')
             try:
                 bandpass_model.double_fit(n_double=2, **fit_args)
@@ -115,7 +119,7 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
             if self.do_store_parameters:
                 np.savez(os.path.join(receiver_path, 'standing_wave_epsilon_and_frequencies'),
                         epsilon=bandpass_model.epsilon,
-                        frequencies=frequencies.squeeze*MEGA)
+                        frequencies=frequencies.squeeze/MEGA)
 
         if self.do_store_parameters:
             with open(os.path.join(output_path, parameters_dict_name), 'w') as f:

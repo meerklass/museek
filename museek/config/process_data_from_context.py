@@ -5,25 +5,25 @@ from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
     plugins=[
+        'museek.plugin.standing_wave_fit_plugin',
         'museek.plugin.standing_wave_fit_scan_plugin',
     ],
     context=os.path.join(ROOT_DIR, 'results/1634252028/scan_track_split_plugin.pickle')
 )
 
-# StandingWaveFitPlugin = ConfigSection(
-#     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
-#     # target_channels=range(570, 1410),  # 975 to 1151 MHz (yes HI & little RFI)
-#     # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
-#     pointing_labels=['on centre 1',
-#                      'off centre top',
-#                      'on centre 2',
-#                      'off centre right',
-#                      'on centre 3',
-#                      'off centre down',
-#                      'on centre 4',
-#                      'off centre left',
-#                      'on centre 5']
-# )
+StandingWaveFitPlugin = ConfigSection(
+    target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    pointing_labels=['on centre 1',
+                     'off centre top',
+                     'on centre 2',
+                     'off centre right',
+                     'on centre 3',
+                     'off centre down',
+                     'on centre 4',
+                     'off centre left',
+                     'on centre 5'],
+    do_store_parameters=True
+)
 
 StandingWaveFitScanPlugin = ConfigSection(
     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)

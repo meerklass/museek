@@ -42,13 +42,21 @@ class StandingWaveFitPlugin(AbstractPlugin):
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
+                             Requirement(location=ResultEnum.SCAN_OBSERVATION_START, variable='scan_start'),
+                             Requirement(location=ResultEnum.SCAN_OBSERVATION_END, variable='scan_end')]
 
-    def run(self, track_data: TimeOrderedData, output_path: str):
+    def run(self,
+            track_data: TimeOrderedData,
+            output_path: str,
+            scan_start: float,
+            scan_end: float):
         """
         Run the plugin, i.e. fit the bandpass model and store the results
         :param track_data: the time ordered data containing the observation's tracking part
         :param output_path: path to store results
+        :param scan_start: 
+        :param scan_end:
         """
 
         parameters_dict_name = f'parameters_dict_frequency_' \
@@ -63,52 +71,79 @@ class StandingWaveFitPlugin(AbstractPlugin):
         legendre_function_dict = {}  # type: dict[dict[[Callable]]]
 
         for i_receiver, receiver in enumerate(track_data.receivers):
+            # if receiver.name != 'm008v':
+            #     continue
             print(f'Working on {receiver}...')
-            track_pointing_iterator = TrackPointingIterator(track_data=track_data,
-                                                            receiver=receiver,
-                                                            receiver_index=i_receiver)
+
             receiver_path = self.add_to_dicts_and_receiver_path(receiver=receiver,
                                                                 parameters_dict=parameters_dict,
                                                                 epsilon_function_dict=epsilon_function_dict,
                                                                 legendre_function_dict=legendre_function_dict,
                                                                 output_path=output_path)
+            track_pointing_iterator = TrackPointingIterator(track_data=track_data,
+                                                            receiver=receiver,
+                                                            plot_dir=receiver_path,
+                                                            scan_start=scan_start,
+                                                            scan_end=scan_end)
 
             for before_or_after, times, times_list, pointing_centres in track_pointing_iterator.iterate():
-                bandpasses_std_dict, bandpasses_dict, track_times_dict = self.get_bandpasses_std_dicts(
+                print(f'{before_or_after}...')
+                if times_list is None:
+                    print('calibrator not found?... continue')
+                    continue
+                _, bandpasses_dict, _ = self.get_bandpasses_std_dicts(
                     track_data=track_data,
                     times_list=times_list,
                     times=times,
                     pointing_labels=self.pointing_labels,
                     i_receiver=i_receiver
                 )
-                labels = ['on centre 1',
-                          'on centre 2',
-                          'on centre 3',
-                          'on centre 4',
-                          'on centre 5']
-                bandpass_estimator = np.sum([bandpasses_std_dict[key_] for key_ in labels]) / 5
                 frequencies = track_data.frequencies.get(freq=self.target_channels)
-                bandpass_model = BandpassModel(
-                    plot_name=self.plot_name,
-                    standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                    legendre_degree=1,
-                )
-                bandpass_model.fit(frequencies,
-                                   estimator=bandpass_estimator,
-                                   receiver_path=receiver_path,
-                                   calibrator_label=before_or_after)
-                self.plot_corrected_track_bandpasses(bandpasses_dict=bandpasses_dict,
-                                                     epsilon=bandpass_model.epsilon,
-                                                     frequencies=frequencies,
-                                                     before_or_after=before_or_after,
-                                                     receiver_path=receiver_path)
-                parameters_dict[receiver.name][before_or_after] = bandpass_model.parameters_dictionary
-                epsilon_function_dict[receiver.name][before_or_after] = bandpass_model.epsilon_function
-                legendre_function_dict[receiver.name][before_or_after] = bandpass_model.legendre_function
+                # for label in self.pointing_labels:
+                for label, bandpass_estimator in bandpasses_dict.items():
+                    print(f'found {label}...')
+                    bandpass_estimator = bandpasses_dict[label]
 
-        if self.do_store_parameters:
-            with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
-                json.dump(parameters_dict, f)
+                    bandpass_model = BandpassModel(
+                        plot_name=self.plot_name,
+                        standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
+                        legendre_degree=1,
+                        polyphase_parameters=(6, 64, 1.0003)
+                    )
+                    flags = track_data.flags.get(time=times,
+                                                 freq=self.target_channels,
+                                                 recv=i_receiver)
+                    if flags.combine().squeeze.all():
+                        print('Everything flagged... - continue')
+                        continue
+                    dict_key = f'{before_or_after}_{label}'
+                    fit_args = dict(frequencies=frequencies,
+                                    estimator=bandpass_estimator,
+                                    receiver_path=receiver_path,
+                                    calibrator_label=dict_key)
+                    try:
+                        bandpass_model.fit(**fit_args)
+                    except RuntimeError:
+                        print('RuntimeError: continue...')
+                        continue
+                    parameters_dict[receiver.name][dict_key] = bandpass_model.parameters_dictionary
+                    epsilon_function_dict[receiver.name][dict_key] = bandpass_model.epsilon_function
+                    legendre_function_dict[receiver.name][dict_key] = bandpass_model.legendre_function
+
+                    if self.do_store_parameters:
+                        np.savez(
+                            os.path.join(
+                                receiver_path,
+                                f'standing_wave_epsilon_and_frequencies_track_{dict_key}'
+                            ),
+                            epsilon=bandpass_model.epsilon,
+                            frequencies=frequencies.squeeze/MEGA
+                        )
+                    self.plot_corrected_track_bandpasses(bandpass=bandpass_estimator,
+                                                         epsilon=bandpass_model.epsilon,
+                                                         frequencies=frequencies,
+                                                         before_or_after=dict_key,
+                                                         receiver_path=receiver_path)
 
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
                                       result=epsilon_function_dict,
@@ -145,14 +180,13 @@ class StandingWaveFitPlugin(AbstractPlugin):
         return bandpasses_std_dict, bandpasses_dict, track_times_dict
 
     def plot_corrected_track_bandpasses(self,
-                                        bandpasses_dict,
+                                        bandpass,
                                         epsilon,
                                         frequencies,
                                         before_or_after,
                                         receiver_path):
         plt.figure()
-        for key, bandpass in bandpasses_dict.items():
-            plt.plot(frequencies.squeeze / MEGA, bandpass.squeeze / (epsilon + 1), label=key)
+        plt.plot(frequencies.squeeze / MEGA, bandpass.squeeze / (epsilon + 1), label=before_or_after)
         plt.legend()
         plt.xlabel('frequency [MHz]')
         plt.ylabel('intensity')

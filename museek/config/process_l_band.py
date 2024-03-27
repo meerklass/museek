@@ -10,10 +10,8 @@ Pipeline = ConfigSection(
         'museek.plugin.noise_diode_flagger_plugin',
         'museek.plugin.known_rfi_plugin',
         'museek.plugin.scan_track_split_plugin',
-        # 'museek.plugin.antenna_flagger_plugin',
-        # 'museek.plugin.point_source_flagger_plugin',
-        # 'museek.plugin.zebra_remover_plugin',
-        # 'museek.plugin.apply_external_gain_solution_plugin',
+        'museek.plugin.standing_wave_fit_plugin',
+        'museek.plugin.standing_wave_fit_scan_plugin',
     ]
 )
 
@@ -77,4 +75,28 @@ KnownRfiPlugin = ConfigSection(
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=True,
     do_store_context=True
+)
+
+
+StandingWaveFitPlugin = ConfigSection(
+    target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    pointing_labels=['on centre 1',
+                     'off centre top',
+                     'on centre 2',
+                     'off centre right',
+                     'on centre 3',
+                     'off centre down',
+                     'on centre 4',
+                     'off centre left',
+                     'on centre 5'],
+    do_store_parameters=True
+)
+
+StandingWaveFitScanPlugin = ConfigSection(
+    target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
+    footprint_ra_dec=None,
+    do_store_parameters=True
+    # footprint_ra_dec=((332.41, 357.85), (-35.35, -25.96))  # roughly a 2 % degree margin around the footprint
+    # target_channels=range(570, 1410),  # 975 to 1151 MHz (yes HI & little RFI)
+    # target_channels=range(2723, 2918),  # 1425 to 1465 MHz (no HI & no RFI)
 )
