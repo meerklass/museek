@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from museek.enums.flag_enum import FlagEnum
 from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.noise_diode import NoiseDiode
@@ -38,7 +39,8 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         new_mask = np.ones(data.shape, dtype=bool)
         for i in noise_diode_off_dumps:
             new_mask[i] = False
-        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask))
+        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask),
+                            flag_names=[FlagEnum.NOISE_DIODE])
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         waterfall(data.visibility.get(recv=0),

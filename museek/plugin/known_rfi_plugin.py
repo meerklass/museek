@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from museek.enums.flag_enum import FlagEnum
 from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_list import FlagList
@@ -59,7 +60,8 @@ class KnownRfiPlugin(AbstractPlugin):
                 if rfi_tuple[0] <= frequency / mega <= rfi_tuple[1]:
                     new_flag[:, channel, :] = True
                     continue
-        data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
+        data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory),
+                            flag_names=[FlagEnum.KNOWN_RFI])
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         waterfall(data.visibility.get(recv=0),

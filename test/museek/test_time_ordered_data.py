@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, MagicMock, call, PropertyMock
 
 import numpy as np
+from museek.enums.flag_enum import FlagEnum
 
 from museek.flag_list import FlagList
 from museek.receiver import Receiver, Polarisation
@@ -69,7 +70,8 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
         mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
-                                                element_factory=self.mock_get_flag_element_factory.return_value)
+                                                element_factory=self.mock_get_flag_element_factory.return_value,
+                                                flag_names=[FlagEnum.BUILT_IN])
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
@@ -93,7 +95,8 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
         self.time_ordered_data.load_visibility_flags_weights()
         mock_from_array.assert_called_once_with(array=mock_visibility_flags_weights.return_value[1],
-                                                element_factory=self.mock_get_flag_element_factory.return_value)
+                                                element_factory=self.mock_get_flag_element_factory.return_value,
+                                                flag_names=[FlagEnum.BUILT_IN])
         self.assertEqual(self.time_ordered_data.visibility,
                          self.mock_get_data_element_factory.return_value.create.return_value)
         self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
@@ -596,3 +599,7 @@ class TestTimeOrderedData(unittest.TestCase):
                            [6, 7, 8, 9, 10]])
         shifted = self.time_ordered_data._shift_right_ascension(right_ascension=mock_right_ascension)
         np.testing.assert_array_equal(expect, shifted)
+
+
+if __name__ == '__main__':
+    unittest.main()
