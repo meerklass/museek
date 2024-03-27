@@ -174,10 +174,11 @@ class TrackPointingIterator:
 
             try:
                 start_end = (min(pointing_change_indices), max(pointing_change_indices))
-                if all(start_end[0] < target_change_indices):
-                    start_end = (0, min(target_change_indices))
-                elif all(start_end[1] > target_change_indices):
-                    start_end = (max(target_change_indices)+1, len(features)-1)
+                if target_change_indices.size != 0:  # not empty array means we are seeing more than one calibrator
+                    if all(start_end[0] < target_change_indices):
+                        start_end = (0, min(target_change_indices))
+                    elif all(start_end[1] > target_change_indices):
+                        start_end = (max(target_change_indices)+1, len(features)-1)
                 valid_indices = (start_end[0], start_end[1])
             except ValueError:
                 valid_indices = None
