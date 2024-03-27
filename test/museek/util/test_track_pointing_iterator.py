@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import Mock, patch, call
+
 import numpy as np
 from mock import MagicMock
 
@@ -297,6 +298,27 @@ class TestTrackPointingIterator(unittest.TestCase):
         mock_plt.scatter.assert_called()
         self.assertIsNone(result[1])
         self.assertEqual(result[0], range(0, 6))
+
+    def test_single_dish_calibrators_when_only_one_calibrator_seen(self):
+        mock_track_data = MagicMock()
+        mock_receiver = Mock()
+        mock_labels = ['a', 'b']
+        mock_target_dumps_list = [[0, 1, 2, 3, 4, 5, 6, 7, 8], [9]]
+        mock_track_data.timestamps.squeeze = np.asarray([0, 2, 4, 6, 12, 18, 19, 20, 21, 22])
+        track_pointing_iterator = TrackPointingIterator(track_data=mock_track_data,
+                                                        receiver=mock_receiver,
+                                                        n_pointings=0,
+                                                        plot_dir='',
+                                                        n_centre_observations=0,
+                                                        distance_threshold=0,
+                                                        calibrator_observation_labels=mock_labels,
+                                                        scan_start=0,
+                                                        scan_end=1,
+                                                        pointing_slewing_thresholds=(4, 30))
+        result = track_pointing_iterator._single_dish_calibrators(target_dumps_list=mock_target_dumps_list,
+                                                                  n_calibrator_pointings=3)
+        self.assertEqual(range(3, 4), result[0])
+        self.assertIsNone(result[1])
 
 
 if __name__ == '__main__':
