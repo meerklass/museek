@@ -13,15 +13,13 @@ Pipeline = ConfigSection(
 
 StandingWaveFitPlugin = ConfigSection(
     target_channels=range(570, 765),  # 975 to 1015 MHz (yes HI & no RFI)
-    pointing_labels=['on centre 1',
-                     'off centre top',
-                     'on centre 2',
+    pointing_labels=['off centre top',
+                     'on centre 1',
                      'off centre right',
-                     'on centre 3',
+                     'on centre 2',
                      'off centre down',
-                     'on centre 4',
-                     'off centre left',
-                     'on centre 5'],
+                     'on centre 3',
+                     'off centre left'],
     do_store_parameters=True
 )
 
