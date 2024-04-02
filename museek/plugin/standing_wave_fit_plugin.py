@@ -91,6 +91,7 @@ class StandingWaveFitPlugin(AbstractPlugin):
                 if times_list is None:
                     print('calibrator not found?... continue')
                     continue
+                print('are these the same?', len(times_list), len(self.pointing_labels))
                 _, bandpasses_dict, _ = self.get_bandpasses_std_dicts(
                     track_data=track_data,
                     times_list=times_list,
