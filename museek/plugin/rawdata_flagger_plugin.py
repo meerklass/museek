@@ -10,7 +10,9 @@ from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
+from museek.util.tools import flag_percent_recv
 
 
 class RawdataFlaggerPlugin(AbstractPlugin):
@@ -26,13 +28,15 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         super().__init__()
         self.data_element_factory = FlagElementFactory()
         self.flag_lower_threshold = flag_lower_threshold
+        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
 
-    def run(self, data: TimeOrderedData, output_path: str):
+    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str):
         """
         Flag raw data with values below a minimum
         :param data: time ordered data of the entire block
@@ -44,4 +48,12 @@ class RawdataFlaggerPlugin(AbstractPlugin):
 
         data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+
+        context_file_name = 'rawdata_flagger_plugin.pickle'
+        self.store_context_to_disc(context_file_name=context_file_name,
+                                       context_directory=output_path)
+
+        receivers_list, flag_percent = flag_percent_recv(data)
+        lines = ['...........................', 'Running RawdataFlaggerPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
