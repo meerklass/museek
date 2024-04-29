@@ -91,7 +91,7 @@ class GainCalibrationPlugin(AbstractPlugin):
             #####  update the mask to avoid the incontinuous in the std along frequency ######
             select_freq = np.all(initial_flag, axis=0)  # select the all-timepoint masked frequency points and ingnore them in the mask_fraction calculation
             mask_fraction = np.mean(initial_flag[:,~select_freq], axis=1)
-            time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than the threshold
+            time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than 0.05
 
             mask_update = initial_flag.copy()
             mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
@@ -124,27 +124,10 @@ class GainCalibrationPlugin(AbstractPlugin):
 
         for antenna in antenna_list:
             indices = [index for index, receiver in enumerate(receivers_list) if antenna in receiver]
-            selected_vis = [temperature[i] for i in indices]
+            selected_vis = [temperature[:,:,i] for i in indices]
             temperature_antennas.append(np.ma.mean(selected_vis, axis=0))
         temperature_antennas = np.ma.masked_array(temperature_antennas)
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
-
-        arrays_dict = {
-              'visibility': scan_data.visibility.array[:,freqlow_index:freqhigh_index,:],
-              'calibrated_visibility': temperature,
-              'synch': synch[:,freqlow_index:freqhigh_index,:],
-              'flag': initial_flags.array[:,freqlow_index:freqhigh_index,:],
-              'timestamps': scan_data.timestamps.array,
-              'ra':scan_data.right_ascension.array,
-              'dec':scan_data.declination.array,
-              'freq':freq_select,
-              'receivers_list':receivers_list,
-              'antenna_list':antenna_list,
-              }
-
-        with open(output_path+block_name+'_visibility_synch.pkl', 'wb') as f:
-            pickle.dump(arrays_dict, f)
-
 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
