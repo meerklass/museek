@@ -31,7 +31,6 @@ class GainCalibrationPlugin(AbstractPlugin):
 
     def __init__(self,
                  nside: int,
-                 reference_frequency: float,
                  beamsize: float,
                  beam_frequency: float,
                  frequency_high: float,
@@ -42,7 +41,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         """
         Initialise the plugin
         :param nside: resolution parameter at which the synchrotron model is to be calculated
-        :param reference_frequency: reference frequencies at which the synchrotron templates are defined
         :param beamsize: the beam fwhm used to smooth the Synch model [arcmin]
         :param beam_frequency: reference frequencies at which the beam fwhm are defined [MHz]
         :param frequency_high: high frequency cut 
@@ -52,7 +50,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         """
         super().__init__(**kwargs)
         self.nside = nside
-        self.reference_frequency = reference_frequency
         self.beamsize = beamsize 
         self.beam_frequency = beam_frequency
         self.frequency_high = frequency_high
@@ -130,6 +127,7 @@ class GainCalibrationPlugin(AbstractPlugin):
             selected_vis = [temperature[i] for i in indices]
             temperature_antennas.append(np.ma.mean(selected_vis, axis=0))
         temperature_antennas = np.ma.masked_array(temperature_antennas)
+        temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
         arrays_dict = {
               'visibility': scan_data.visibility.array[:,freqlow_index:freqhigh_index,:],
