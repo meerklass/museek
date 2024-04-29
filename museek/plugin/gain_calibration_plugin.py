@@ -167,6 +167,6 @@ class GainCalibrationPlugin(AbstractPlugin):
               'antenna_list':antenna_list,
               }
 
-        with open(output_path+block_name+'_calibrated_visibility.pkl', 'wb') as f:
-            pickle.dump(arrays_dict, f)
+            with open(output_path+block_name+'_calibrated_visibility.pkl', 'wb') as f:
+                pickle.dump(arrays_dict, f)
 
