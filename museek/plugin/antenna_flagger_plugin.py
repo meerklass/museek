@@ -12,7 +12,8 @@ from museek.flag_factory import FlagFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.clustering import Clustering
-
+from museek.util.tools import flag_percent_recv
+from museek.util.report_writer import ReportWriter
 
 class AntennaFlaggerPlugin(AbstractPlugin):
     """ Plugin to flag misbehaving antennas. """
@@ -28,17 +29,20 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         super().__init__()
         self.elevation_threshold = elevation_threshold
         self.outlier_threshold = outlier_threshold
+        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
-                             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data')]
+                             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData):
         """
         Run the plugin
         :param scan_data: time ordered data of the scanning part
         :param track_data: time ordered data of the tracking part
+        :param flag_report_writer: report_writer of the flag
         """
         scan_data.load_visibility_flags_weights()
         self.flag_for_elevation(data=scan_data)
@@ -47,6 +51,11 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             self.flag_outlier_antennas(data=data)
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
+
+        for data, label in zip([scan_data, track_data], ['scan_data', 'track_data']):
+            receivers_list, flag_percent = flag_percent_recv(data)
+            lines = ['...........................', 'Running AntennaFlaggerPlugin...', 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+            flag_report_writer.write_to_report(lines)
 
     def flag_outlier_antennas(self, data: TimeOrderedData):
         """ Add a new flag to `data` to exclude antennas with non-constant elevation readings. """
