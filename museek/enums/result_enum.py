@@ -16,6 +16,7 @@ class ResultEnum(Enum):
     STANDING_WAVE_CALIBRATOR_LABEL = auto()
     SCAN_OBSERVATION_START = auto()
     SCAN_OBSERVATION_END = auto()
+    FLAG_REPORT_WRITER = auto()
     CALIBRATED_VIS = auto()
     FREQ_SELECT = auto()
     COMBINED_FLAG = auto()
