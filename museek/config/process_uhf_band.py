@@ -25,20 +25,20 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1678899080',  # observation time stamp
-    #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
-    receiver_list=None,
+    block_name='1683492604',  # observation time stamp
+    receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
+    #receiver_list=None,
     token=None,  # archive token
     data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
     do_store_context=True,
-    context_folder='/idia/users/wkhu/auto_test/',  # directory to store results, if `None`, 'results/' is chosen
+    context_folder='/idia/users/wkhu/newbranch_test/',  # directory to store results, if `None`, 'results/' is chosen
 )
 
 OutPlugin = ConfigSection(
-    output_folder='/idia/users/wkhu/auto_test/'  # folder to store results, `None` means default location is chosen
+    output_folder='/idia/users/wkhu/newbranch_test/'  # folder to store results, `None` means default location is chosen
 )
 
 AntennaFlaggerPlugin = ConfigSection(
@@ -101,7 +101,7 @@ KnownRfiPlugin = ConfigSection(
 )
 
 RawdataFlaggerPlugin = ConfigSection(
-        flag_minimum=5.0
+        flag_lower_threshold=5.0
 )
 
 GainCalibrationPlugin = ConfigSection(
