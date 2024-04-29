@@ -16,7 +16,6 @@ from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import Synch_model
 from museek.util.tools import Synch_model_sm
 from museek.visualiser import waterfall
 import pysm3
@@ -84,7 +83,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         freq = scan_data.frequencies.squeeze    ####  the unit of scan_data.frequencies is Hz 
         temperature = np.zeros(scan_data.visibility.array.shape)
 
-        #synch = Synch_model(scan_data, self.reference_frequency, self.nside)
         synch = Synch_model_sm(scan_data, self.nside, self.beamsize, self.beam_frequency)
 
         #######  loop for each receiver   ########
