@@ -14,13 +14,15 @@ from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
-
+from museek.util.tools import flag_percent_recv
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
 
     def __init__(self,
+                 mask_type: str,
                  first_threshold: float,
                  threshold_scales: list[float],
                  smoothing_kernel: tuple[int, int],
@@ -33,6 +35,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
                  **kwargs):
         """
         Initialise the plugin
+        :param mask_type: the data to which the flagger will be applied
         :param first_threshold: initial threshold to be used for the aoflagger algorithm
         :param threshold_scales: list of sensitivities
         :param smoothing_kernel: smoothing kernel window size tuple for axes 0 and 1
@@ -44,6 +47,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
         super().__init__(**kwargs)
+        self.mask_type = mask_type
         self.first_threshold = first_threshold
         self.threshold_scales = threshold_scales
         self.smoothing_kernel = smoothing_kernel
@@ -53,6 +57,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
+        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """
@@ -60,10 +65,12 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         """
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def map(self,
             scan_data: TimeOrderedData,
+            flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) \
             -> Generator[tuple[str, DataElement, FlagElement], None, None]:
@@ -71,6 +78,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
         initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
@@ -93,6 +101,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         receiver_path, visibility, initial_flag = anything
         rfi_flag = get_rfi_mask(time_ordered=visibility,
                                 mask=initial_flag,
+                                mask_type=self.mask_type,
                                 first_threshold=self.first_threshold,
                                 threshold_scales=self.threshold_scales,
                                 output_path=receiver_path,
@@ -103,17 +112,23 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
                               scan_data: TimeOrderedData,
+                              flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
         """
         Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
         scan_data.flags.add_flag(flag=new_flag)
+
+        receivers_list, flag_percent = flag_percent_recv(scan_data)
+        lines = ['...........................', 'Running AoflaggerPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
         waterfall(scan_data.visibility.get(recv=0),
                   scan_data.flags.get(recv=0),
@@ -126,10 +141,8 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         if self.do_store_context:
             context_file_name = 'aoflagger_plugin.pickle'
-            context_folder = os.path.join(ROOT_DIR, 'results/')
-            context_directory = os.path.join(context_folder, f'{block_name}/')
             self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=context_directory)
+                                       context_directory=output_path)
 
     def post_process_flag(
             self,
