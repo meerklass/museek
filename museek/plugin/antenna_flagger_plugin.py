@@ -37,7 +37,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData):
+    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData, flag_report_writer: ReportWriter):
         """
         Run the plugin
         :param scan_data: time ordered data of the scanning part
