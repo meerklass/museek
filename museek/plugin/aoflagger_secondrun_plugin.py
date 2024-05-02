@@ -88,7 +88,8 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
-                os.makedirs(receiver_path)
+                #os.makedirs(receiver_path)
+                pass
             visibility = scan_data.visibility.get(recv=i_receiver)
             initial_flag = initial_flags.get(recv=i_receiver)
             yield receiver_path, visibility, initial_flag
