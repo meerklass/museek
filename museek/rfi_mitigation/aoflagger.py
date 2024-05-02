@@ -44,8 +44,8 @@ def get_rfi_mask(
     else:
         raise ValueError("Unknown mask_type {}".format(mask_type))
 
-    if output_path is not None:
-        plot_moments(data, output_path)
+    #if output_path is not None:
+    #    plot_moments(data, output_path)
 
     max_pixels = 8  # Maximum neighbourhood size
     pixel_arange = np.arange(1, max_pixels)
@@ -196,14 +196,14 @@ def _run_sumthreshold(data: np.ndarray,
                                                      n_iteration=n_iteration,
                                                      threshold=threshold).T
 
-    if output_path is not None:
-        plot_step(data,
-                  sum_threshold_mask,
-                  smoothed_data,
-                  residual,
-                  title=f'Tresholds: {threshold_scale} {thresholds}',
-                  plot_name=f'sum_threshold_step_at_threshold_scale_{threshold_scale}.png',
-                  output_path=output_path)
+    #if output_path is not None:
+    #    plot_step(data,
+    #              sum_threshold_mask,
+    #              smoothed_data,
+    #              residual,
+    #              title=f'Tresholds: {threshold_scale} {thresholds}',
+    #              plot_name=f'sum_threshold_step_at_threshold_scale_{threshold_scale}.png',
+    #              output_path=output_path)
 
     return sum_threshold_mask
 
