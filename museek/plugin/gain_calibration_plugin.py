@@ -140,7 +140,7 @@ class GainCalibrationPlugin(AbstractPlugin):
 
             arrays_dict = {
               'calibrated_visibility': temperature_antennas,
-              'sych_model':synch
+              'sych_model':synch,
               'timestamps': scan_data.timestamps.array.squeeze(),
               'ra':scan_data.right_ascension.array.squeeze(),
               'dec':scan_data.declination.array.squeeze(),
