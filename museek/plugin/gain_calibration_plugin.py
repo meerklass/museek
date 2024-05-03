@@ -110,8 +110,6 @@ class GainCalibrationPlugin(AbstractPlugin):
             
             temperature[:,:,i_receiver] = visibility_recv_norm.data / (gain[np.newaxis,:])
 
-        del synch
-        gc.collect()
 
         #########  select the frequency region we want to use  #######
         freqlow_index = np.argmin(np.abs(freq/10.**6 - self.frequency_low))
@@ -143,6 +141,7 @@ class GainCalibrationPlugin(AbstractPlugin):
 
             arrays_dict = {
               'calibrated_visibility': temperature_antennas,
+              'sych_model':synch
               'timestamps': scan_data.timestamps.array.squeeze(),
               'ra':scan_data.right_ascension.array.squeeze(),
               'dec':scan_data.declination.array.squeeze(),
