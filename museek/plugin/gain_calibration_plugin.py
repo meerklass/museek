@@ -24,7 +24,6 @@ import healpy as hp
 import numpy as np
 from astropy.coordinates import SkyCoord
 import pickle
-import gc
 
 class GainCalibrationPlugin(AbstractPlugin):
     """ Plugin to calibrtion the gain using synchrotron produced from pysm3 """
