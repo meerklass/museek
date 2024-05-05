@@ -124,6 +124,12 @@ class GainCalibrationPlugin(AbstractPlugin):
 
         for antenna in antenna_list:
             indices = [index for index, receiver in enumerate(receivers_list) if antenna in receiver]
+
+            selected_mask = [temperature.mask[:,:,i] for i in indices]
+            mask_combine = np.sum(selected_mask, axis=0)
+            for i in indices:
+                temperature.mask[:,:,i] = mask_combine
+
             selected_vis = [temperature[:,:,i] for i in indices]
             temperature_antennas.append(np.ma.mean(selected_vis, axis=0))
         temperature_antennas = np.ma.masked_array(temperature_antennas)
@@ -138,16 +144,16 @@ class GainCalibrationPlugin(AbstractPlugin):
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=output_path)
 
-            arrays_dict = {
-              'calibrated_visibility': temperature_antennas,
-              'timestamps': scan_data.timestamps.array.squeeze(),
-              'ra':scan_data.right_ascension.array.squeeze(),
-              'dec':scan_data.declination.array.squeeze(),
-              'freq':freq_select,
-              'receivers_list':receivers_list,
-              'antenna_list':antenna_list,
-              }
+        arrays_dict = {
+            'calibrated_visibility': temperature_antennas,
+            'timestamps': scan_data.timestamps.array.squeeze(),
+            'ra':scan_data.right_ascension.array.squeeze(),
+            'dec':scan_data.declination.array.squeeze(),
+            'freq':freq_select,
+            'receivers_list':receivers_list,
+            'antenna_list':antenna_list,
+            }
 
-            with open(output_path+block_name+'_calibrated_visibility.pkl', 'wb') as f:
-                pickle.dump(arrays_dict, f)
+        with open(output_path+block_name+'_calibrated_visibility.pkl', 'wb') as f:
+            pickle.dump(arrays_dict, f)
 
