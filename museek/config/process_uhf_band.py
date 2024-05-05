@@ -26,8 +26,8 @@ Pipeline = ConfigSection(
 
 InPlugin = ConfigSection(
     block_name='1683492604',  # observation time stamp
-    receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
-    #receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
+    #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
+    receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
     data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
@@ -61,7 +61,7 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=26,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied
     first_threshold=0.1,  # First threshold value
@@ -76,7 +76,7 @@ AoflaggerPlugin = ConfigSection(
 )
 
 AoflaggerSecondRunPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=26,
     verbose=0,
     mask_type='flag_fraction',  # the data to which the flagger will be applied
     first_threshold=0.3,  # First threshold value
