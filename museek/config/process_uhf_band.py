@@ -20,7 +20,7 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    #context=os.path.join('/idia/users/wkhu/', 'newbranch_test/1683492604/aoflagger_plugin_secondrun.pickle')
+    #context=os.path.join('/idia/projects/hi_im/', 'newbranch_test/1683492604/aoflagger_plugin_secondrun.pickle')
 
 )
 
@@ -95,13 +95,14 @@ KnownRfiPlugin = ConfigSection(
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
     #gps=(1170, 1390),
-    #extra_rfi=[(1524, 1630)]
+    #extra_rfi=[(1524, 1630)],
     gps=None,
     extra_rfi=None
 )
 
 RawdataFlaggerPlugin = ConfigSection(
-        flag_lower_threshold=5.0
+        flag_lower_threshold=5.0,
+        do_store_context=True
 )
 
 GainCalibrationPlugin = ConfigSection(
