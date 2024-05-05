@@ -19,15 +19,18 @@ class RawdataFlaggerPlugin(AbstractPlugin):
     """ Plugin to flag raw data with values below a minimum """
 
     def __init__(self,
-                 flag_lower_threshold: float):
+                 flag_lower_threshold: float,
+                 do_store_context: bool):
         """
         Initialise
         :param flag_lower_threshold: lower threshold to flag the data, 
-                                     it relates to raw correlator units without any normalisation.
+                                     it relates to raw correlator units without any normalisation
+        :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
         super().__init__()
         self.data_element_factory = FlagElementFactory()
         self.flag_lower_threshold = flag_lower_threshold
+        self.do_store_context = do_store_context
         self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
@@ -49,8 +52,9 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
-        context_file_name = 'rawdata_flagger_plugin.pickle'
-        self.store_context_to_disc(context_file_name=context_file_name,
+        if self.do_store_context:
+            context_file_name = 'rawdata_flagger_plugin.pickle'
+            self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=output_path)
 
         receivers_list, flag_percent = flag_percent_recv(data)
