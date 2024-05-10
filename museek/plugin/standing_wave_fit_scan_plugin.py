@@ -11,7 +11,7 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum
 from museek.model.bandpass_model import BandpassModel
-from museek.time_ordered_data import TimeOrderedData
+from museek.time_ordered_data import DataElementFactory, TimeOrderedData
 from museek.util.swings import Swings
 
 
@@ -20,25 +20,14 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
     Experimental plugin to correct standing waves from data using time-averaged visibilities.
     """
 
-    def __init__(self,
-                 target_channels: range | list[int] | None,
-                 footprint_ra_dec: tuple[tuple[float, float], tuple[float, float]] | None):
+    def __init__(self):
         """
         Initialise
-        :param target_channels: optional `list` or `range` of channel indices to be examined, if `None`, all are used
-        :param footprint_ra_dec: optional tuple of min and max right ascension (first) and declination (second)
-                                 defining a rectangle. data points outside are used for standing wave calibration
-                                 if `None`, the first few data points are used for calibration
         """
         super().__init__()
-        self.target_channels = target_channels
         self.plot_name = 'standing_wave_scan_plugin'
-        self.footprint_ra_dec = footprint_ra_dec
         self.off_cut_label = 'off_cut'
-        if self.footprint_ra_dec is None:
-            self.calibrator_label = self.first_scan_dumps_label
-        else:
-            self.calibrator_label = self.off_cut_label
+        self.calibrator_label = self.off_cut_label
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -53,30 +42,35 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         """
 
         scan_data.load_visibility_flags_weights()
-        bandpass_estimator_list = None
+
+        bandpass_estimator_before_list = []
+        bandpass_estimator_after_list = []
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
+            print(f'Working on {receiver.name}')
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
-            calibrator_times = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
-            self.plot_times(data=scan_data, times=calibrator_times, i_antenna=i_antenna, output_path=receiver_path)
+            print(f'Output goes to {receiver_path}...')
+            times_before, times_after = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
+            self.plot_times(data=scan_data, times=[times_before, times_after], i_antenna=i_antenna, output_path=receiver_path)
 
-            bandpass_estimator_list = []
-            for calibrator_times_part in calibrator_times:
-                flags = scan_data.flags.get(time=calibrator_times_part,
-                                            freq=self.target_channels,
-                                            recv=i_receiver)
-                bandpass_estimator = scan_data.visibility.get(time=calibrator_times_part,
-                                                              freq=self.target_channels,
-                                                              recv=i_receiver).mean(axis=0, flags=flags)
-                bandpass_estimator_list.append(bandpass_estimator)
+            flags = scan_data.flags.get(time=times_before, recv=i_receiver)
+            bandpass_estimator_before = scan_data.visibility.get(time=times_before,
+                                                                 recv=i_receiver).mean(axis=0, flags=flags)
+            bandpass_estimator_before_list.append(bandpass_estimator_before.squeeze)
+            flags = scan_data.flags.get(time=times_after, recv=i_receiver)
+            bandpass_estimator_after = scan_data.visibility.get(time=times_after,
+                                                                recv=i_receiver).mean(axis=0, flags=flags)
+            bandpass_estimator_after_list.append(bandpass_estimator_after.squeeze)
+            
+        bandpass_estimator_after_array = np.asarray(bandpass_estimator_after_list).T[np.newaxis]
+        bandpass_estimator_before_array = np.asarray(bandpass_estimator_before_list).T[np.newaxis]
+        bandpass_estimator_after = DataElementFactory().create(array=bandpass_estimator_after_array)
+        bandpass_estimator_before = DataElementFactory().create(array=bandpass_estimator_before_array)
 
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_BANDPASS_ESTIMATOR,
-                                      result=bandpass_estimator_list,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
-                                      result=self.target_channels,
+                                      result=[bandpass_estimator_before, bandpass_estimator_after],
                                       allow_overwrite=False))
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL,
                                       result=self.calibrator_label,

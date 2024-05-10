@@ -17,55 +17,55 @@ from museek.util.swings import Swings
 class StandingWaveCorrectionPlugin(AbstractPlugin):
     """ Experimental plugin to apply the standing wave correction to the data"""
 
+    def __init__(self,
+                 target_channels: range | list[int] | None):
+        """
+        Initialise
+        :param target_channels: optional `list` or `range` of channel indices to be examined, if `None`, all are used
+        """
+        super().__init__()
+        self.target_channels = target_channels
+
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [
             Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-            Requirement(location=ResultEnum.STANDING_WAVE_CHANNELS, variable='target_channels'),
-            Requirement(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT, variable='epsilon_function_dict'),
-            Requirement(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT, variable='legendre_function_dict'),
-            Requirement(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL, variable='calibrator_label')
+            Requirement(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL, variable='calibrator_label'),
+            Requirement(location=ResultEnum.STANDING_WAVE_BANDPASS_ESTIMATOR, variable='bandpass_estimators')
         ]
 
     def run(self,
             scan_data: TimeOrderedData,
             output_path: str,
-            target_channels: range | list[int],
-            epsilon_function_dict: dict[dict[Callable]],
-            legendre_function_dict: dict[dict[Callable]],
-            calibrator_label: str):
+            calibrator_label: str,
+            bandpass_estimators: list[DataElement]):
         """
         Run the plugin, i.e. apply the standing wave correction.
         :param scan_data: the time ordered data containing the observation's scanning part
         :param output_path: path to store results
-        :param target_channels: `list` or `range` of channel indices to be examined
-        :param epsilon_function_dict: `dict` containing the epsilon functions of frequency
-        :param legendre_function_dict: `dict` containing the legendre functions of frequency
         :param calibrator_label: `str` label to identify the standing wave calibrator that was used
+        :param bandpass_estimators:
         """
         for i_receiver, receiver in enumerate(scan_data.receivers):
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             antenna_index = receiver.antenna_index(receivers=scan_data.receivers)
-            frequencies = scan_data.frequencies.get(freq=target_channels)
-            epsilon = epsilon_function_dict[receiver.name][calibrator_label](frequencies)
-            legendre = legendre_function_dict[receiver.name][calibrator_label](frequencies)
+            frequencies = scan_data.frequencies.get(freq=self.target_channels)
             self.plot_individual_swings(scan_data=scan_data,
                                         antenna_index=antenna_index,
                                         receiver_index=i_receiver,
-                                        target_channels=target_channels,
-                                        epsilon=epsilon,
-                                        legendre=legendre,
+                                        target_channels=self.target_channels,
+                                        bandpass_estimators=bandpass_estimators,
                                         receiver_path=receiver_path)
 
             self.plot_azimuth_bins(scan_data=scan_data,
                                    i_receiver=i_receiver,
                                    antenna_index=antenna_index,
-                                   target_channels=target_channels,
-                                   epsilon=epsilon,
+                                   target_channels=self.target_channels,
                                    frequencies=frequencies,
+                                   bandpass_estimator=bandpass_estimators,
                                    receiver_path=receiver_path)
 
     @staticmethod
@@ -79,8 +79,7 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                antenna_index,
                                receiver_index,
                                target_channels,
-                               epsilon,
-                               legendre,
+                               bandpass_estimators,
                                receiver_path):
         """ Make plots with each individual swing as one line. """
         swing_turnaround_dumps = Swings.swing_turnaround_dumps(
@@ -95,6 +94,12 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         line_width = 0.5
 
         for i in range(len(swing_turnaround_dumps) - 1):
+            if i < len(swing_turnaround_dumps) // 2:
+                bandpass_estimator_index = 0
+            else:
+                bandpass_estimator_index = 1
+            bandpass_estimator = bandpass_estimators[bandpass_estimator_index]
+
             times = range(swing_turnaround_dumps[i], swing_turnaround_dumps[i + 1])
             flags = scan_data.flags.get(time=times,
                                         freq=target_channels,
@@ -103,11 +108,9 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                                      freq=target_channels,
                                                      recv=receiver_index).mean(axis=0, flags=flags)
             bandpass = mean_bandpass.squeeze / mean_bandpass.squeeze[0]
-            model_bandpass = legendre * (1 + epsilon)
-            model_bandpass /= model_bandpass[0]  # normalize
             fit_frequencies = scan_data.frequencies.get(freq=target_channels).squeeze / MEGA
 
-            corrected = bandpass / model_bandpass  # this should be constant at 1
+            corrected = bandpass / bandpass_estimator.get(freq=target_channels, recv=receiver_index).squeeze  # this should be constant at 1
             corrected = self.correct_linear(array=corrected, frequencies=fit_frequencies)
 
             residual = (corrected - 1) * 100
@@ -152,8 +155,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                           i_receiver,
                           antenna_index,
                           target_channels,
-                          epsilon,
                           frequencies,
+                          bandpass_estimators,
                           receiver_path):
         """ Old plotting function to check for azimuth dependence. """
 
@@ -167,7 +170,10 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             flag = scan_data.flags.get(time=time_dumps,
                                        freq=target_channels,
                                        recv=i_receiver)
-            corrected_azimuth_binned_bandpasses.append(visibility.mean(axis=0, flags=flag).squeeze / (1 + epsilon))
+            corrected_azimuth_binned_bandpasses.append(
+                visibility.mean(axis=0, flags=flag).squeeze / bandpass_estimators[0].get(freq=target_channels,
+                                                                                         recv=i_receiver).squeeze
+                )
 
         plt.figure(figsize=(8, 6))
         for i, bandpass in enumerate(corrected_azimuth_binned_bandpasses):
