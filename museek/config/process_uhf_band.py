@@ -61,7 +61,7 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    n_jobs=26,
+    n_jobs=13,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied
     first_threshold=0.1,  # First threshold value
@@ -76,7 +76,7 @@ AoflaggerPlugin = ConfigSection(
 )
 
 AoflaggerSecondRunPlugin = ConfigSection(
-    n_jobs=26,
+    n_jobs=13,
     verbose=0,
     mask_type='flag_fraction',  # the data to which the flagger will be applied
     first_threshold=0.3,  # First threshold value
