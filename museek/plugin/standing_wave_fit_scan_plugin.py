@@ -12,32 +12,28 @@ from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum
 from museek.model.bandpass_model import BandpassModel
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.swings import Swings
 
 
 class StandingWaveFitScanPlugin(AbstractPlugin):
     """
-    Experimental plugin to fit a standing wave model to the scanning data.
-    The model assumes that the dish panel gaps are responsible for a sum of sinusoidal standing waves.
+    Experimental plugin to correct standing waves from data using time-averaged visibilities.
     """
 
     def __init__(self,
                  target_channels: range | list[int] | None,
-                 footprint_ra_dec: tuple[tuple[float, float], tuple[float, float]] | None,
-                 do_store_parameters: bool = False):
+                 footprint_ra_dec: tuple[tuple[float, float], tuple[float, float]] | None):
         """
         Initialise
         :param target_channels: optional `list` or `range` of channel indices to be examined, if `None`, all are used
         :param footprint_ra_dec: optional tuple of min and max right ascension (first) and declination (second)
                                  defining a rectangle. data points outside are used for standing wave calibration
                                  if `None`, the first few data points are used for calibration
-        :param do_store_parameters: whether to store the standing wave fit parameters to a file
         """
         super().__init__()
         self.target_channels = target_channels
-        self.plot_name = 'standing_wave_fit_scan_plugin'
+        self.plot_name = 'standing_wave_scan_plugin'
         self.footprint_ra_dec = footprint_ra_dec
-        self.do_store_parameters = do_store_parameters
-        self.first_scan_dumps_label = 'first_scan_dumps'
         self.off_cut_label = 'off_cut'
         if self.footprint_ra_dec is None:
             self.calibrator_label = self.first_scan_dumps_label
@@ -56,56 +52,28 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         :param output_path: path to store results
         """
 
-        parameters_dict_name = f'parameters_dict_frequency_' \
-                               f'{scan_data.frequencies.get(freq=self.target_channels[0]).squeeze / MEGA:.0f}_to_' \
-                               f'{scan_data.frequencies.get(freq=self.target_channels[-1]).squeeze / MEGA:.0f}' \
-                               f'_MHz.json'
-
         scan_data.load_visibility_flags_weights()
-        epsilon_function_dict = {}  # type: dict[dict[[Callable]]]
-        legendre_function_dict = {}  # type: dict[dict[[Callable]]]
-        parameters_dict = {}  # type: dict[dict[dict[float]]]
+        bandpass_estimator_list = None
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
-            times = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
-            self.plot_times(data=scan_data, times=times, i_antenna=i_antenna, output_path=receiver_path)
-            if receiver.name not in epsilon_function_dict:
-                epsilon_function_dict[receiver.name] = {}  # type: dict[Callable]
-                legendre_function_dict[receiver.name] = {}  # type: dict[Callable]
-                parameters_dict[receiver.name] = {}  # type: dict[dict[float]]
+            calibrator_times = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
+            self.plot_times(data=scan_data, times=calibrator_times, i_antenna=i_antenna, output_path=receiver_path)
 
-            frequencies = scan_data.frequencies.get(freq=self.target_channels)
-            bandpass_model = BandpassModel(
-                plot_name=self.plot_name,
-                standing_wave_displacements=[14.7, 13.4, 16.2, 17.9, 12.4, 19.6, 11.7, 5.8],
-                legendre_degree=1,
-            )
-            flags = scan_data.flags.get(time=times,
-                                        freq=self.target_channels,
-                                        recv=i_receiver)
-            bandpass_estimator = scan_data.visibility.get(time=times,
-                                                          freq=self.target_channels,
-                                                          recv=i_receiver).mean(axis=0, flags=flags)
-            bandpass_model.fit(frequencies,
-                               estimator=bandpass_estimator,
-                               receiver_path=receiver_path,
-                               calibrator_label=self.calibrator_label)
-            epsilon_function_dict[receiver.name][self.calibrator_label] = bandpass_model.epsilon_function
-            legendre_function_dict[receiver.name][self.calibrator_label] = bandpass_model.legendre_function
-            parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
+            bandpass_estimator_list = []
+            for calibrator_times_part in calibrator_times:
+                flags = scan_data.flags.get(time=calibrator_times_part,
+                                            freq=self.target_channels,
+                                            recv=i_receiver)
+                bandpass_estimator = scan_data.visibility.get(time=calibrator_times_part,
+                                                              freq=self.target_channels,
+                                                              recv=i_receiver).mean(axis=0, flags=flags)
+                bandpass_estimator_list.append(bandpass_estimator)
 
-        if self.do_store_parameters:
-            with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
-                json.dump(parameters_dict, f)
-
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
-                                      result=epsilon_function_dict,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_LEGENDRE_FUNCTION_DICT,
-                                      result=legendre_function_dict,
+        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_BANDPASS_ESTIMATOR,
+                                      result=bandpass_estimator_list,
                                       allow_overwrite=False))
         self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
                                       result=self.target_channels,
@@ -114,38 +82,40 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                                       result=self.calibrator_label,
                                       allow_overwrite=False))
 
-    def calibrator_times(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
-        """ Return the calibration time dump indices for antenna `i_antenna` in `data` as `range` or `np.ndarray`. """
-        if self.calibrator_label == self.first_scan_dumps_label:
-            return self.first_scan_dumps()
-        elif self.calibrator_label == self.off_cut_label:
+    def calibrator_times(self, data: TimeOrderedData, i_antenna: int) -> list[range] | list[np.ndarray]:
+        """
+        Return the calibration time dump indices for antenna `i_antenna` in `data` as `list` of
+        `range` or `np.ndarray`.
+        """
+        if self.calibrator_label == self.off_cut_label:
             return self.off_cut_dumps(data=data, i_antenna=i_antenna)
         else:
             raise NotImplementedError(f'No calibration implemented with label {self.calibrator_label}.'
-                                      f'Available: {self.first_scan_dumps_label} and {self.off_cut_label}')
+                                      f'Available: {self.off_cut_label}')
 
     @staticmethod
-    def first_scan_dumps() -> range:
-        """ Return the first few scan dump indices as `range`. """
-        start_dump_index = 0
-        end_dump_index = 124  # 124 is the first swing back and forth
-        return range(start_dump_index, end_dump_index)
+    def off_cut_dumps(data: TimeOrderedData, i_antenna: int) -> list[range] | list[np.ndarray]:
+        """
+        Return the off-cut time dump indices at begginning and end of scan of antenna `i_antenna` in `data` as `list`
+        of `range` or `np.ndarray`.
+        """
+        turnaround_dumps = Swings.swing_turnaround_dumps(azimuth=data.azimuth.get(recv=i_antenna))
+        lower_offcut_threshold = (data.right_ascension.get(time=turnaround_dumps[0]).squeeze
+                                  + data.right_ascension.get(time=turnaround_dumps[1]).squeeze) / 2
+        upper_offcut_threshold = (data.right_ascension.get(time=-1).squeeze
+                                  + data.right_ascension.get(time=turnaround_dumps[-1]).squeeze) / 2
+        is_offcut_start = data.right_ascension.squeeze < lower_offcut_threshold
+        is_offcut_end = data.right_ascension.squeeze > upper_offcut_threshold
 
-    def off_cut_dumps(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
-        """
-        Return the scan dump indices of antenna `i_antenna` in `data` that lie outside a defined rectangle in ra-dec.
-        """
-        coordinates = (data.right_ascension.get(recv=i_antenna), data.declination.get(recv=i_antenna))
-        conditions = [(footprint[0] < coordinate.squeeze) & (footprint[1] > coordinate.squeeze)
-                      for footprint, coordinate in zip(self.footprint_ra_dec, coordinates)]
-        return np.where(conditions[0] & conditions[1])[0]
+        return [np.where(is_offcut_start)[0], np.where(is_offcut_end)[0]]
 
     @staticmethod
-    def plot_times(data: TimeOrderedData, i_antenna: int, times: range | np.ndarray, output_path: str):
+    def plot_times(data: TimeOrderedData, i_antenna: int, times: list[range] | list[np.ndarray], output_path: str):
         """ Plot the time dumps used for calibration on a coordinate grid. """
         right_ascension = data.right_ascension.get(recv=i_antenna).squeeze
         declination = data.declination.get(recv=i_antenna).squeeze
-        colors = ['black' if i not in times else 'red' for i in range(len(right_ascension))]
+        colors = ['black' if i not in times[0] else 'red' for i in range(len(right_ascension))]
+        colors = [c if i not in times[1] else 'blue' for i, c in enumerate(colors)]
         plt.scatter(right_ascension, declination, c=colors, s=5)
         plt.xlabel('right ascension [deg]')
         plt.ylabel('declination [deg]')
