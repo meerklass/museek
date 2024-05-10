@@ -68,78 +68,90 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
         parameters_dict = {}  # type: dict[dict[dict[float]]]
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            if receiver.name != 'm008v':
+            if receiver.name != 'm013h' and receiver.name != 'm008h':
                 continue
             print(f'Working on {receiver.name}...')
             i_antenna = receiver.antenna_index(receivers=scan_data.receivers)
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
-            times = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
-            self.plot_times(data=scan_data, times=times, i_antenna=i_antenna, output_path=receiver_path)
+            # times = self.calibrator_times(data=scan_data, i_antenna=i_antenna)
+            # self.plot_times(data=scan_data, times=times, i_antenna=i_antenna, output_path=receiver_path)
             if receiver.name not in epsilon_function_dict:
                 epsilon_function_dict[receiver.name] = {}  # type: dict[Callable]
                 parameters_dict[receiver.name] = {}  # type: dict[dict[float]]
 
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
-            bandpass_model = BandpassModel(
-                plot_name=self.plot_name,
-                # standing_wave_displacements=[5.8, 11.7, 12.4, 13.4, 14.7,  16.2, 17.9, 19.6],
-                standing_wave_displacements=[0.4, 0.7, 1.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
-                # standing_wave_displacements=[0.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
-                polyphase_parameters=(6, 64, 1.0)
-            )
-            flags = scan_data.flags.get(time=times,
-                                        freq=self.target_channels,
+            # bandpass_model = BandpassModel(
+            #     plot_name=self.plot_name,
+            #     # standing_wave_displacements=[5.8, 11.7, 12.4, 13.4, 14.7,  16.2, 17.9, 19.6],
+            #     standing_wave_displacements=[0.4, 0.7, 1.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
+            #     # standing_wave_displacements=[0.4, 5.8, 13.4, 14.7,  16.2, 17.9, 19.6],
+            #     polyphase_parameters=(6, 64, 1.0)
+            # )
+            flags = scan_data.flags.get(freq=self.target_channels,
                                         recv=i_receiver)
             if flags.combine().squeeze.all():
                 print('Everything flagged... - continue')
                 continue
-            bandpass_estimator = scan_data.visibility.get(time=times,
-                                                          freq=self.target_channels,
-                                                          recv=i_receiver).mean(axis=0, flags=flags)
-            bandpass_normaliser = bandpass_estimator.max(axis=1).squeeze
-            bandpass_estimator /= bandpass_normaliser
-            bandpass_estimator_error = scan_data.visibility.get(time=times,
-                                                                freq=self.target_channels,
-                                                                recv=i_receiver).standard_deviation(axis=0,
-                                                                                                    flags=flags)
-            bandpass_estimator_error /= bandpass_normaliser
+            
+            numpy_file = os.path.join(receiver_path, 'visibility_flags_frequencies.npz')
+            print('saving to ', numpy_file)
+            np.savez(numpy_file,
+                 visibility=scan_data.visibility.get(freq=self.target_channels, recv=i_receiver),
+                 flags=flags,
+                 frequencies=frequencies,
+                 azimuth=scan_data.azimuth.get(recv=i_receiver),
+                 elevation=scan_data.elevation.get(recv=i_receiver),
+                 right_ascension=scan_data.right_ascension.get(recv=i_receiver),
+                 declination=scan_data.declination.get(recv=i_receiver))
+            
 
-            legendre_degree = 3
-            legendre_start_fit = legendre.legfit(
-                frequencies.squeeze / MEGA,
-                bandpass_estimator.squeeze,
-                legendre_degree
-            )
-            legendre_bandpass = legendre.legval(frequencies.squeeze / MEGA, legendre_start_fit)
-            legendre_bandpass = np.reshape(legendre_bandpass, bandpass_estimator.shape)
+        #     bandpass_estimator = scan_data.visibility.get(time=times,
+        #                                                   freq=self.target_channels,
+        #                                                   recv=i_receiver).mean(axis=0, flags=flags)
+        #     bandpass_normaliser = bandpass_estimator.max(axis=1).squeeze
+        #     bandpass_estimator /= bandpass_normaliser
+        #     bandpass_estimator_error = scan_data.visibility.get(time=times,
+        #                                                         freq=self.target_channels,
+        #                                                         recv=i_receiver).standard_deviation(axis=0,
+        #                                                                                             flags=flags)
+        #     bandpass_estimator_error /= bandpass_normaliser
 
-            fit_args = dict(frequencies=frequencies,
-                            estimator=bandpass_estimator/legendre_bandpass,
-                            estimator_error=bandpass_estimator_error/legendre_bandpass,
-                            receiver_path=receiver_path,
-                            calibrator_label=self.calibrator_label)
-            bandpass_model.fit(**fit_args)
-            print('no double fit')
-            # try:
-            #     bandpass_model.double_fit(n_double=2, **fit_args)
-            # except RuntimeError:
-            #     print('warning: fit did not converge?')
-            parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
+        #     legendre_degree = 3
+        #     legendre_start_fit = legendre.legfit(
+        #         frequencies.squeeze / MEGA,
+        #         bandpass_estimator.squeeze,
+        #         legendre_degree
+        #     )
+        #     legendre_bandpass = legendre.legval(frequencies.squeeze / MEGA, legendre_start_fit)
+        #     legendre_bandpass = np.reshape(legendre_bandpass, bandpass_estimator.shape)
 
-        if self.do_store_parameters:
-            with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
-                json.dump(parameters_dict, f)
+        #     fit_args = dict(frequencies=frequencies,
+        #                     estimator=bandpass_estimator/legendre_bandpass,
+        #                     estimator_error=bandpass_estimator_error/legendre_bandpass,
+        #                     receiver_path=receiver_path,
+        #                     calibrator_label=self.calibrator_label)
+        #     bandpass_model.fit(**fit_args)
+        #     print('no double fit')
+        #     # try:
+        #     #     bandpass_model.double_fit(n_double=2, **fit_args)
+        #     # except RuntimeError:
+        #     #     print('warning: fit did not converge?')
+        #     parameters_dict[receiver.name][self.calibrator_label] = bandpass_model.parameters_dictionary
 
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
-                                      result=epsilon_function_dict,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
-                                      result=self.target_channels,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL,
-                                      result=self.calibrator_label,
-                                      allow_overwrite=False))
+        # if self.do_store_parameters:
+        #     with open(os.path.join(output_path, parameters_dict_name), 'w') as f:
+        #         json.dump(parameters_dict, f)
+
+        # self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_EPSILON_FUNCTION_DICT,
+        #                               result=epsilon_function_dict,
+        #                               allow_overwrite=False))
+        # self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CHANNELS,
+        #                               result=self.target_channels,
+        #                               allow_overwrite=False))
+        # self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CALIBRATOR_LABEL,
+        #                               result=self.calibrator_label,
+        #                               allow_overwrite=False))
 
     def calibrator_times(self, data: TimeOrderedData, i_antenna: int) -> range | np.ndarray:
         """ Return the calibration time dump indices for antenna `i_antenna` in `data` as `range` or `np.ndarray`. """
