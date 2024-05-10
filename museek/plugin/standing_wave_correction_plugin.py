@@ -11,6 +11,7 @@ from ivory.utils.requirement import Requirement
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.swings import Swings
 
 
 class StandingWaveCorrectionPlugin(AbstractPlugin):
@@ -68,13 +69,6 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                    receiver_path=receiver_path)
 
     @staticmethod
-    def swing_turnaround_dumps(azimuth: DataElement) -> list[int]:
-        """ Time dumps for the `azimuth` turnaround moments of the scan. """
-        sign = np.sign(np.diff(azimuth.squeeze))
-        sign_change = ((np.roll(sign, 1) - sign) != 0).astype(bool)
-        return np.where(sign_change)[0]
-
-    @staticmethod
     def azimuth_digitizer(azimuth: DataElement) -> tuple[np.ndarray, np.ndarray]:
         """ Digitize the `azimuth`. """
         bins = np.linspace(azimuth.min(axis=0).squeeze, azimuth.max(axis=0).squeeze, 50)
@@ -89,7 +83,7 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                legendre,
                                receiver_path):
         """ Make plots with each individual swing as one line. """
-        swing_turnaround_dumps = self.swing_turnaround_dumps(
+        swing_turnaround_dumps = Swings.swing_turnaround_dumps(
             azimuth=scan_data.azimuth.get(recv=antenna_index)
         )
         fig = plt.figure(figsize=(8, 12))
