@@ -41,10 +41,15 @@ OutPlugin = ConfigSection(
     output_folder=None,  # folder to store results, `None` means default location is chosen
 )
 
+
 AntennaFlaggerPlugin = ConfigSection(
-    elevation_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
-    outlier_threshold=0.1,  # degrees
+    elevation_std_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
+    elevation_threshold=0.1,  # time points with elevation reading deviations exceeding this threshold are flagged
+    outlier_threshold=0.1,  # antenna outlier threshold [degrees]
+    elevation_flag_threshold=0.5, # if the fraction of flagged elevation exceeds this, all time dumps are flagged
+    outlier_flag_threshold=0.5, # if the flag fraction of outlier flagging exceeds this, all time dumps are flagged
 )
+
 
 PointSourceFlaggerPlugin = ConfigSection(
     point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
