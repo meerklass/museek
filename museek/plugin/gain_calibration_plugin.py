@@ -106,6 +106,11 @@ class GainCalibrationPlugin(AbstractPlugin):
             visrms_in_time = np.ma.std(visibility_recv_norm, axis=0)
             synchrms_in_time = np.ma.std(synch_recv, axis=0)
             gain = visrms_in_time / synchrms_in_time
+
+            ######   use mad  ######
+            #vismad_in_time = np.ma.median(np.ma.abs(visibility_recv_norm), axis=0)
+            #synchmad_in_time = np.ma.median(np.ma.abs(synch_recv), axis=0)
+            #gain = vismad_in_time / synchmad_in_time
             
             temperature[:,:,i_receiver] = visibility_recv_norm.data / (gain[np.newaxis,:])
 
@@ -143,17 +148,4 @@ class GainCalibrationPlugin(AbstractPlugin):
             context_file_name = 'gain_calibration_plugin.pickle'
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=output_path)
-
-        arrays_dict = {
-            'calibrated_visibility': temperature_antennas,
-            'timestamps': scan_data.timestamps.array.squeeze(),
-            'ra':scan_data.right_ascension.array.squeeze(),
-            'dec':scan_data.declination.array.squeeze(),
-            'freq':freq_select,
-            'receivers_list':receivers_list,
-            'antenna_list':antenna_list,
-            }
-
-        with open(output_path+block_name+'_calibrated_visibility.pkl', 'wb') as f:
-            pickle.dump(arrays_dict, f)
 
