@@ -8,6 +8,7 @@ import matplotlib.colors as colors
 import numpy as np
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
+import warnings
 
 def flag_percent_recv(data: TimeOrderedData):
     """
@@ -33,7 +34,7 @@ def Synch_model_sm(data: TimeOrderedData, nside, beamsize, beam_frequency):
     param nside: resolution parameter at which the synchrotron model is to be calculated
     """
 
-    sky = pysm3.Sky(nside=nside, preset_strings=["s1"])
+    sky = pysm3.Sky(nside=nside, preset_strings=["s2"])
 
     ###########    frequency should be in Hz unit   ###########
     freq = data.frequencies.squeeze * u.Hz
@@ -157,3 +158,157 @@ def plot_mdata(x, y, z, gsize=90, levels=6, x_mask=1, y_mask=1, grid_method='lin
     return IM
 
 
+# define the function to project the calibrated visibility on a 2D grid
+
+def project_2d(x, y, data, shape, weights=None):
+    """Project x,y, data TOIs on a 2D grid.
+
+    Parameters
+    ----------
+    x, y : array_like
+        input pixel indexes, 0 indexed convention
+    data : array_like
+        input data to project
+    shape : int or tuple of int
+        the shape of the output projected map
+    weights : array_like
+        weights to be use to sum the data (by default, ones)
+
+    Returns
+    -------
+    data, weight, hits : ndarray
+        the projected data set and corresponding weights and hits
+
+    Notes
+    -----
+    The pixel index must follow the 0 indexed convention, i.e. use `origin=0` in `*_worl2pix` methods from `~astropy.wcs.WCS`.
+
+    >>> data, weight, hits = project([0], [0], [1], 2)
+    >>> data
+    array([[ 1., nan],
+           [nan, nan]])
+    >>> weight
+    array([[1., 0.],
+           [0., 0.]])
+    >>> hits
+    array([[1, 0],
+           [0, 0]]))
+
+    >>> data, _, _ = project([-0.4], [0], [1], 2)
+    >>> data
+    array([[ 1., nan],
+           [nan, nan]])
+
+    There is no test for out of shape data
+
+    >>> data, _, _ = project([-0.6, 1.6], [0, 0], [1, 1], 2)
+    >>> data
+    array([[nan, nan],
+           [nan, nan]])
+
+    Weighted means are also possible :
+
+    >>> data, weight, hits = project([-0.4, 0.4], [0, 0], [0.5, 2], 2, weights=[2, 1])
+    >>> data
+    array([[ 1., nan],
+           [nan, nan]))
+    >>> weight
+    array([[3., 0.],
+           [0., 0.]])
+    >>> hits
+    array([[2, 0],
+           [0, 0]])
+    """
+    if isinstance(shape, (int, np.integer)):
+        shape = (shape, shape)
+
+    assert len(shape) == 2, "shape must be a int or have a length of 2"
+
+    if not isinstance(data, np.ndarray):
+        data = np.asarray(data)
+
+    if weights is None:
+        weights = np.ones(data.shape)
+
+    if isinstance(data, np.ma.MaskedArray):
+        # Put weights as 0 for masked data
+        hit_weights = ~data.mask
+        weights = weights * hit_weights
+    else:
+        hit_weights = np.ones_like(data, dtype=bool)
+
+    kwargs = {"bins": shape, "range": tuple((-0.5, size - 0.5) for size in shape)}
+
+    _hits, xedges, yedges = np.histogram2d(y, x, weights=hit_weights, **kwargs)
+    _weights = np.histogram2d(y, x, weights=weights, **kwargs)[0]
+    _data = np.histogram2d(y, x, weights=weights * data, **kwargs)[0]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        output = _data / _weights
+
+    return output, _weights, _hits.astype(int), xedges, yedges
+
+
+def project_3d(x, y, z, data, shape, weights=None, weighted_output=False):
+    """Project x,y, data TOIs on a 2D grid.
+
+    Parameters
+    ----------
+    x, y, z : array_like
+        input pixel indexes, 0 indexed convention
+    data : array_like
+        input data to project
+    shape : int or tuple of int
+        the shape of the output projected map
+    weights : array_like
+        weights to be use to sum the data (by default, ones)
+    weighted_output : bool
+        if True, return the weighted output instead of normalized output, by default False
+
+    Returns
+    -------
+    data, weight, hits : ndarray
+        the projected data set and corresponding weights and hits
+
+    Notes
+    -----
+    The pixel index must follow the 0 indexed convention, i.e. use `origin=0` in `*_worl2pix` methods from `~astropy.wcs.WCS`.
+
+    """
+    if isinstance(shape, (int, np.integer)):
+        shape = (shape, shape, shape)
+    if len(shape) == 2:
+        shape = (shape[0], shape[1], shape[1])
+
+    assert len(shape) == 3, "shape must be a int or have a length of 2 or 3"
+
+    if not isinstance(data, np.ndarray):
+        data = np.asarray(data)
+
+    if weights is None:
+        weights = np.ones_like(data)
+
+    if isinstance(data, np.ma.MaskedArray):
+        # Put weights as 0 for masked data
+        hit_weights = ~data.mask
+        weights = weights * hit_weights
+    else:
+        hit_weights = np.ones_like(data, dtype=bool)
+
+    kwargs = {
+        "bins": shape,
+        "range": tuple((-0.5, float(size) - 0.5) for size in shape),
+    }
+
+    sample = (z, y, x)
+    _hits = np.histogramdd(sample, weights=hit_weights, **kwargs)[0]
+    _weights = np.histogramdd(sample, weights=weights, **kwargs)[0]
+    _data = np.histogramdd(sample, weights=weights * data, **kwargs)[0]
+
+    if not weighted_output:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _data /= _weights
+
+    return _data, _weights, _hits.astype(int)
