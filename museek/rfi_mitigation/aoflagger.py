@@ -38,9 +38,26 @@ def get_rfi_mask(
     """
     if mask_type == 'vis':
         data = time_ordered.squeeze
+        
     elif mask_type == 'flag_fraction':
         flag_fraction = np.mean(mask.squeeze, axis=0)
         data = np.tile(flag_fraction, (np.shape(mask.squeeze)[0], 1))
+
+    elif mask_type == 'rms':
+        data_vis_time_median = np.median(time_ordered.squeeze, axis=0, keepdims=True)
+
+        #####  Update the mask to eliminate discontinuities in the RMS spectra across different frequencies.  ######
+        select_freq = np.all(mask.squeeze, axis=0)  # select the all-timepoint masked frequency points and ingnore them in the mask_fraction calculation
+        mask_fraction = np.mean(mask.squeeze[:,~select_freq], axis=1)
+        time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than the threshold
+        mask_update = mask.squeeze.copy()
+        mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
+        ############################################################################################################
+
+        data_norm = np.ma.masked_array(time_ordered.squeeze / data_vis_time_median, mask=mask_update)
+        data_std = np.ma.std(data_norm, axis=0)
+        data = np.tile(data_std.data, (time_ordered.shape[0], 1))
+
     else:
         raise ValueError("Unknown mask_type {}".format(mask_type))
 
