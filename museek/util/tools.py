@@ -34,7 +34,7 @@ def Synch_model_sm(data: TimeOrderedData, nside, beamsize, beam_frequency):
     param nside: resolution parameter at which the synchrotron model is to be calculated
     """
 
-    sky = pysm3.Sky(nside=nside, preset_strings=["s2"])
+    sky = pysm3.Sky(nside=nside, preset_strings=["s1"])
 
     ###########    frequency should be in Hz unit   ###########
     freq = data.frequencies.squeeze * u.Hz
