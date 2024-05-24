@@ -111,6 +111,7 @@ RawdataFlaggerPlugin = ConfigSection(
 )
 
 GainCalibrationPlugin = ConfigSection(
+        synch_model=['s1'], # list of str, the synch model used, see https://pysm3.readthedocs.io/en/latest/models.html#synchrotron
         nside=128,  #resolution parameter at which the synchrotron model is to be calculated
         beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
         beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
