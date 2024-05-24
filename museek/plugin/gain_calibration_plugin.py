@@ -29,6 +29,7 @@ class GainCalibrationPlugin(AbstractPlugin):
     """ Plugin to calibrtion the gain using synchrotron produced from pysm3 """
 
     def __init__(self,
+                 synch_model:[str],
                  nside: int,
                  beamsize: float,
                  beam_frequency: float,
@@ -39,6 +40,7 @@ class GainCalibrationPlugin(AbstractPlugin):
                  **kwargs):
         """
         Initialise the plugin
+        :param synch_model: model used to create synchrotron sky
         :param nside: resolution parameter at which the synchrotron model is to be calculated
         :param beamsize: the beam fwhm used to smooth the Synch model [arcmin]
         :param beam_frequency: reference frequencies at which the beam fwhm are defined [MHz]
@@ -48,6 +50,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
         super().__init__(**kwargs)
+        self.synch_model = synch_model
         self.nside = nside
         self.beamsize = beamsize 
         self.beam_frequency = beam_frequency
@@ -79,7 +82,8 @@ class GainCalibrationPlugin(AbstractPlugin):
         freq = scan_data.frequencies.squeeze    ####  the unit of scan_data.frequencies is Hz 
         temperature = np.zeros(scan_data.visibility.array.shape)
 
-        synch = Synch_model_sm(scan_data, self.nside, self.beamsize, self.beam_frequency)
+        print(f'Producing synch sky: synch model {self.synch_model} used')
+        synch = Synch_model_sm(scan_data, self.synch_model, self.nside, self.beamsize, self.beam_frequency)
 
         #######  loop for each receiver   ########
         for i_receiver, receiver in enumerate(scan_data.receivers):
@@ -142,7 +146,7 @@ class GainCalibrationPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.COMBINED_FLAG, result=initial_flags.array[:,freqlow_index:freqhigh_index,:], allow_overwrite=True))
+        #self.set_result(result=Result(location=ResultEnum.COMBINED_FLAG, result=initial_flags.array[:,freqlow_index:freqhigh_index,:], allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'gain_calibration_plugin.pickle'
