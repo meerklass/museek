@@ -25,16 +25,17 @@ def flag_percent_recv(data: TimeOrderedData):
     return receivers_list, flag_percent
 
 
-def Synch_model_sm(data: TimeOrderedData, nside, beamsize, beam_frequency):
+def Synch_model_sm(data: TimeOrderedData, synch_model, nside, beamsize, beam_frequency):
 
     """
     return the beam smoothed Synch model that occupies the same frequency and spatial region as the scan data
+    param synch_model: the model used to create the synchrotron sky [str]
     param beamsize: the beam fwhm used to smooth the Synch model [arcmin]
     param beam_frequency: reference frequencies at which the beam fwhm are defined [MHz]
     param nside: resolution parameter at which the synchrotron model is to be calculated
     """
 
-    sky = pysm3.Sky(nside=nside, preset_strings=["s1"])
+    sky = pysm3.Sky(nside=nside, preset_strings=synch_model)
 
     ###########    frequency should be in Hz unit   ###########
     freq = data.frequencies.squeeze * u.Hz
