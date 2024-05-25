@@ -13,6 +13,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
+import datetime
 
 
 class RawdataFlaggerPlugin(AbstractPlugin):
@@ -31,7 +32,6 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         self.data_element_factory = FlagElementFactory()
         self.flag_lower_threshold = flag_lower_threshold
         self.do_store_context = do_store_context
-        self.report_file_name = 'flag_report.md'
 
     def set_requirements(self):
         """ Set the requirements. """
@@ -58,6 +58,7 @@ class RawdataFlaggerPlugin(AbstractPlugin):
                                        context_directory=output_path)
 
         receivers_list, flag_percent = flag_percent_recv(data)
-        lines = ['...........................', 'Running RawdataFlaggerPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running RawdataFlaggerPlugin....Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
