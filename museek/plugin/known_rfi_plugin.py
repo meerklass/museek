@@ -13,7 +13,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
-
+import datetime
 
 class KnownRfiPlugin(AbstractPlugin):
     """ Plugin to completely flag channels designated to known RFI. """
@@ -68,7 +68,8 @@ class KnownRfiPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         receivers_list, flag_percent = flag_percent_recv(data)
-        lines = ['...........................', 'Running KnownRfiPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running KnownRfiPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(data.visibility.get(recv=0),
