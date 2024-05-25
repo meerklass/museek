@@ -38,7 +38,7 @@ class OutPlugin(AbstractPlugin):
                                      data_name=block_name,
                                      plugin_name=self.name)
 
-        self.set_result(result=Result(location=ResultEnum.FLAG_REPORT_WRITER, result=flag_report_writer))
+        self.set_result(result=Result(location=ResultEnum.FLAG_REPORT_WRITER, result=flag_report_writer, allow_overwrite=True))
 
     def check_output_folder_exists(self):
         """ Raises a `ValueError` if `self.output_folder` does not exist. """
