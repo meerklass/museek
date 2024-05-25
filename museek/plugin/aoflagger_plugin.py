@@ -17,6 +17,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
+import datetime
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
@@ -127,8 +128,9 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
         scan_data.flags.add_flag(flag=new_flag)
 
+        current_datetime = datetime.datetime.now()
         receivers_list, flag_percent = flag_percent_recv(scan_data)
-        lines = ['...........................', 'Running AoflaggerPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running AoflaggerPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(scan_data.visibility.get(recv=0),
