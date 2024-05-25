@@ -15,6 +15,7 @@ Pipeline = ConfigSection(
         'museek.plugin.aoflagger_secondrun_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.gain_calibration_plugin',
+        #'museek.plugin.aoflagger_postcalibration_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
         #'museek.plugin.point_source_flagger_plugin',
         #'museek.plugin.zebra_remover_plugin',
@@ -85,6 +86,21 @@ AoflaggerSecondRunPlugin = ConfigSection(
     verbose=0,
     mask_type='flag_fraction',  # the data to which the flagger will be applied
     first_threshold=0.3,  # First threshold value
+    threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
+    smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
+    smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
+    struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
+    channel_flag_threshold=0.6,
+    time_dump_flag_threshold=0.6,
+    flag_combination_threshold=1,
+    do_store_context=True
+)
+
+AoflaggerPostCalibrationPlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    mask_type='rms',  # the data to which the flagger will be applied
+    first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
     smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
