@@ -16,6 +16,7 @@ from museek.util.tools import flag_percent_recv
 from museek.util.report_writer import ReportWriter
 import pickle
 from scipy import ndimage
+import datetime
 
 class AntennaFlaggerPlugin(AbstractPlugin):
     """ Plugin to flag misbehaving antennas. """
@@ -71,10 +72,10 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
 
-
+        current_datetime = datetime.datetime.now()
         for data, label in zip([scan_data, track_data], ['scan_data', 'track_data']):
             receivers_list, flag_percent = flag_percent_recv(data)
-            lines = ['...........................', 'Running AntennaFlaggerPlugin...', 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+            lines = ['...........................', 'Running AntennaFlaggerPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
             flag_report_writer.write_to_report(lines)
 
 
@@ -99,7 +100,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         ######  flag outlier antennas at each time stamp #####
         for i_timestamps, timestamps in enumerate(data.timestamps):
 
-            antenna_elevation = data.azimuth.get(time=i_timestamps).squeeze
+            antenna_elevation = data.elevation.get(time=i_timestamps).squeeze
             antenna_azimuth = data.azimuth.get(time=i_timestamps).squeeze
 
             feature = np.asarray([antenna_elevation,
