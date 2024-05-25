@@ -18,6 +18,7 @@ from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
 import pickle
+import datetime
 
 
 class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
@@ -128,7 +129,8 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         scan_data.flags.add_flag(flag=new_flag)
 
         receivers_list, flag_percent = flag_percent_recv(scan_data)
-        lines = ['...........................', 'Running AoflaggerSecondRunPlugin...', 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running AoflaggerSecondRunPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(scan_data.visibility.get(recv=0),
