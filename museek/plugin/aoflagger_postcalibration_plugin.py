@@ -23,7 +23,7 @@ import datetime
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
-    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
+    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them, for calibrated data """
 
     def __init__(self,
                  mask_type: str,
@@ -71,7 +71,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                              Requirement(location=ResultEnum.CALIBRATED_VIS, variable='calibrated_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.RECEIVERS, variable='receivers'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def map(self,
@@ -80,23 +79,24 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) \
-            -> Generator[tuple[str, np.ndarray, np.ndarray], None, None]:
+            -> Generator[tuple[str, DataElement, FlagElement], None, None]:
         """
         Yield a `tuple` of the results path for one antenna, the scanning calibrated data for one antenna and the flag for one antenna.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-
+        receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
             visibility = calibrated_data.data[:,:,i_antenna]
             initial_flag = calibrated_data.mask[:,:,i_antenna]
-            yield receiver_path, visibility, initial_flag
+            yield receiver_path, DataElement(array=visibility[:,:,np.newaxis]), FlagElement(array=initial_flag[:,:,np.newaxis])
 
-    def run_job(self, anything: tuple[str, np.ndarray, np.ndarray]) -> np.ma.MaskedArray:
+    def run_job(self, anything: tuple[str, DataElement, FlagElement]) -> np.ma.MaskedArray:
         """
-        Run the Aoflagger algorithm and post-process the result. Done for one receiver at a time.
+        Run the Aoflagger algorithm and post-process the result. Done for one antenna at a time.
         :param anything: `tuple` of the output path, the visibility and the initial flag
         :return: mask updated calibrated data
         """
@@ -109,39 +109,72 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                                 output_path=receiver_path,
                                 smoothing_window_size=self.smoothing_kernel,
                                 smoothing_sigma=self.smoothing_sigma)
-        return rfi_flag.array.squeeze() 
+
+        return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag).array.squeeze()
 
     def gather_and_set_result(self,
-                              result_list: list[np.ma.MaskedArray],
+                              result_list: list[np.ndarray],
                               scan_data: TimeOrderedData,
+                              calibrated_data: np.ma.MaskedArray,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
         """
         Combine the `np.ma.MaskedArray`s in `result_list` into a new data set.
-        :param result_list: `list` of `np.ma.MaskedArray`s created from the RFI flagging
+        :param result_list: `list` of `np.ndarray`s created from the RFI flagging
+        :param scan_data: time ordered data containing the scanning part of the observation
+        :param calibrated_data: calibrated data containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
-        print (type(result_list))
-        print (np.shape(result_list))
 
-        #calibrated_data = np.ma.maskedarray(result_list)
-        #calibrated_data = calibrated_data.transpose(1, 2, 0)
+        calibrated_data.mask = np.array(result_list).transpose(1, 2, 0)
 
-        #flag_percent = []
-        #antennas_list = []
-        #for i_antenna, antenna in enumerate(scan_data.antennas):
-        #    flag_percent.append(round(np.sum(calibrated_data.mask[:,:,i_antenna]>=1)/len(calibrated_data.mask[:,:,i_antenna].flatten()), 4))
-        #    antennas_list.append(str(antenna.name))
+        flag_percent = []
+        antennas_list = []
+        for i_antenna, antenna in enumerate(scan_data.antennas):
+            flag_percent.append(round(np.sum(calibrated_data.mask[:,:,i_antenna]>=1)/len(calibrated_data.mask[:,:,i_antenna].flatten()), 4))
+            antennas_list.append(str(antenna.name))
 
-        #current_datetime = datetime.datetime.now()
-        #lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
-        #flag_report_writer.write_to_report(lines)
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
-        #self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=calibrated_data, allow_overwrite=True))
-        #if self.do_store_context:
-        #    context_file_name = 'aoflagger_plugin_postcalibration.pickle'
-        #    self.store_context_to_disc(context_file_name=context_file_name,
-        #                               context_directory=output_path)
+        self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=calibrated_data, allow_overwrite=True))
+        if self.do_store_context:
+            context_file_name = 'aoflagger_plugin_postcalibration.pickle'
+            self.store_context_to_disc(context_file_name=context_file_name,
+                                       context_directory=output_path)
+
+
+    def post_process_flag(
+            self,
+            flag: FlagElement,
+            initial_flag: FlagElement
+    ) -> FlagElement:
+        """
+        Post process `flag` and return the result.
+        The following is done:
+        - `flag` is dilated using `self.struct_size` if it is not `None`
+        - binary closure is applied to `flag`
+        - if a certain fraction of all channels is flagged at any timestamp, the remainder is flagged as well
+        :param flag: binary mask to be post-processed
+        :param initial_flag: initial flag on which `flag` was based
+        :return: the result of the post-processing, a binary mask
+        """
+        # operations on the RFI mask only
+        post_process = RfiPostProcess(new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size)
+        post_process.binary_mask_dilation()
+        post_process.binary_mask_closing()
+        rfi_result = post_process.get_flag()
+
+        # operations on the entire mask
+        post_process = RfiPostProcess(new_flag=rfi_result + initial_flag,
+                                      initial_flag=None,
+                                      struct_size=self.struct_size)
+        post_process.flag_all_channels(channel_flag_threshold=self.channel_flag_threshold)
+        post_process.flag_all_time_dumps(time_dump_flag_threshold=self.time_dump_flag_threshold)
+        overall_result = post_process.get_flag()
+        return overall_result
 
