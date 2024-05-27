@@ -43,6 +43,7 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         """
         Flag raw data with values below a minimum
         :param data: time ordered data of the entire block
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         """
         data.load_visibility_flags_weights()
