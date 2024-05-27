@@ -81,6 +81,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
         initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
@@ -122,6 +123,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
