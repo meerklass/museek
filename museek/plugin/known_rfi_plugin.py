@@ -53,7 +53,7 @@ class KnownRfiPlugin(AbstractPlugin):
         """
         Flag all channels defined by `self.rfi_list` and save the result to the context.
         :param data: time ordered data of the entire block
-        :param flag_report_writer: report_writer of the flag
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         """
         mega = 1e6
