@@ -120,6 +120,11 @@ More information on these are included in their class documentations.
 
 11. `RawdataFlaggerPlugin`
 
+12. `aoflagger_secondrun_plugin`
+ 
+13. `gain_calibration_plugin`
+
+14. `aoflagger_postcalibration_plugin`
 
 Ilifu
 -----------------------
@@ -204,3 +209,15 @@ You can also run `MuSEEK` in `jupyter` on ilifu! If you followed the manual abov
 kernel installed, it's called `museek_kernel` and can be selected to run a `jupyter` notebook.
 To quickly access results stored by the pipeline as a `pickle` file from within a notebook, the class `ContextLoader`
 can be used.
+
+
+Python Modules
+-----------------------
+
+The gain calibration plugin uses the synchrotron model produced by pysm3, you can install pysm3 in your own environment by:
+
+.. code-block:: bash
+
+    source /users/yourname/environment/museek/bin/activate
+    pip install pysm3
+    deactivate
