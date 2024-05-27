@@ -35,7 +35,7 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         """
         Run the plugin, i.e. flag the noise diode firings
         :param data: containing the entire data
-        :param flag_report_writer: report_writer of the flag
+        :param flag_report_writer: report of the flag
         :param output_path: path to store results
         """
         data.load_visibility_flags_weights()
