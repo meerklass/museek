@@ -8,10 +8,13 @@ from matplotlib import pyplot as plt
 from definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
+from ivory.utils.result import Result
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
+from museek.factory.data_element_factory import DataElementFactory
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.swings import Swings
+from museek.visualiser import waterfall, plot_time_ordered_data_map
 
 
 class StandingWaveCorrectionPlugin(AbstractPlugin):
@@ -47,12 +50,15 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
         :param calibrator_label: `str` label to identify the standing wave calibrator that was used
         :param bandpass_estimators:
         """
+        corrected_array = np.zeros(scan_data.visibility.shape)
+        bandpass_estimator = (bandpass_estimators[0] + bandpass_estimators[1]) / 2
         for i_receiver, receiver in enumerate(scan_data.receivers):
             print(f'Working on {receiver}...')
             if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
                 os.makedirs(receiver_path)
             antenna_index = receiver.antenna_index(receivers=scan_data.receivers)
             frequencies = scan_data.frequencies.get(freq=self.target_channels)
+
             self.plot_individual_swings(scan_data=scan_data,
                                         antenna_index=antenna_index,
                                         receiver_index=i_receiver,
@@ -65,8 +71,87 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
                                    antenna_index=antenna_index,
                                    target_channels=self.target_channels,
                                    frequencies=frequencies,
-                                   bandpass_estimator=bandpass_estimators,
-                                   receiver_path=receiver_path)
+                                   receiver_path=receiver_path,
+                                   bandpass_estimators=bandpass_estimators)
+
+            corrected_array[:, self.target_channels, i_receiver] = scan_data.visibility.get(
+                freq=self.target_channels,
+                recv=i_receiver
+            ).squeeze / bandpass_estimator.get(
+                freq=self.target_channels,
+                recv=i_receiver
+            ).squeeze
+            # corrected_array_list[0][:, self.target_channels, i_receiver] = scan_data.visibility.get(
+            #     freq=self.target_channels,
+            #     recv=i_receiver
+            # ).squeeze / bandpass_estimator.get(
+            #     freq=self.target_channels,
+            #     recv=i_receiver
+            # ).squeeze
+            # corrected_array_list[1][:, self.target_channels, i_receiver] = scan_data.visibility.get(
+            #     freq=self.target_channels,
+            #     recv=i_receiver
+            # ).squeeze / bandpass_estimator.get(
+            #     freq=self.target_channels,
+            #     recv=i_receiver
+            # ).squeeze
+
+        # corrected_data_before = DataElementFactory().create(array=corrected_array_list[0])
+        # corrected_data_after = DataElementFactory().create(array=corrected_array_list[1])
+        corrected_data = DataElementFactory().create(array=corrected_array)
+
+        for i_recv_plot, receiver in enumerate(scan_data.receivers):
+            antenna_index = receiver.antenna_index(receivers=scan_data.receivers)
+            recv_name_plot = receiver.name
+            receiver_path = os.path.join(output_path, receiver.name)
+            plt.close()
+            waterfall(visibility=corrected_data.get(freq=self.target_channels, recv=i_recv_plot),
+                      flags=scan_data.flags.get(freq=self.target_channels, recv=i_recv_plot),
+                      # flags=None,
+                      cmap='gist_ncar')
+            plt.xlabel('time stamps')
+            plt.ylabel('channels')
+            plt.savefig(os.path.join(receiver_path, f'bandpass_correction_result_receiver_{recv_name_plot}.png'),
+                        dpi=1000)
+
+            plt.close()
+            waterfall(visibility=scan_data.visibility.get(freq=self.target_channels, recv=i_recv_plot),
+                      flags=scan_data.flags.get(freq=self.target_channels, recv=i_recv_plot),
+                      # flags=None,
+                      cmap='gist_ncar')
+            plt.xlabel('time stamps')
+            plt.ylabel('channels')
+            plt.savefig(os.path.join(receiver_path, f'bandpass_uncorrected_receiver_{recv_name_plot}.png'),
+                        dpi=1000)
+            plt.close()
+
+            channel = self.target_channels[-1]
+            channel_freq = scan_data.frequencies.get(freq=channel).squeeze
+            plt.figure(figsize=(15, 5))
+            plot_time_ordered_data_map(right_ascension=scan_data.right_ascension.get(recv=antenna_index),
+                                       declination=scan_data.declination.get(recv=antenna_index),
+                                       visibility=corrected_data.get(freq=channel, recv=i_recv_plot),
+                                       flags=scan_data.flags.get(freq=channel, recv=i_recv_plot))
+            plt.title(f'bandpass corrected channel {channel} freq {channel_freq / MEGA} MHz')
+            plt.savefig(os.path.join(receiver_path,
+                                     f'bandpass_corrected_map_channel_{channel}_receiver_{recv_name_plot}.png'))
+            plt.close()
+
+            plt.figure(figsize=(15, 5))
+            plot_time_ordered_data_map(right_ascension=scan_data.right_ascension.get(recv=antenna_index),
+                                       declination=scan_data.declination.get(recv=antenna_index),
+                                       visibility=scan_data.visibility.get(freq=channel, recv=i_recv_plot),
+                                       flags=scan_data.flags.get(freq=channel, recv=i_recv_plot))
+            plt.title(f'channel {channel} freq {channel_freq / MEGA} MHz')
+            plt.savefig(
+                os.path.join(receiver_path,
+                             f'raw_data_bandpass_uncorrected_map_channel_{channel}_receiver_{recv_name_plot}.png')
+            )
+            plt.close()
+
+        self.set_result(result=Result(location=ResultEnum.STANDING_WAVE_CORRECTED_DATA_1,
+                                      result=corrected_data,
+                                      allow_overwrite=False))
 
     @staticmethod
     def azimuth_digitizer(azimuth: DataElement) -> tuple[np.ndarray, np.ndarray]:
@@ -110,7 +195,8 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             bandpass = mean_bandpass.squeeze / mean_bandpass.squeeze[0]
             fit_frequencies = scan_data.frequencies.get(freq=target_channels).squeeze / MEGA
 
-            corrected = bandpass / bandpass_estimator.get(freq=target_channels, recv=receiver_index).squeeze  # this should be constant at 1
+            corrected = bandpass / bandpass_estimator.get(freq=target_channels,
+                                                          recv=receiver_index).squeeze  # this should be constant at 1
             corrected = self.correct_linear(array=corrected, frequencies=fit_frequencies)
 
             residual = (corrected - 1) * 100
@@ -173,7 +259,7 @@ class StandingWaveCorrectionPlugin(AbstractPlugin):
             corrected_azimuth_binned_bandpasses.append(
                 visibility.mean(axis=0, flags=flag).squeeze / bandpass_estimators[0].get(freq=target_channels,
                                                                                          recv=i_receiver).squeeze
-                )
+            )
 
         plt.figure(figsize=(8, 6))
         for i, bandpass in enumerate(corrected_azimuth_binned_bandpasses):
