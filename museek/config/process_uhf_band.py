@@ -15,7 +15,7 @@ Pipeline = ConfigSection(
         'museek.plugin.aoflagger_secondrun_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.gain_calibration_plugin',
-        #'museek.plugin.aoflagger_postcalibration_plugin',
+        'museek.plugin.aoflagger_postcalibration_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
         #'museek.plugin.point_source_flagger_plugin',
         #'museek.plugin.zebra_remover_plugin',
@@ -69,7 +69,7 @@ ZebraRemoverPlugin = ConfigSection(
 AoflaggerPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    mask_type='vis',  # the data to which the flagger will be applied
+    mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.1,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
@@ -84,7 +84,7 @@ AoflaggerPlugin = ConfigSection(
 AoflaggerSecondRunPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    mask_type='flag_fraction',  # the data to which the flagger will be applied
+    mask_type='flag_fraction',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.3,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
@@ -99,7 +99,7 @@ AoflaggerSecondRunPlugin = ConfigSection(
 AoflaggerPostCalibrationPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    mask_type='rms',  # the data to which the flagger will be applied
+    mask_type='inverse_timemedian',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.05,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
@@ -108,6 +108,11 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
+    correlation_threshold=0.6, # correlation coefficient threshold between calibrated data and synch model for excluding bad antennas.
+    synch_model=['s1'], # list of str, the synch model used, see https://pysm3.readthedocs.io/en/latest/models.html#synchrotron
+    nside=128,  #resolution parameter at which the synchrotron model is to be calculated
+    beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
+    beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
     do_store_context=True
 )
 
