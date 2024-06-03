@@ -101,7 +101,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) \
-            -> Generator[tuple[str, DataElement, FlagElement, np.ndarray, np.ndarray, np.ndarray, np.ndarray], None, None]:
+            -> Generator[tuple[str, DataElement, FlagElement, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str], None, None]:
         """
         Yield a `tuple` of the results path for one antenna, the scanning calibrated data for one antenna and the flag for one antenna.
         :param scan_data: time ordered data containing the scanning part of the observation
@@ -111,21 +111,22 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
+        print(f'flag_antennas_using_correlation_with_synch_model: Producing synch sky: synch model {self.synch_model} used')
         receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
             visibility = calibrated_data.data[:,:,i_antenna]
             initial_flag = calibrated_data.mask[:,:,i_antenna]
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield receiver_path, DataElement(array=visibility[:,:,np.newaxis]), FlagElement(array=initial_flag[:,:,np.newaxis]), right_ascension, declination, freq_select
+            yield receiver_path, DataElement(array=visibility[:,:,np.newaxis]), FlagElement(array=initial_flag[:,:,np.newaxis]), right_ascension, declination, freq_select, antenna.name
 
-    def run_job(self, anything: tuple[str, DataElement, FlagElement, np.ndarray, np.ndarray, np.ndarray]) -> np.ndarray:
+    def run_job(self, anything: tuple[str, DataElement, FlagElement, np.ndarray, np.ndarray, np.ndarray, str]) -> np.ndarray:
         """
         Run the Aoflagger algorithm and post-process the result. Done for one antenna at a time.
-        :param anything: `tuple` of the output path, the visibility and the initial flag
-        :return: mask updated calibrated data
+        :param anything: `tuple` of the output path, calibrated data, initial flag, right ascension, declination, frequency and antenna name
+        :return: updated mask
         """
-        receiver_path, visibility, initial_flag, right_ascension, declination, freq_select = anything
+        receiver_path, visibility, initial_flag, right_ascension, declination, freq_select, antenna = anything
         rfi_flag = get_rfi_mask(time_ordered=visibility,
                                 mask=initial_flag,
                                 mask_type=self.mask_type,
@@ -136,7 +137,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                                 smoothing_sigma=self.smoothing_sigma)
 
         initial_flag = self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag).squeeze
-        return self.flag_antennas_using_correlation_with_synch_model(visibility.squeeze, initial_flag, right_ascension, declination, freq_select) 
+        return self.flag_antennas_using_correlation_with_synch_model(visibility.squeeze, initial_flag, right_ascension, declination, freq_select, antenna) 
 
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
@@ -212,7 +213,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             mask: np.ndarray, 
             ra: np.ndarray, 
             dec: np.ndarray, 
-            freq: np.ndarray
+            freq: np.ndarray,
+            antenna: str
         ) -> np.ndarray:
         """
         Excludes bad antennas based on the Spearman correlation coefficient between the synch model at the median of frequency and the frequency median of calibrated data.
@@ -223,6 +225,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         ra: The right ascension for calibrated visibility data [deg]
         dec: The declination for calibrated visibility data [deg]
         freq: The frequency for calibrated visibility data [Hz]
+        antenna: The antenna name for calibrated visibility data [str]
 
         Returns:
         bool array: mask all data for antennas considered to be bad.
@@ -238,7 +241,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             mask_update[time_points_to_mask, :] = True  #mask time points where the mask fraction is greater than the threshold
             ########  calculate the frequency corrsponding to the frequency median of calibrated data   ########
             mask_freq = np.median(mask_update[~time_points_to_mask,:], axis=0) == 1.
-            assert mask_freq.all() == False, "too much data is masked"
+            assert mask_freq.all() == False, f"antenna {antenna}, too much data is masked, please check data, maybe increase the threshold for mask_fraction"
             freq_median = np.median(freq[~mask_freq])
 
             #########   produce synch model at freq_median and smooth   #########
@@ -262,6 +265,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 pass
             else:
                 mask[:] = True
+                print(f'antenna {antenna} is masked, Spearman correlation coefficient is '+str(round(spearman_corr,3)))
 
         return mask
 
