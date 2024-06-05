@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from museek.data_element import DataElement
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
+import warnings
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -59,8 +60,9 @@ def get_rfi_mask(
         mask_update = mask.squeeze.copy()
         mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
         ############################################################################################################
-
-        data_norm = np.ma.masked_array(time_ordered.squeeze / data_vis_time_median, mask=mask_update)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            data_norm = np.ma.masked_array(time_ordered.squeeze / data_vis_time_median, mask=mask_update)
         data_std = np.ma.std(data_norm, axis=0)
         data = np.tile(data_std.data, (time_ordered.shape[0], 1))
 
