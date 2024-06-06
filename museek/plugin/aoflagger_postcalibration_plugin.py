@@ -160,8 +160,9 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         calibrated_data.mask = np.array(result_list).transpose(1, 2, 0)
 
         ########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
+        good_antennas = [calibrated_data[:,:,i_antenna].mask.all() for i_antenna, antenna in enumerate(scan_data.antennas)]
         for i_freq, freq in enumerate(freq_select):
-            if np.mean(calibrated_data.mask[:,i_freq,:]) > self.channel_flag_threshold:
+            if np.mean(calibrated_data.mask[:,i_freq,good_antennas]) > self.channel_flag_threshold:
                 calibrated_data.mask[:,i_freq,:] = True
             else:
                 pass
