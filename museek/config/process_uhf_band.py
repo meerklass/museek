@@ -38,9 +38,7 @@ InPlugin = ConfigSection(
     context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
 )
 
-OutPlugin = ConfigSection(
-    output_folder=None,  # folder to store results, `None` means default location is chosen
-)
+OutPlugin = ConfigSection()
 
 
 AntennaFlaggerPlugin = ConfigSection(
