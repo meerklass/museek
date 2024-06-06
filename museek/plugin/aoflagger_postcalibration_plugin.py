@@ -148,7 +148,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                               output_path: str,
                               block_name: str):
         """
-        Combine the `np.ma.MaskedArray`s in `result_list` into a new data set.
+        Combine the `np.ma.MaskedArray`s in `result_list` into a new data set, and mask the frequencies that flag fraction is high (taking all antennas into consideration)
         :param result_list: `list` of `np.ndarray`s created from the RFI flagging
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
@@ -158,6 +158,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
 
         calibrated_data.mask = np.array(result_list).transpose(1, 2, 0)
+
+        ########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
+        for i_freq, freq in enumerate(freq_select):
+            if np.mean(calibrated_data.mask[:,i_freq,:]) > self.channel_flag_threshold:
+                calibrated_data.mask[:,i_freq,:] = True
+            else:
+                pass
 
         flag_percent = []
         antennas_list = []
