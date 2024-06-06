@@ -11,27 +11,20 @@ from museek.util.report_writer import ReportWriter
 class OutPlugin(AbstractPlugin):
     """ Plugin to set output paths. """
 
-    def __init__(self, output_folder: str | None):
+    def __init__(self):
         """
         Initialise the plugin.
-        :param output_folder: folder to store ouputs
         """
         super().__init__()
-        self.output_folder = output_folder
         self.report_file_name = 'flag_report.md'
-        if self.output_folder is None:
-            self.output_folder = os.path.join(ROOT_DIR, 'results/')
-        self.check_output_folder_exists()
 
     def set_requirements(self):
         """ Set the block name as a requirement. """
-        self.requirements = [Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+        self.requirements = [Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),]
 
-    def run(self, block_name: str):
+    def run(self, block_name: str, output_path: str):
         """ Store the `output_path` as a result. """
-        output_path = os.path.join(self.output_folder, f'{block_name}/')
-        os.makedirs(output_path, exist_ok=True)
-        self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=output_path))
 
         flag_report_writer = ReportWriter(output_path=output_path,
                                      report_name=self.report_file_name,
