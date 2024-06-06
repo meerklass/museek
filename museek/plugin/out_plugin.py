@@ -24,7 +24,7 @@ class OutPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),]
 
     def run(self, block_name: str, output_path: str):
-        """ Store the `output_path` as a result. """
+        """ Store the `flag_report_writer` as a result. """
 
         flag_report_writer = ReportWriter(output_path=output_path,
                                      report_name=self.report_file_name,
