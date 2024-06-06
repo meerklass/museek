@@ -88,6 +88,7 @@ class InPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
         self.set_result(result=Result(location=ResultEnum.BLOCK_NAME, result=self.block_name))
+        self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=context_directory))
 
     def check_context_folder_exists(self):
         """ Raises a `ValueError` if `self.context_folder` does not exist. """
