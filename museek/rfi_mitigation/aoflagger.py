@@ -45,6 +45,9 @@ def get_rfi_mask(
 
     elif mask_type == 'inverse_timemedian':
         data = np.tile(np.median((1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
+
+    elif mask_type == 'timemedian':
+        data = np.tile(np.median((np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
         
     elif mask_type == 'flag_fraction':
         flag_fraction = np.mean(mask.squeeze, axis=0)
