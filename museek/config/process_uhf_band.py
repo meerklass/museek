@@ -21,7 +21,7 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    #context=os.path.join('/idia/projects/hi_im/', 'newbranch_test/1683492604/aoflagger_plugin_secondrun.pickle')
+        context=os.path.join('/users/wkhu/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
 
 )
 
@@ -30,7 +30,8 @@ InPlugin = ConfigSection(
     #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
     receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
-    data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    #data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    data_folder = '/idia/raw/hi_im/SCI-20220822-MS-01/',
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
@@ -82,11 +83,11 @@ AoflaggerPlugin = ConfigSection(
 AoflaggerSecondRunPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    mask_type='flag_fraction',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
-    first_threshold=0.3,  # First threshold value
+    mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'inverse'] for 1d aoflagger
+    first_threshold=0.25,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
-    smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
-    smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
+    smoothing_kernel=80,  # Smoothing, kernel window size in frequency axis
+    smoothing_sigma=30,  # Smoothing, kernel sigma in frequency axis
     struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
@@ -97,16 +98,20 @@ AoflaggerSecondRunPlugin = ConfigSection(
 AoflaggerPostCalibrationPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    mask_type='inverse_timemedian',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
-    first_threshold=0.04,  # First threshold value
+    first_threshold_rms=0.1,  # First threshold value
+    first_threshold_flag_fraction=0.2,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
-    smoothing_kernel=(20, 160),  # Smoothing, kernel window size in time and frequency axis
-    smoothing_sigma=(7.5, 60),  # Smoothing, kernel sigma in time and frequency axis
+    smoothing_kernel_rms=80,  # Smoothing, kernel window size in frequency axis
+    smoothing_sigma_rms=30,  # Smoothing, kernel sigma in frequency axis
+    smoothing_kernel_flag_fraction=80,  # Smoothing, kernel window size in frequency axis
+    smoothing_sigma_flag_fraction=30,  # Smoothing, kernel sigma in frequency axis
     struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
-    time_dump_flag_threshold=0.6,
+    time_dump_flag_threshold=0.4,
     flag_combination_threshold=1,
-    correlation_threshold=0.6, # correlation coefficient threshold between calibrated data and synch model for excluding bad antennas.
+    poly_fit_degree=5, # degree of polynomials used to fit the data with the time median removed
+    poly_fit_threshold=5., # threshold (times of MAD) of polynomials fitting flagging
+    correlation_threshold_ant=0.6, # correlation coefficient threshold between calibrated data and synch model for excluding bad antennas.
     synch_model=['s1'], # list of str, the synch model used, see https://pysm3.readthedocs.io/en/latest/models.html#synchrotron
     nside=128,  #resolution parameter at which the synchrotron model is to be calculated
     beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
