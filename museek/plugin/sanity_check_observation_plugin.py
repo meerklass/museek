@@ -108,8 +108,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
-        self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
-        self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
         self.save_output(data=scan_data,
                          output_path=output_path,
                          time_analysis=time_analysis)
