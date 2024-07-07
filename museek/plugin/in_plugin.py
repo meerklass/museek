@@ -72,13 +72,14 @@ class InPlugin(AbstractPlugin):
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split('_')[0]))
 
+        context_directory = os.path.join(self.context_folder, f'{self.block_name}/')
+
         if self.do_store_context:
             # to create cache file
             data.load_visibility_flags_weights()
             data.delete_visibility_flags_weights()
 
             context_file_name = 'in_plugin.pickle'
-            context_directory = os.path.join(self.context_folder, f'{self.block_name}/')
             os.makedirs(context_directory, exist_ok=True)
 
             self.store_context_to_disc(context_file_name=context_file_name,
