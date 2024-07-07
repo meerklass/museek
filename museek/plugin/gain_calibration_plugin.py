@@ -146,7 +146,6 @@ class GainCalibrationPlugin(AbstractPlugin):
 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
-        #self.set_result(result=Result(location=ResultEnum.COMBINED_FLAG, result=initial_flags.array[:,freqlow_index:freqhigh_index,:], allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'gain_calibration_plugin.pickle'
