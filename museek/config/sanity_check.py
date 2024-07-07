@@ -20,9 +20,8 @@ InPlugin = ConfigSection(
     do_store_context=False,
     context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
 )
-OutPlugin = ConfigSection(
-    output_folder=None  # folder to store results, `None` means default location is chosen
-)
+OutPlugin = ConfigSection()
+
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=False,
     do_store_context=True
