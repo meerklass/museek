@@ -12,6 +12,7 @@ from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
+from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
@@ -19,6 +20,7 @@ from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
 import pickle
 import datetime
+import numpy as np
 
 
 class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
@@ -28,8 +30,8 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
                  mask_type: str,
                  first_threshold: float,
                  threshold_scales: list[float],
-                 smoothing_kernel: tuple[int, int],
-                 smoothing_sigma: tuple[float, float],
+                 smoothing_kernel: int,
+                 smoothing_sigma: float,
                  struct_size: tuple[int, int] | None,
                  channel_flag_threshold: float,
                  time_dump_flag_threshold: float,
@@ -41,8 +43,8 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param mask_type: the data to which the flagger will be applied
         :param first_threshold: initial threshold to be used for the aoflagger algorithm
         :param threshold_scales: list of sensitivities
-        :param smoothing_kernel: smoothing kernel window size tuple for axes 0 and 1
-        :param smoothing_sigma: smoothing kernel sigma tuple for axes 0 and 1
+        :param smoothing_kernel: smoothing kernel window size tuple for axes 0
+        :param smoothing_sigma: smoothing kernel sigma tuple for axes 0
         :param struct_size: structure size for binary dilation, closing etc
         :param channel_flag_threshold: if the fraction of flagged channels exceeds this, all channels are flagged
         :param time_dump_flag_threshold: if the fraction of flagged time dumps exceeds this, all time dumps are flagged
@@ -103,15 +105,25 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :return: rfi mask as `FlagElement`
         """
         receiver_path, visibility, initial_flag = anything
-        rfi_flag = get_rfi_mask(time_ordered=visibility,
-                                mask=initial_flag,
+
+        ###############  aoflagger on the flagged fraction  ################
+        input_data = np.mean(initial_flag.squeeze, axis=0)
+        input_mask = input_data > self.time_dump_flag_threshold
+
+        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=input_data[:,np.newaxis,np.newaxis]),
+                                mask=FlagElement(array=input_mask[:,np.newaxis,np.newaxis]),
                                 mask_type=self.mask_type,
                                 first_threshold=self.first_threshold,
                                 threshold_scales=self.threshold_scales,
                                 output_path=receiver_path,
                                 smoothing_window_size=self.smoothing_kernel,
                                 smoothing_sigma=self.smoothing_sigma)
-        return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag)
+
+        rfi_flag_tile = np.tile(rfi_flag.squeeze, (visibility.shape[0], 1))
+        initial_flag_tile = np.tile(input_mask, (visibility.shape[0], 1))
+        initial_flag_post = self.post_process_flag(flag=FlagElement(array=rfi_flag_tile[:,:,np.newaxis]), initial_flag=FlagElement(array=initial_flag_tile[:,:,np.newaxis]))
+
+        return FlagElement(array=(initial_flag_post.squeeze + initial_flag.squeeze)[:,:,np.newaxis])
 
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
