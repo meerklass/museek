@@ -17,7 +17,7 @@ InPlugin = ConfigSection(
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
-    do_store_context=False,
+    do_store_context=True,
     context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
 )
 OutPlugin = ConfigSection()
