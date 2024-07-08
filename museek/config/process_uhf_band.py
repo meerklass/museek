@@ -21,7 +21,7 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-        context=os.path.join('/users/wkhu/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
+    #context=os.path.join('/users/wkhu/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
 
 )
 
