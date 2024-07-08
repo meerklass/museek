@@ -19,3 +19,4 @@ class ResultEnum(Enum):
     FLAG_REPORT_WRITER = auto()
     CALIBRATED_VIS = auto()
     FREQ_SELECT = auto()
+    COMBINED_FLAG = auto()
