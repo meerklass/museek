@@ -127,7 +127,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-        print(f'flag frequency and antennas usingcorrelation with synch model: Producing synch sky: synch model {self.synch_model} used')
+        print(f'flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used')
 
         receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
@@ -222,7 +222,9 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the observation block
         """
 
-        calibrated_data.mask = np.array(result_list).transpose(1, 2, 0)
+        result_list = np.array(result_list, dtype='object')
+        correlation_coefficient_ant = [result_list[i][1] for i in range(np.shape(result_list)[0])]
+        calibrated_data.mask = np.array([result_list[i][0] for i in range(np.shape(result_list)[0])]).transpose(1, 2, 0)
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [~calibrated_data[:,:,i_antenna].mask.all() for i_antenna, antenna in enumerate(scan_data.antennas)]
@@ -245,6 +247,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         #########   save results 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=calibrated_data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CORRELATION_COEFFICIENT_VIS_SYNCH_ANT, result=correlation_coefficient_ant, allow_overwrite=True))
         if self.do_store_context:
             context_file_name = 'aoflagger_plugin_postcalibration.pickle'
             self.store_context_to_disc(context_file_name=context_file_name,
@@ -308,7 +311,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
 
         if mask.all():
-            pass
+            spearman_corr = np.nan
         else:
             #####  Update the mask to eliminate inhomogeneities when take the median along time axis  ######
             mask_fraction = np.mean(mask[:,~np.all(mask, axis=0)], axis=1) # ingnore the all-timepoint masked frequency points, calculate the mask fraction
@@ -343,7 +346,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 mask[:] = True
                 print(f'antenna {antenna} is masked, Spearman correlation coefficient is '+str(round(spearman_corr,3)))
 
-        return mask
+        return mask, spearman_corr
 
 
     def polynomial_flag_outlier(self, x, y, mask, degree, threshold):
