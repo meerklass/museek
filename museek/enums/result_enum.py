@@ -20,3 +20,4 @@ class ResultEnum(Enum):
     CALIBRATED_VIS = auto()
     FREQ_SELECT = auto()
     COMBINED_FLAG = auto()
+    CORRELATION_COEFFICIENT_VIS_SYNCH_ANT = auto()
