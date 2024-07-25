@@ -35,7 +35,7 @@ BASE_DIR = Path("__file__").parent
     "--block-number",
     type=str,
     help="Observation Capture Block ID, usually a 10-digit number. "
-    "Not use if `--archive-url is provided. "
+    "Not use if `--archive-url` is provided. "
     "`--token` or `--data-folder` must also be given.",
 )
 @click.option(
