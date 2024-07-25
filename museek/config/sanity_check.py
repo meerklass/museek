@@ -50,7 +50,8 @@ InPlugin = ConfigSection(
 OutPlugin = ConfigSection()
 
 ScanTrackSplitPlugin = ConfigSection(
-    do_delete_unsplit_data=False, do_store_context=True
+    do_delete_unsplit_data=False,
+    do_store_context=False
 )
 
 SanityCheckObservationPlugin = ConfigSection(
