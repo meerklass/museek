@@ -9,7 +9,20 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 
 BASE_DIR = Path("__file__").parent
 
 
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.command(
+    context_settings=CONTEXT_SETTINGS,
+    epilog="""
+    Examples:
+
+    \b
+    Providing `archive-url`, run with venv:
+    python museek/script/run_sanity_check.py --venv-path ~/venv/meerklass -u https://archive-gw-1.kat.ac.za/1721838156/1721838156_sdp_l0.full.rdb?token=eyJ...1L6w
+
+    \b
+    Providing `block-number` and `token`, run with conda env, save output to none default directory:
+    python museek/script/run_sanity_check.py --conda-path ~/miniconda3/envs/meerklass -b 1721838156 -t eyJ...1L6w --context-folder /path/to/different/folder
+    """,
+)
 @click.option(
     "-u",
     "--archive-url",
@@ -77,7 +90,7 @@ def run_sanity_check(
     runtime,
     mem,
     cpus_per_task,
-    requeue
+    requeue,
 ):
     """
     Create and submit an sbatch script to run a sanity check on a given observation.
