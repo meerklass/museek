@@ -16,16 +16,18 @@ class ScanTrackSplitPlugin(AbstractPlugin):
     For the scanning part and calibrator tracking parts new `TimeOrderedData` objects are created.
     """
 
-    def __init__(self, do_delete_unsplit_data: bool, do_store_context: bool):
+    def __init__(self, do_delete_unsplit_data: bool, do_store_context: bool, flag_combination_threshold: int):
         """
         Initialise with `do_delete_unsplit_data`, a switch that determines wether the object containing the entire
         data should be deleted to save memory.
         :param do_delete_unsplit_data: switch that determines wether the data should be deleted after split
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
+        :param flag_combination_threshold: for combining sets of flags, usually `1`
         """
         super().__init__()
         self.do_delete_unsplit_data = do_delete_unsplit_data
         self.do_store_context = do_store_context
+        self.flag_combination_threshold = flag_combination_threshold
 
     def set_requirements(self):
         """ Only requirement is the data. """
@@ -48,6 +50,8 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         track_data = deepcopy(data)
         track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
+        scan_flags_beforeaoflagger = scan_data.flags.combine(threshold=self.flag_combination_threshold)
+
         if self.do_delete_unsplit_data:
             data = None
             self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
@@ -60,6 +64,7 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_END,
                                       result=scan_observation_end,
                                       allow_overwrite=False))
+        self.set_result(result=Result(location=ResultEnum.SCAN_FLAGS_BEFOREAOFLAGGER, result=scan_flags_beforeaoflagger.squeeze, allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'scan_track_split_plugin.pickle'
