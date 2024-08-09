@@ -21,3 +21,5 @@ class ResultEnum(Enum):
     FREQ_SELECT = auto()
     COMBINED_FLAG = auto()
     CORRELATION_COEFFICIENT_VIS_SYNCH_ANT = auto()
+    POINT_SOURCE_MASK = auto()
+    SCAN_FLAGS_BEFOREAOFLAGGER = auto()
