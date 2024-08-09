@@ -108,20 +108,23 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                              Requirement(location=ResultEnum.FREQ_SELECT, variable='freq_select'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
+                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask')]
 
     def map(self,
             scan_data: TimeOrderedData,
             calibrated_data: np.ma.MaskedArray,
+            point_source_mask: np.ndarray,
             freq_select: np.ndarray,
             flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) \
-            -> Generator[tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str, str], None, None]:
+            -> Generator[tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str], None, None]:
         """
         Yield a `tuple` of the results path for one antenna, the scanning calibrated data for one antenna and the flag for one antenna.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
+        :param point_source_mask: mask for point sources
         :param freq_select: frequency for calibrated data, in [Hz]
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
@@ -133,15 +136,15 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield receiver_path, calibrated_data.data[:,:,i_antenna], calibrated_data.mask[:,:,i_antenna], right_ascension, declination, freq_select, antenna.name
+            yield receiver_path, calibrated_data.data[:,:,i_antenna], calibrated_data.mask[:,:,i_antenna], point_source_mask[:,:,i_antenna], right_ascension, declination, freq_select, antenna.name
 
-    def run_job(self, anything: tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]) -> np.ndarray:
+    def run_job(self, anything: tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]) -> np.ndarray:
         """
         Run the Aoflagger algorithm and post-process the result. Done for one antenna at a time.
         :param anything: `tuple` of the output path, calibrated data, flag, right ascension, declination, frequency and antenna name
         :return: updated mask
         """
-        receiver_path, visibility_recv, initial_flag_recv, right_ascension, declination, freq_select, antenna  = anything
+        receiver_path, visibility_recv, initial_flag_recv, point_source_mask_recv, right_ascension, declination, freq_select, antenna  = anything
 
         ###########  fitting a powerlaw to the time median removed data and then mask outlier   ######## 
         visibility_recv_masked = np.ma.masked_array(visibility_recv, mask=initial_flag_recv)
@@ -202,12 +205,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         initial_flag_postflagfraction = initial_flag_post.squeeze + initial_flag_postrms
 
-        return self.flag_antennas_using_correlation_with_synch_model(visibility_recv, initial_flag_postflagfraction, right_ascension, declination, freq_select, antenna) 
+        return self.flag_antennas_using_correlation_with_synch_model(visibility_recv, initial_flag_postflagfraction, point_source_mask_recv, right_ascension, declination, freq_select, antenna) 
 
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
                               scan_data: TimeOrderedData,
                               calibrated_data: np.ma.MaskedArray,
+                              point_source_mask: np.ndarray,
                               freq_select: np.ndarray,
                               flag_report_writer: ReportWriter,
                               output_path: str,
@@ -217,6 +221,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param result_list: `list` of `np.ndarray`s created from the RFI flagging
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
+        :param point_source_mask: mask for point sources
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
@@ -233,6 +238,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 calibrated_data.mask[:,i_freq,:] = True
             else:
                 pass
+
 
         ##########   report of the flagging  
         flag_percent = []
@@ -290,6 +296,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             self, 
             calibrated_data: np.ndarray, 
             mask: np.ndarray, 
+            point_source_mask: np.ndarray,
             ra: np.ndarray, 
             dec: np.ndarray, 
             freq: np.ndarray,
@@ -334,7 +341,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             phi = (c.galactic.l / u.degree).value
             synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta / 180. * np.pi, phi / 180. * np.pi)
 
-            map_freqmedian = np.ma.median(np.ma.masked_array(calibrated_data, mask = mask_update), axis=1)
+            map_freqmedian = np.ma.median(np.ma.masked_array(calibrated_data, mask = mask_update+point_source_mask), axis=1)
             synch_I = np.ma.masked_array(synch_I, mask=map_freqmedian.mask)
             synch_I = synch_I / 10**6.   #####  convert from uK to K
 
