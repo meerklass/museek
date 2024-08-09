@@ -65,9 +65,11 @@ class GainCalibrationPlugin(AbstractPlugin):
         """
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask'),
+                             Requirement(location=ResultEnum.SCAN_FLAGS_BEFOREAOFLAGGER, variable='scan_flags_beforeaoflagger')]
 
-    def run(self, scan_data: TimeOrderedData, output_path: str, block_name: str):
+    def run(self, scan_data: TimeOrderedData, point_source_mask: np.ndarray, scan_flags_beforeaoflagger: np.ndarray, output_path: str, block_name: str):
         """
         Run the gain calibration
         :return: the calibrated scan_data
@@ -124,10 +126,14 @@ class GainCalibrationPlugin(AbstractPlugin):
         freqhigh_index = np.argmin(np.abs(freq/10.**6 - self.frequency_high))
         temperature = temperature[:,freqlow_index:freqhigh_index,:]
         freq_select = freq[freqlow_index:freqhigh_index]
+        point_source_mask = point_source_mask[:,freqlow_index:freqhigh_index,:]
+        scan_flags_beforeaoflagger = scan_flags_beforeaoflagger[:,freqlow_index:freqhigh_index,:]
 
         temperature = np.ma.masked_array(temperature, mask=initial_flags.array[:,freqlow_index:freqhigh_index,:])
 
         temperature_antennas = []
+        mask_antennas = []
+        mask_beforeaoflagger_antennas = []
         antenna_list = scan_data._antenna_name_list
         receivers_list = [str(receiver) for i_receiver, receiver in enumerate(scan_data.receivers)]
 
@@ -135,17 +141,32 @@ class GainCalibrationPlugin(AbstractPlugin):
             indices = [index for index, receiver in enumerate(receivers_list) if antenna in receiver]
 
             selected_mask = [temperature.mask[:,:,i] for i in indices]
-            mask_combine = np.sum(selected_mask, axis=0)
-            for i in indices:
-                temperature.mask[:,:,i] = mask_combine
+            mask_antennas.append(np.sum(selected_mask, axis=0))
 
-            selected_vis = [temperature[:,:,i] for i in indices]
-            temperature_antennas.append(np.ma.mean(selected_vis, axis=0))
-        temperature_antennas = np.ma.masked_array(temperature_antennas)
+            selected_mask_beforeaoflagger = [scan_flags_beforeaoflagger[:,:,i] for i in indices]
+            mask_beforeaoflagger_antennas.append(np.sum(selected_mask_beforeaoflagger, axis=0))
+
+            selected_vis = [temperature.data[:,:,i] for i in indices]
+            temperature_antennas.append(np.mean(selected_vis, axis=0))
+
+        temperature_antennas = np.ma.masked_array(temperature_antennas, mask=mask_antennas)
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
+        mask_beforeaoflagger_antennas = np.array(mask_beforeaoflagger_antennas).transpose(1, 2, 0)
+
+        ##########   set the mask of point sources to False in time domain ##########
+        for i_antenna in range(point_source_mask.shape[-1]):
+            for i_freq in range(point_source_mask.shape[1]):
+                if temperature_antennas.mask[:,i_freq,i_antenna].all():
+                    pass
+                else:
+                    # Update the mask of calibrated_data to be False where the point_source_mask is True
+                    temperature_antennas.mask[:,i_freq,i_antenna] = np.where(point_source_mask[:,i_freq,i_antenna], False, temperature_antennas.mask[:,i_freq,i_antenna])
+        #########   recover the mask before aoflagger   ###########
+        temperature_antennas.mask = np.logical_or(temperature_antennas.mask, mask_beforeaoflagger_antennas)
 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_MASK, result=point_source_mask, allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'gain_calibration_plugin.pickle'
