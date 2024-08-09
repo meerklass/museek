@@ -18,6 +18,7 @@ from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
 import datetime
+import numpy as np
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
     """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
@@ -67,19 +68,22 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
+                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask')]
 
     def map(self,
             scan_data: TimeOrderedData,
             flag_report_writer: ReportWriter,
+            point_source_mask: np.ndarray,
             output_path: str,
             block_name: str) \
-            -> Generator[tuple[str, DataElement, FlagElement], None, None]:
+            -> Generator[tuple[str, DataElement, np.ndarray, np.ndarray], None, None]:
         """
         Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
         initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param flag_report_writer: report of the flag
+        :param point_source_mask: mask for point sources
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
@@ -91,29 +95,37 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
                 #os.makedirs(receiver_path)
                 pass
             visibility = scan_data.visibility.get(recv=i_receiver)
-            initial_flag = initial_flags.get(recv=i_receiver)
-            yield receiver_path, visibility, initial_flag
+            i_antenna = scan_data.antenna_index_of_receiver(receiver=receiver)
+            initial_flag = initial_flags.get(recv=i_receiver).squeeze
+            yield receiver_path, visibility, initial_flag, point_source_mask[:,:,i_antenna]
 
-    def run_job(self, anything: tuple[str, DataElement, FlagElement]) -> FlagElement:
+    def run_job(self, anything: tuple[str, DataElement, np.ndarray, np.ndarray]) -> FlagElement:
         """
         Run the Aoflagger algorithm and post-process the result. Done for one receiver at a time.
         :param anything: `tuple` of the output path, the visibility and the initial flag
         :return: rfi mask as `FlagElement`
         """
-        receiver_path, visibility, initial_flag = anything
+        receiver_path, visibility, initial_flag, point_source_mask_recv = anything
         rfi_flag = get_rfi_mask(time_ordered=visibility,
-                                mask=initial_flag,
+                                mask=FlagElement(array=(initial_flag+point_source_mask_recv)[:,:,np.newaxis]),
                                 mask_type=self.mask_type,
                                 first_threshold=self.first_threshold,
                                 threshold_scales=self.threshold_scales,
                                 output_path=receiver_path,
                                 smoothing_window_size=self.smoothing_kernel,
                                 smoothing_sigma=self.smoothing_sigma)
-        return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag)
+        
+        rfi_flag = rfi_flag.squeeze
+        #Set rfi_flag to initial_flag where point_source_mask_recv is True, and then run post_process_flag (to avoid the point source mask being post processed)
+        rfi_flag = np.where(point_source_mask_recv, initial_flag, rfi_flag)
+        initial_flag = FlagElement(array=initial_flag[:,:,np.newaxis])
+        rfi_flag = FlagElement(array=rfi_flag[:,:,np.newaxis])
+        return FlagElement(array=(self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag).squeeze + point_source_mask_recv)[:,:,np.newaxis])
 
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
                               scan_data: TimeOrderedData,
+                              point_source_mask: np.ndarray,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
