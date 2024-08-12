@@ -27,7 +27,6 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
             point_sources_match_flux: float,
             beamsize: float, 
             beam_frequency: float,
-            struct_size: tuple[int, int] | None,
             **kwargs):
         """
         Initialise the plugin
@@ -38,7 +37,6 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
         :param point_sources_match_flux: flux threshold above which the point sources are selected
         :param beamsize: the beam fwhm [arcmin]
         :param beam_frequency: reference frequency at which the beam fwhm are defined [MHz]
-        :param struct_size: structure size for binary dilation, closing etc
         """
         super().__init__(**kwargs)
         self.point_source_file_path = point_source_file_path
@@ -48,7 +46,6 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
         self.point_sources_match_flux = point_sources_match_flux
         self.beamsize = beamsize
         self.beam_frequency = beam_frequency
-        self.struct_size = struct_size
 
     def set_requirements(self):
         """ Set the requirements. """
