@@ -116,11 +116,11 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
                                 smoothing_sigma=self.smoothing_sigma)
         
         rfi_flag = rfi_flag.squeeze
-        #Set rfi_flag to initial_flag where point_source_mask_recv is True, and then run post_process_flag (to avoid the point source mask being post processed)
+        #unmask the point source, set rfi_flag to initial_flag where point_source_mask_recv is True, and then run post_process_flag (to avoid the point source mask being post processed)
         rfi_flag = np.where(point_source_mask_recv, initial_flag, rfi_flag)
         initial_flag = FlagElement(array=initial_flag[:,:,np.newaxis])
         rfi_flag = FlagElement(array=rfi_flag[:,:,np.newaxis])
-        return FlagElement(array=(self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag).squeeze + point_source_mask_recv)[:,:,np.newaxis])
+        return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag)
 
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
