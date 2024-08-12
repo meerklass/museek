@@ -11,17 +11,17 @@ Pipeline = ConfigSection(
         'museek.plugin.known_rfi_plugin',
         'museek.plugin.rawdata_flagger_plugin',
         'museek.plugin.scan_track_split_plugin',
+        'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
         'museek.plugin.aoflagger_secondrun_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.gain_calibration_plugin',
         'museek.plugin.aoflagger_postcalibration_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
-        #'museek.plugin.point_source_flagger_plugin',
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    #context=os.path.join('/users/wkhu/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
+    #context=os.path.join('/idia/projects/hi_im/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
 
 )
 
@@ -30,7 +30,7 @@ InPlugin = ConfigSection(
     #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
     receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
-    data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
@@ -51,8 +51,15 @@ AntennaFlaggerPlugin = ConfigSection(
 
 
 PointSourceFlaggerPlugin = ConfigSection(
-    point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
-    angle_threshold=0.5
+    n_jobs=26,
+    verbose=0,
+    point_source_file_path='/idia/projects/hi_im/uhf_2023/radio_source_catalog/',
+    beam_threshold=1., # times of the beam size around the point source to be masked 
+    point_sources_match_raregion=30., # [deg]
+    point_sources_match_decregion=10., # [deg]
+    point_sources_match_flux=10000.,  # mJy
+    beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
+    beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
 )
 
 ApplyExternalGainSolutionPlugin = ConfigSection(
@@ -65,7 +72,7 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=26,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.1,  # First threshold value
