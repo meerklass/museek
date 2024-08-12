@@ -50,8 +50,6 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         track_data = deepcopy(data)
         track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
-        scan_flags_beforeaoflagger = scan_data.flags.combine(threshold=self.flag_combination_threshold)
-
         if self.do_delete_unsplit_data:
             data = None
             self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
@@ -64,7 +62,6 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_END,
                                       result=scan_observation_end,
                                       allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.SCAN_FLAGS_BEFOREAOFLAGGER, result=scan_flags_beforeaoflagger.squeeze, allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'scan_track_split_plugin.pickle'
