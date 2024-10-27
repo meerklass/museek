@@ -26,7 +26,7 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1683492604',  # observation time stamp
+    block_name='1713047732',  # observation time stamp
     #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
     receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
@@ -55,9 +55,7 @@ PointSourceFlaggerPlugin = ConfigSection(
     verbose=0,
     point_source_file_path='/idia/projects/hi_im/uhf_2023/radio_source_catalog/',
     beam_threshold=1., # times of the beam size around the point source to be masked 
-    point_sources_match_raregion=30., # [deg]
-    point_sources_match_decregion=10., # [deg]
-    point_sources_match_flux=10000.,  # mJy
+    point_sources_match_flux=5.,  # Jy
     beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
     beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
 )
