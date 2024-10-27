@@ -313,3 +313,81 @@ def project_3d(x, y, z, data, shape, weights=None, weighted_output=False):
             _data /= _weights
 
     return _data, _weights, _hits.astype(int)
+
+
+def point_sources_coordinate(point_source_file_path, point_sources_match_flux):
+    """
+    Return coordinates of selected point sources
+
+    Parameters
+    ----------
+    point_source_file_path: str
+    path where point source catalog is located
+    point_sources_match_flux: float 
+    flux threshold for selecting the point source for masking
+
+    Returns
+    -------
+    ra, dec, flux : ndarray
+    the ra, dec, and flux of the selected point sources
+    """
+
+    ps_info = np.genfromtxt(point_source_file_path+'/1jy_scat-V0_new.txt', delimiter='|')
+    ra_sources = ps_info[:,1]
+    dec_sources = ps_info[:,2]
+    flux_sources = ps_info[:,3]
+    ra_sources_select = ra_sources[flux_sources>=point_sources_match_flux]
+    dec_sources_select = dec_sources[flux_sources>=point_sources_match_flux]
+    flux_sources_select = flux_sources[flux_sources>=point_sources_match_flux]
+
+    return ra_sources_select, dec_sources_select, flux_sources_select
+
+
+def point_source_flag(ra_point_source, dec_point_source, ra_scan, dec_scan, frequency, beam_threshold, beamsize, beam_frequency):
+    """
+    Return TOD mask for point sources, as a funtion of frequency
+
+    Parameters
+    ----------
+    ra_point_source, dec_point_source: ndarray
+        position of the point sources to be masked
+    ra_scan, dec_scan: ndarray
+        pointing of the TOD
+    frequency, ndarray
+        the frequency coverage, in unit of Hz
+    beam_threshold: float
+        times of the beam size around the point source to be masked
+    beamsize: float
+        the beam fwhm [arcmin]
+    beam_frequency float
+        reference frequency at which the beam fwhm are defined [MHz]
+
+    Returns
+    -------
+    mask_point_source : ndarray
+    the TOD mask for point sources
+    """
+
+    shape = (len(ra_scan), len(frequency))
+    mask_point_source = np.zeros(shape, dtype=bool)
+
+    # create a `list` of `SkyCoord` coordinates of scan pointings
+    skycoord_scan = SkyCoord(ra_scan * u.deg, dec_scan * u.deg, frame='icrs')
+
+    # create a `list` of `SkyCoord` coordinates of point sources that will be masked
+    skycoord_point_source = [SkyCoord(ra_ps * u.deg, dec_ps * u.deg, frame='icrs') for ra_ps, dec_ps in zip(ra_point_source, dec_point_source)]
+    
+    for i_freq, freq in enumerate(frequency):
+        fwhm = beamsize / 60. * ((beam_frequency*u.MHz)/(freq * u.Hz)).decompose().value  ## in deg
+
+        mask_point_source_dump_list = []
+        for mask_coord in skycoord_point_source:
+            separation = (mask_coord.separation(skycoord_scan) / u.deg)
+            mask_point_source_dump_list.extend( np.where(separation < (beam_threshold * fwhm) )[0])
+        mask_point_source_dump_list = list(set(mask_point_source_dump_list))
+        mask_point_source_dump_list.sort()
+
+        mask_point_source[mask_point_source_dump_list, i_freq] = True
+
+    return mask_point_source
+
