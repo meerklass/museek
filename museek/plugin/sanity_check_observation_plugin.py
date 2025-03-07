@@ -366,7 +366,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 "block number | Description | observation start date/time (UTC) | "
                 "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
                 "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
-                "num of dishes used (after stragglers are removed) | num of dishes with bad elevation | elevation mean | "
+                "num of dishes used (after stragglers are removed) | num of dishes with bad elevation (including stragglers) | elevation mean | "
                 "azimuth min | azimuth max | declination min | declination max | ra min | ra max | targets observed"
                 )
                 
