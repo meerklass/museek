@@ -19,6 +19,8 @@ from museek.util.report_writer import ReportWriter
 from museek.util.tools import Synch_model_sm
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv
+from museek.util.tools import point_sources_coordinate, point_source_flag
+from museek.util.tools import remove_outliers_zscore_mad
 import pickle
 import numpy as np
 import scipy
@@ -53,11 +55,12 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                  nside: int,
                  beamsize: float,
                  beam_frequency: float,
+                 zscore_antenatempflag_threshold: float,
                  do_store_context: bool,
                  **kwargs):
         """
         Initialise the plugin
-        :param first_threshold_rms: initial threshold to be used for the aoflagger for the rms of powerlaw fitting residulas
+        :param first_threshold_rms: initial threshold to be used for the aoflagger for the rms of powerlaw fitting residuals
         :param first_threshold_flag_fraction: initial threshold to be used for the aoflagger for the flagged fraction
         :param threshold_scales: list of sensitivities
         :param smoothing_kernel_rms: smoothing kernel window size for axis 0, used by aoflagger on the RMS of power-law fitting residuals
@@ -75,6 +78,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param nside: resolution parameter at which the synchrotron model is to be calculated
         :param beamsize: the beam fwhm used to smooth the Synch model [arcmin]
         :param beam_frequency: reference frequencies at which the beam fwhm are defined [MHz]
+        :param zscore_antenatempflag_threshold: threshold for flagging the antennas based on their average temperature using modified zscore method
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
         super().__init__(**kwargs)
@@ -96,6 +100,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.nside = nside
         self.beamsize = beamsize
         self.beam_frequency = beam_frequency
+        self.zscore_antenatempflag_threshold = zscore_antenatempflag_threshold
         self.do_store_context = do_store_context
         self.report_file_name = 'flag_report.md'
 
@@ -128,9 +133,23 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param freq_select: frequency for calibrated data, in [Hz]
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
-        :param block_name: name of the data block, not used here but for setting results
+        :param block_name: name of the data block
         """
         print(f'flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used')
+
+        ######## mask antennas that have temperature far from the median temperature for all antennas
+        calibrated_data_median = np.ma.masked_array(np.zeros(len(scan_data.antennas)))
+        for i_antenna, antenna in enumerate(scan_data.antennas):
+            calibrated_data_median[i_antenna] = np.ma.median(calibrated_data[:,:,i_antenna])
+        antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_median.data, calibrated_data_median.mask, self.zscore_antenatempflag_threshold)
+        calibrated_data.mask[:,:,antenna_mask_temp] = True
+
+        ######## mask antennas that have larger temperature fluctuations 
+        calibrated_data_std = np.ma.masked_array(np.zeros(len(scan_data.antennas)))
+        for i_antenna, antenna in enumerate(scan_data.antennas):
+            calibrated_data_std[i_antenna] = np.ma.std(calibrated_data[:,:,i_antenna])
+        antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_std.data, calibrated_data_std.mask, self.zscore_antenatempflag_threshold)
+        calibrated_data.mask[:,:,antenna_mask_temp] = True
 
         receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
@@ -155,21 +174,22 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         #############  second run  #########
         visibility_recv_masked = np.ma.masked_array(visibility_recv, mask=visibility_recv_masked.mask)
         visibility_recv_masked = visibility_recv_masked - np.ma.median(visibility_recv_masked, axis=0)
-        residulas = np.zeros_like(visibility_recv)
+        residuals = np.zeros_like(visibility_recv)
         for i in range(visibility_recv.shape[0]):
             visibility_recv_masked.mask[i], p_fit = self.polynomial_flag_outlier(freq_select, visibility_recv_masked.data[i], visibility_recv_masked.mask[i], self.poly_fit_degree, self.poly_fit_threshold)
             if visibility_recv_masked.mask[i].all():
                 pass
             else:
-                residulas[i] = visibility_recv_masked.data[i] - np.polyval(p_fit, freq_select) 
-        residulas = np.ma.masked_array(residulas, mask=visibility_recv_masked.mask)
+                residuals[i] = visibility_recv_masked.data[i] - np.polyval(p_fit, freq_select) 
+        residuals = np.ma.masked_array(residuals, mask=visibility_recv_masked.mask)
 
-        ###############  aoflagger on the rms of powerlaw fitting residulas  #################
-        residulas_rms = np.ma.std(residulas, axis=0).data
-        residulas_rms_mask = np.ma.std(residulas, axis=0).mask
 
-        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=residulas_rms[:,np.newaxis,np.newaxis]),
-                                mask=FlagElement(array=residulas_rms_mask[:,np.newaxis,np.newaxis]),
+        ###############  aoflagger on the rms of powerlaw fitting residuals  #################
+        residuals_rms = np.ma.std(residuals, axis=0).data
+        residuals_rms_mask = np.ma.std(residuals, axis=0).mask
+
+        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=residuals_rms[:,np.newaxis,np.newaxis]),
+                                mask=FlagElement(array=residuals_rms_mask[:,np.newaxis,np.newaxis]),
                                 mask_type='vis',
                                 first_threshold=self.first_threshold_rms,
                                 threshold_scales=self.threshold_scales,
@@ -179,7 +199,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
 
 
         rfi_flag_tile = np.tile(rfi_flag.squeeze, (visibility_recv.shape[0], 1))
-        initial_flag_tile = np.tile(residulas_rms_mask, (visibility_recv.shape[0], 1))
+        initial_flag_tile = np.tile(residuals_rms_mask, (visibility_recv.shape[0], 1))
         initial_flag_post = self.post_process_flag(flag=FlagElement(array=rfi_flag_tile[:,:,np.newaxis]), initial_flag=FlagElement(array=initial_flag_tile[:,:,np.newaxis]))
 
         initial_flag_postrms = initial_flag_post.squeeze + visibility_recv_masked.mask
