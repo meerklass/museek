@@ -104,21 +104,31 @@ More information on these are included in their class documentations.
 
 3. `OutPlugin`
 
-4. `SanityCheckObservationPlugin`
+4. `NoiseDiodeFlaggerPlugin`
 
-5. `AoflaggerPlugin`
+5. `KnownRfiPlugin`
 
-6. `KnownRfiPlugin`
+6. `RawdataFlaggerPlugin`
 
-7. `NoiseDiodeFlaggerPlugin`
+7. `ScanTrackSplitPlugin`
 
-8. `AntennaFlaggerPlugin`
+8. `PointSourceFlaggerPlugin`
 
-9. `PointSourceFlaggerPlugin`
+9. `AoflaggerPlugin`
 
-10. `BandpassPlugin`
+10. `AoflaggerSecondRunPlugin`
 
-11. `RawdataFlaggerPlugin`
+11. `AntennaFlaggerPlugin`
+
+12. `NoiseDiodePlugin` 
+
+13. `GainCalibrationPlugin`
+
+14. `AoflaggerPostCalibrationPlugin`
+
+15. `SanityCheckObservationPlugin`
+
+16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
 
 
 Ilifu
