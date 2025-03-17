@@ -106,6 +106,32 @@ If you have not set up `ssh` keys for your github account, it might be easier to
     git clone https://github.com/meerklass/ivory.git
 
 
+
+More Python Modules
+-----------------------
+
+The gain calibration plugin uses the synchrotron model produced by pysm3, you can install pysm3 in your own environment by:
+
+.. code-block:: bash
+
+    source /users/yourname/environment/museek/bin/activate
+    pip install pysm3
+    deactivate
+
+
+Creating gain-calibration branch locally
+-----------------------
+!!!!!!!  All calibration functions and latest Mussek are in gain-calibration branch, to create gain-calibration branch locally and get the remote gain-calibration, you can do:
+
+.. code-block:: bash
+
+    git fetch origin (update your local repository’s information about remote branches)
+    git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
+
+    for example 'git checkout -b gain-calibration origin/gain-calibration'
+
+Running `MuSEEK`
+-----------------------
 Now you are ready to run `MuSEEK`! You can use the `sbatch` command to schedule a job:
 
 .. code:: bash
@@ -141,31 +167,6 @@ You can also run `MuSEEK` in `jupyter` on ilifu! If you followed the manual abov
 kernel installed, it's called `museek_kernel` and can be selected to run a `jupyter` notebook.
 To quickly access results stored by the pipeline as a `pickle` file from within a notebook, the class `ContextLoader`
 can be used.
-
-
-Python Modules
------------------------
-
-The gain calibration plugin uses the synchrotron model produced by pysm3, you can install pysm3 in your own environment by:
-
-.. code-block:: bash
-
-    source /users/yourname/environment/museek/bin/activate
-    pip install pysm3
-    deactivate
-
-
-Creating gain-calibration branch locally
------------------------
-!!!!!!!  All calibration functions and latest Mussek are in gain-calibration branch, to create gain-calibration branch locally and get the remote gain-calibration, you can do:
-
-.. code-block:: bash
-
-    git fetch origin (update your local repository’s information about remote branches)
-    git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
-
-    for example 'git checkout -b gain-calibration origin/gain-calibration'
-
 
 
 Plugins
