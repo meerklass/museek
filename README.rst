@@ -104,27 +104,32 @@ More information on these are included in their class documentations.
 
 3. `OutPlugin`
 
-4. `SanityCheckObservationPlugin`
+4. `NoiseDiodeFlaggerPlugin`
 
-5. `AoflaggerPlugin`
+5. `KnownRfiPlugin`
 
-6. `KnownRfiPlugin`
+6. `RawdataFlaggerPlugin`
 
-7. `NoiseDiodeFlaggerPlugin`
+7. `ScanTrackSplitPlugin`
 
-8. `AntennaFlaggerPlugin`
+8. `PointSourceFlaggerPlugin`
 
-9. `PointSourceFlaggerPlugin`
+9. `AoflaggerPlugin`
 
-10. `BandpassPlugin`
+10. `AoflaggerSecondRunPlugin`
 
-11. `RawdataFlaggerPlugin`
+11. `AntennaFlaggerPlugin`
 
-12. `aoflagger_secondrun_plugin`
+12. `NoiseDiodePlugin`
  
-13. `gain_calibration_plugin`
+13. `GainCalibrationPlugin`
 
-14. `aoflagger_postcalibration_plugin`
+14. `AoflaggerPostCalibrationPlugin`
+
+15. `SanityCheckObservationPlugin`
+
+16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+
 
 Ilifu
 -----------------------
@@ -221,3 +226,14 @@ The gain calibration plugin uses the synchrotron model produced by pysm3, you ca
     source /users/yourname/environment/museek/bin/activate
     pip install pysm3
     deactivate
+
+
+Creating gain-calibration branch locally
+-----------------------
+!!!!!!!  All calibration functions and latest Mussek are in gain-calibration branch, to create gain-calibration branch locally and get the remote gain-calibration, you can do:
+
+
+git fetch origin (update your local repository’s information about remote branches)
+git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
+
+for example 'git checkout -b gain-calibration origin/gain-calibration'
