@@ -232,8 +232,9 @@ Creating gain-calibration branch locally
 -----------------------
 !!!!!!!  All calibration functions and latest Mussek are in gain-calibration branch, to create gain-calibration branch locally and get the remote gain-calibration, you can do:
 
+.. code-block:: bash
 
-git fetch origin (update your local repository’s information about remote branches)
-git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
+    git fetch origin (update your local repository’s information about remote branches)
+    git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
 
-for example 'git checkout -b gain-calibration origin/gain-calibration'
+    for example 'git checkout -b gain-calibration origin/gain-calibration'
