@@ -12,3 +12,4 @@ scikit-learn
 katdal
 sphinx
 pysm3
+matplotlib
