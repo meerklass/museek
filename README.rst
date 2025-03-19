@@ -58,74 +58,6 @@ You can do the same for `ivory` if it's cloned in the same directory.
     cd ..
 
 
-Plugins
------------------------
-Plugins can be implemented by creating a class inheriting from **Ivory**s `AbstractPlugin`. They need to implement the methods
-`run()` and `set_requirements()`.
-
-1. Only one plugin per file is allowed. One plugin can not import another plugin.
-
-2. Naming: CamelCase ending on "Plugin", example: "GainCalibrationPlugin".
-
-3. To have the plugin included in the pipeline, the config file's "Pipeline" entry needs to include the plugin under "plugins".
-
-4. If the plugin requires configuration (most do), the config file needs to contain a section with the same name as the plugin. For more information see section config.
-
-5. Plugins need to define their `Requirement`s in `self.set_requirements()`. The workflow engine will compare these to the set of results that are already produced when the plugin starts and hands them over to the `run()` method.
-
-6. Plugins need to define a `run()` method, which is executed by the workflow engine.
-
-7. Plugins need to run `self.set_result()` to hand their results back to the workflow engine for storage.
-
-Configuration
------------------------
-The configuration file is written in python and consists of `ConfigSection()` instances.
-There is one general section called `Pipeline`, which defines the entire pipeline, and each other section needs to share
-the name of the plugin it belongs to. The workflow manager will then hand over the correct configuration parameters to
-each plugin.
-
-A demonstration config is `museek.config.demo`.
-
-Plugin Requirements
------------------------
-Plugin requirements are encapsulated as `Requirement()` objects, which are mere `NamedTuples`. See the `Requirement` class doc for more information.
-
-Plugin Results
------------------------
-Plugin results need to be defined as `Result()` objects. See the `Result` class doc for more information.
-
-Available Plugins
------------------------
-More information on these are included in their class documentations.
-
-1. Demonstration plugins: `DemoFlipPlugin`, `DemoLoadPlugin` & `DemoPlotPlugin`
-
-2. `InPlugin`
-
-3. `OutPlugin`
-
-4. `SanityCheckObservationPlugin`
-
-5. `AoflaggerPlugin`
-
-6. `KnownRfiPlugin`
-
-7. `NoiseDiodeFlaggerPlugin`
-
-8. `AntennaFlaggerPlugin`
-
-9. `PointSourceFlaggerPlugin`
-
-10. `BandpassPlugin`
-
-11. `RawdataFlaggerPlugin`
-
-12. `aoflagger_secondrun_plugin`
- 
-13. `gain_calibration_plugin`
-
-14. `aoflagger_postcalibration_plugin`
-
 Ilifu
 -----------------------
 
@@ -174,6 +106,32 @@ If you have not set up `ssh` keys for your github account, it might be easier to
     git clone https://github.com/meerklass/ivory.git
 
 
+
+More Python Modules
+-----------------------
+
+The gain calibration plugin uses the synchrotron model produced by pysm3, you can install pysm3 in your own environment by:
+
+.. code-block:: bash
+
+    source /users/yourname/environment/museek/bin/activate
+    pip install pysm3
+    deactivate
+
+
+Creating gain-calibration branch locally
+-----------------------
+!!!!!!!  All calibration functions and latest Mussek are in gain-calibration branch, to create gain-calibration branch locally and get the remote gain-calibration, you can do:
+
+.. code-block:: bash
+
+    git fetch origin (update your local repository’s information about remote branches)
+    git checkout -b new-local-branch origin/remote-branch-name  ( check out the remote-branch-name from the remote into a new local branch named new-local-branch, setting up the local branch to track the remote branch)
+
+    for example 'git checkout -b gain-calibration origin/gain-calibration'
+
+Running `MuSEEK`
+-----------------------
 Now you are ready to run `MuSEEK`! You can use the `sbatch` command to schedule a job:
 
 .. code:: bash
@@ -211,13 +169,77 @@ To quickly access results stored by the pipeline as a `pickle` file from within 
 can be used.
 
 
-Python Modules
+Plugins
 -----------------------
+Plugins can be implemented by creating a class inheriting from **Ivory**s `AbstractPlugin`. They need to implement the methods
+`run()` and `set_requirements()`.
 
-The gain calibration plugin uses the synchrotron model produced by pysm3, you can install pysm3 in your own environment by:
+1. Only one plugin per file is allowed. One plugin can not import another plugin.
 
-.. code-block:: bash
+2. Naming: CamelCase ending on "Plugin", example: "GainCalibrationPlugin".
 
-    source /users/yourname/environment/museek/bin/activate
-    pip install pysm3
-    deactivate
+3. To have the plugin included in the pipeline, the config file's "Pipeline" entry needs to include the plugin under "plugins".
+
+4. If the plugin requires configuration (most do), the config file needs to contain a section with the same name as the plugin. For more information see section config.
+
+5. Plugins need to define their `Requirement`s in `self.set_requirements()`. The workflow engine will compare these to the set of results that are already produced when the plugin starts and hands them over to the `run()` method.
+
+6. Plugins need to define a `run()` method, which is executed by the workflow engine.
+
+7. Plugins need to run `self.set_result()` to hand their results back to the workflow engine for storage.
+
+Configuration
+-----------------------
+The configuration file is written in python and consists of `ConfigSection()` instances.
+There is one general section called `Pipeline`, which defines the entire pipeline, and each other section needs to share
+the name of the plugin it belongs to. The workflow manager will then hand over the correct configuration parameters to
+each plugin.
+
+A demonstration config is `museek.config.demo`.
+
+Plugin Requirements
+-----------------------
+Plugin requirements are encapsulated as `Requirement()` objects, which are mere `NamedTuples`. See the `Requirement` class doc for more information.
+
+Plugin Results
+-----------------------
+Plugin results need to be defined as `Result()` objects. See the `Result` class doc for more information.
+
+Available Plugins
+-----------------------
+More information on these are included in their class documentations.
+
+1. Demonstration plugins: `DemoFlipPlugin`, `DemoLoadPlugin` & `DemoPlotPlugin`
+
+2. `InPlugin`
+
+3. `OutPlugin`
+
+4. `NoiseDiodeFlaggerPlugin`
+
+5. `KnownRfiPlugin`
+
+6. `RawdataFlaggerPlugin`
+
+7. `ScanTrackSplitPlugin`
+
+8. `PointSourceFlaggerPlugin`
+
+9. `AoflaggerPlugin`
+
+10. `AoflaggerSecondRunPlugin`
+
+11. `AntennaFlaggerPlugin`
+
+12. `NoiseDiodePlugin`
+
+13. `GainCalibrationPlugin`
+
+14. `AoflaggerPostCalibrationPlugin`
+
+15. `SanityCheckObservationPlugin`
+
+16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+
+
+

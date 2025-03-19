@@ -9,6 +9,7 @@ import numpy as np
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import warnings
+import scipy
 
 def flag_percent_recv(data: TimeOrderedData):
     """
@@ -313,3 +314,172 @@ def project_3d(x, y, z, data, shape, weights=None, weighted_output=False):
             _data /= _weights
 
     return _data, _weights, _hits.astype(int)
+
+
+def point_sources_coordinate(point_source_file_path, right_ascension_scan, declination_scan, point_sources_match_flux, point_sources_match_raregion, point_sources_match_decregion):
+    """
+    Return coordinates of selected point sources
+
+    Parameters
+    ----------
+    point_source_file_path: str
+    path where point source catalog is located
+    right_ascension_scan: float
+    the median of the right ascension of a scan [deg]
+    declination_scan: float
+    the median of the declination of a scan [deg]
+    point_sources_match_flux: float 
+    flux threshold for selecting the point source for masking [Jy]
+    point_sources_match_raregion: float
+    the ra distance to the median of observed ra to select the point sources [deg]
+    point_sources_match_decregion: float
+    the dec region to the median of observed dec to select the point sources [deg]
+
+    Returns
+    -------
+    ra, dec, flux : ndarray
+    the ra, dec, and flux of the selected point sources
+    """
+
+    ps_info = np.genfromtxt(point_source_file_path+'/1jy_scat-V0_new.txt', delimiter='|')
+    ra_sources = ps_info[:,1]
+    dec_sources = ps_info[:,2]
+    flux_sources = ps_info[:,3]
+
+    ra_selection = (ra_sources>=right_ascension_scan-point_sources_match_raregion) & (ra_sources<=right_ascension_scan+point_sources_match_raregion)
+    dec_selection = (dec_sources>=declination_scan-point_sources_match_decregion) & (dec_sources<=declination_scan+point_sources_match_decregion)
+    flux_selection = (flux_sources>=point_sources_match_flux)
+
+    select_sources = ra_selection & dec_selection & flux_selection
+
+    ra_sources_select = ra_sources[select_sources]
+    dec_sources_select = dec_sources[select_sources]
+    flux_sources_select = flux_sources[select_sources]
+
+    return ra_sources_select, dec_sources_select, flux_sources_select
+
+
+def point_source_flag(ra_point_source, dec_point_source, ra_scan, dec_scan, frequency, beam_threshold, beamsize, beam_frequency):
+    """
+    Return TOD mask for point sources, as a funtion of frequency
+
+    Parameters
+    ----------
+    ra_point_source, dec_point_source: ndarray
+        position of the point sources to be masked
+    ra_scan, dec_scan: ndarray
+        pointing of the TOD
+    frequency, ndarray
+        the frequency coverage, in unit of Hz
+    beam_threshold: float
+        times of the beam size around the point source to be masked
+    beamsize: float
+        the beam fwhm [arcmin]
+    beam_frequency float
+        reference frequency at which the beam fwhm are defined [MHz]
+
+    Returns
+    -------
+    mask_point_source : ndarray
+    the TOD mask for point sources
+    """
+
+    shape = (len(ra_scan), len(frequency))
+    mask_point_source = np.zeros(shape, dtype=bool)
+
+    # create a `list` of `SkyCoord` coordinates of scan pointings
+    skycoord_scan = SkyCoord(ra_scan * u.deg, dec_scan * u.deg, frame='icrs')
+
+    # create a `list` of `SkyCoord` coordinates of point sources that will be masked
+    skycoord_point_source = [SkyCoord(ra_ps * u.deg, dec_ps * u.deg, frame='icrs') for ra_ps, dec_ps in zip(ra_point_source, dec_point_source)]
+    
+    for i_freq, freq in enumerate(frequency):
+        fwhm = beamsize / 60. * ((beam_frequency*u.MHz)/(freq * u.Hz)).decompose().value  ## in deg
+
+        mask_point_source_dump_list = []
+        for mask_coord in skycoord_point_source:
+            separation = (mask_coord.separation(skycoord_scan) / u.deg)
+            mask_point_source_dump_list.extend( np.where(separation < (beam_threshold * fwhm) )[0])
+        mask_point_source_dump_list = list(set(mask_point_source_dump_list))
+        mask_point_source_dump_list.sort()
+
+        mask_point_source[mask_point_source_dump_list, i_freq] = True
+
+    return mask_point_source
+
+
+def remove_outliers_zscore_mad(data, mask, threshold=3.5):
+    """
+    Removes outliers from the data based on the Median Absolute Deviation (MAD) method.
+
+    Parameters:
+    data (array-like): The input signal.
+    mask (array-like): Boolean mask for the sample points, where True represents masked points.
+    threshold (float): The threshold in terms of modified Z-score based on MAD. 
+                       Data points with a modified Z-score greater than this threshold 
+                       will be considered outliers.
+
+    Returns:
+    array-like: Updated mask where outliers are also masked.
+    """
+    # Make a copy of the mask to avoid modifying the original
+    initial_mask = mask.copy()
+
+    # Mask the entire data if more than 60% of data points are already masked
+    if np.mean(mask) > 0.6:
+        initial_mask[:] = True
+    else:
+        # Calculate the median of the unmasked data
+        median = np.median(data[~mask])
+
+        # Calculate the MAD of the unmasked data
+        mad = np.median(np.abs(data[~mask] - median))
+
+        # Avoid division by zero; if MAD is zero, use a small constant
+        if mad == 0:
+            mad = 1e-10
+
+        # Compute modified Z-scores using MAD
+        modified_z_scores = np.abs((data[~mask] - median) / mad)
+
+        # Mask data points where modified Z-score exceeds the threshold
+        initial_mask[~mask] |= modified_z_scores > threshold
+
+    return initial_mask
+
+
+def polynomial_flag_outlier(x, y, mask, degree, threshold):
+    """
+    fitting a powerlaw to the input data and mask outliers which deviate the powerlaw larger than `threshold' times median absolute deviation
+
+    Parameters:
+    x: x-coordinates of the sample points [array]
+    y: y-coordinates of the sample points [array]
+    mask: mask for the sample points [bool]
+    degree: Degree of the fitting polynomial [int]
+    threshold: threshold of the masking [float]
+
+    Returns:
+    bool array: updated mask
+    1darray: fitting polynomial coefficients
+    """
+    initial_mask = mask.copy()
+    ########  mask the whole data if the flagged fraction is larger than 0.6
+    if np.mean(mask>0) > 0.6:
+        initial_mask[:] = True
+        p_fit = None
+    else:
+        fit_x = x[~mask]
+        fit_y = y[~mask]
+
+        # Fit a polynomial
+        p_fit = np.polyfit(fit_x, fit_y, degree)
+        y_fit = np.polyval(p_fit, fit_x)
+
+        # Calculate residuals
+        residuals = fit_y - y_fit
+        mad_residuals = scipy.stats.median_abs_deviation(residuals)
+
+        # Identify outliers
+        initial_mask[~mask] |= np.abs(residuals) >= threshold * mad_residuals
+    return initial_mask, p_fit

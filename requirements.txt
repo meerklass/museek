@@ -14,3 +14,4 @@ sphinx
 matplotlib
 jupyterlab
 ipykernel
+pysm3

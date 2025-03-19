@@ -11,26 +11,28 @@ Pipeline = ConfigSection(
         'museek.plugin.known_rfi_plugin',
         'museek.plugin.rawdata_flagger_plugin',
         'museek.plugin.scan_track_split_plugin',
+        'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
         'museek.plugin.aoflagger_secondrun_plugin',
         'museek.plugin.antenna_flagger_plugin',
+        'museek.plugin.noise_diode_plugin',
         'museek.plugin.gain_calibration_plugin',
         'museek.plugin.aoflagger_postcalibration_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
-        #'museek.plugin.point_source_flagger_plugin',
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    #context=os.path.join('/users/wkhu/uhf_2024/pipeline/', '1710964969/aoflagger_plugin.pickle')
+    context=os.path.join('/idia/users/wkhu/calibration_results/', '1675632179/aoflagger_plugin_secondrun.pickle')
 
 )
 
 InPlugin = ConfigSection(
-    block_name='1683492604',  # observation time stamp
-    #receiver_list=['m000h','m000v','m012h','m012v','m037h','m037v','m053h','m053v'],
+    block_name='1675632179',  # observation time stamp
+    #receiver_list=['m000h','m000v','m012h','m012v','m024h','m024v','m036h','m036v'],
     receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
-    data_folder='/idia/raw/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    data_folder='/idia/projects/hi_im/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    #data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_save_visibility_to_disc=True,
@@ -51,8 +53,15 @@ AntennaFlaggerPlugin = ConfigSection(
 
 
 PointSourceFlaggerPlugin = ConfigSection(
-    point_source_file_path=os.path.join(ROOT_DIR, 'data/radio_point_sources.txt'),
-    angle_threshold=0.5
+    n_jobs=26,
+    verbose=0,
+    point_source_file_path='/idia/projects/hi_im/uhf_2023/radio_source_catalog/',
+    beam_threshold=1., # times of the beam size around the point source to be masked 
+    point_sources_match_flux=5.,  # flux threshold above which the point sources are selected, [Jy]
+    point_sources_match_raregion=30., # the ra distance to the median of observed ra to select the point sources, [deg]
+    point_sources_match_decregion=10., # the dec region to the median of observed dec to select the point sources [deg]
+    beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
+    beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
 )
 
 ApplyExternalGainSolutionPlugin = ConfigSection(
@@ -65,14 +74,14 @@ ZebraRemoverPlugin = ConfigSection(
 )
 
 AoflaggerPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=26,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.1,  # First threshold value
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=(20, 40),  # Smoothing, kernel window size in time and frequency axis
     smoothing_sigma=(7.5, 15),  # Smoothing, kernel sigma in time and frequency axis
-    struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
+    struct_size=(3, 3),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
@@ -87,12 +96,25 @@ AoflaggerSecondRunPlugin = ConfigSection(
     threshold_scales=[0.5, 0.55, 0.62, 0.75, 1],
     smoothing_kernel=80,  # Smoothing, kernel window size in frequency axis
     smoothing_sigma=30,  # Smoothing, kernel sigma in frequency axis
-    struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
+    struct_size=(3, 3),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
     do_store_context=True
 )
+
+NoiseDiodePlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    flag_combination_threshold=1,
+    zscoreflag_threshold = 5., # threshold (times of MAD) for flagging noise diode excess using modified zscore method
+    polyflag_deg = 5, # degree of the polynomials used for fitting and flagging noise diode excess
+    polyflag_threshold = 3., # threshold (times of MAD) for flagging noise diode excess using polynomials fit
+    polyfit_deg = 5, # degree of the polynomials used for fitting flagged noise diode excess
+    zscore_antenaflag_threshold = 10, # threshold (times of MAD) for flagging the rms of noise diode excess of receivers using modified zscore method
+    noise_diode_excess_lowlim = 5., # threshold for flagging the mean value of noise diode excess of receivers
+)
+
 
 AoflaggerPostCalibrationPlugin = ConfigSection(
     n_jobs=13,
@@ -104,7 +126,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     smoothing_sigma_rms=30,  # Smoothing, kernel sigma in frequency axis
     smoothing_kernel_flag_fraction=80,  # Smoothing, kernel window size in frequency axis
     smoothing_sigma_flag_fraction=30,  # Smoothing, kernel sigma in frequency axis
-    struct_size=(6, 6),  # size of struct for dilation in time and frequency direction [pixels]
+    struct_size=(3, 3),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.4,
     flag_combination_threshold=1,
@@ -115,6 +137,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     nside=128,  #resolution parameter at which the synchrotron model is to be calculated
     beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
     beam_frequency=1500., # reference frequency at which the beam fwhm are defined [MHz]
+    zscore_antenatempflag_threshold=5., # threshold for flagging the antennas based on their average temperature using modified zscore method
     do_store_context=True
 )
 
@@ -134,6 +157,7 @@ RawdataFlaggerPlugin = ConfigSection(
 )
 
 GainCalibrationPlugin = ConfigSection(
+        cali_method='rms', # method to do the calibration 'corr' or 'rms'
         synch_model=['s1'], # list of str, the synch model used, see https://pysm3.readthedocs.io/en/latest/models.html#synchrotron
         nside=128,  #resolution parameter at which the synchrotron model is to be calculated
         beamsize=57.5,  # the beam fwhm used to smooth the Synch model [arcmin]
@@ -141,7 +165,11 @@ GainCalibrationPlugin = ConfigSection(
         frequency_high=1015., # high frequency cut for the scan data [MHz]
         frequency_low=580., # low frequency cut for the scan data [MHz]
         flag_combination_threshold=1,
-        do_store_context=True
+        do_store_context=True,
+        zscoreflag_threshold = 5., # threshold for flagging noise diode excess using modified zscore method
+        polyflag_deg = 5, # degree of the polynomials used for fitting and flagging noise diode excess
+        polyflag_threshold = 3., # threshold for flagging noise diode excess using polynomials fit
+        polyfit_deg = 5, # degree of the polynomials used for fitting flagged noise diode excess
 )
 
 ScanTrackSplitPlugin = ConfigSection(
