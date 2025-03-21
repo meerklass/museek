@@ -367,12 +367,28 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         
         bad_elevation_num = len(bad_elevation)
 
-        azimuth_min = np.min(np.median(data.azimuth.array[:, :, no_straggler_indexes], axis=-1))
-        azimuth_max = np.max(np.median(data.azimuth.array[:, :, no_straggler_indexes], axis=-1))
-        dec_min = np.min(np.median(data.declination.array[:, :, no_straggler_indexes], axis=-1))
-        dec_max = np.max(np.median(data.declination.array[:, :, no_straggler_indexes], axis=-1))
-        ra_min = np.min(np.median(data.right_ascension.array[:, :, no_straggler_indexes], axis=-1))
-        ra_max = np.max(np.median(data.right_ascension.array[:, :, no_straggler_indexes], axis=-1))
+        ################  implement the mask from SARAO  for ra,dec,and azimuth statistics  #################
+        data.load_visibility_flags_weights()
+        initial_flags = data.flags.combine(threshold=1)
+        radec_flag = np.median(initial_flags.array, axis=1)
+        mask_ant = np.ma.zeros((len(data.timestamps.array.squeeze()), len(data.antennas)), dtype='bool')
+        for i_ant, ant in enumerate(data.antennas):
+            i_receiver_list= [i for i, receiver in enumerate(data.receivers) if receiver.antenna_name == ant.name]
+            # Sum flags across receivers (broadcasted sum of booleans is like OR)
+            mask_ant[:, i_ant] = np.any(radec_flag[:, i_receiver_list], axis=1)
+        ra = np.ma.masked_array(data.right_ascension.array, mask=mask_ant)
+        dec = np.ma.masked_array(data.declination.array, mask=mask_ant)
+        azimuth = np.ma.masked_array(data.azimuth.array, mask=mask_ant)
+        
+        azimuth_min = np.ma.min(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
+        azimuth_max = np.ma.max(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
+        dec_min = np.ma.min(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        dec_max = np.ma.max(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        dec_mean = np.ma.mean(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        ra_min = np.ma.min(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+        ra_max = np.ma.max(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+        ra_mean = np.ma.mean(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+
 
         targets = []
         pattern = r"Initiating.*?target '([\w\d._+-]+)'"
@@ -389,7 +405,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
                 "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
                 "num of dishes used (after stragglers are removed) | num of dishes with bad elevation (including stragglers) | elevation mean | "
-                "azimuth min | azimuth max | declination min | declination max | ra min | ra max | targets observed"
+                "azimuth min | azimuth max | declination min | declination max | ra min | ra max | ra mean | dec mean | targets observed"
                 )
                 
         formatted_output = (
@@ -397,7 +413,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
                 f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {bad_elevation_num} | {elevation_mean:.4f} | "
                 f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
-                f"{ra_max:.4f} | {cleaned_targets}"
+                f"{ra_max:.4f} | {ra_mean:.4f} | {dec_mean:.4f} | {cleaned_targets}"
                 )
 
         with open(output_path+'/formatted_output.txt', 'w') as file:
