@@ -11,5 +11,7 @@ astropy
 scikit-learn
 katdal
 sphinx
-pysm3
 matplotlib
+jupyterlab
+ipykernel
+pysm3
