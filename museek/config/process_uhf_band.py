@@ -47,6 +47,10 @@ OutPlugin = ConfigSection(
     output_folder=None  # folder to store results, `None` means default location is chosen
 )
 
+ReplaceTrackPlugin = ConfigSection(
+    replacement_track_block_name=None  # `None` means to use the same block_name as the data (i.e. do nothing)
+)
+
 AntennaFlaggerPlugin = ConfigSection(
     elevation_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
     outlier_threshold=0.1,  # degrees
