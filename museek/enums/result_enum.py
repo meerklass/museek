@@ -16,3 +16,4 @@ class ResultEnum(Enum):
     STANDING_WAVE_CALIBRATOR_LABEL = auto()
     SCAN_OBSERVATION_START = auto()
     SCAN_OBSERVATION_END = auto()
+    TRACK_DATA_ACTUAL_SOURCE_BLOCK_NAME = auto()
