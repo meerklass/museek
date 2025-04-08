@@ -36,9 +36,10 @@ class ReplaceTrackPlugin(AbstractPlugin):
         
 
     def set_requirements(self):
-        """Requires block_name and receivers to have been set, to match InPlugin."""
+        """Requires block_name and receivers to have been set, to match InPlugin, and track_data to exist already (to avoid risk of ScanTrackSplitPlugin being run afterwards and undoing the replacement)."""
         self.requirements = [Requirement(location=ResultEnum.RECEIVERS, variable='receivers'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.TRACK_DATA, variable='track_data')]
 
     def run(self, receivers: list, block_name: str):
         """
