@@ -72,14 +72,15 @@ class InPlugin(AbstractPlugin):
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split('_')[0]))
 
+        context_directory = os.path.join(self.context_folder, f'{self.block_name}/')
+        os.makedirs(context_directory, exist_ok=True)
+
         if self.do_store_context:
             # to create cache file
             data.load_visibility_flags_weights()
             data.delete_visibility_flags_weights()
 
             context_file_name = 'in_plugin.pickle'
-            context_directory = os.path.join(self.context_folder, f'{self.block_name}/')
-            os.makedirs(context_directory, exist_ok=True)
 
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=context_directory)
@@ -88,6 +89,7 @@ class InPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
         self.set_result(result=Result(location=ResultEnum.BLOCK_NAME, result=self.block_name))
+        self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=context_directory))
 
     def check_context_folder_exists(self):
         """ Raises a `ValueError` if `self.context_folder` does not exist. """

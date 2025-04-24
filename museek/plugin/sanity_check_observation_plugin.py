@@ -16,6 +16,7 @@ from definitions import SECONDS_IN_ONE_DAY
 from datetime import datetime, timedelta
 import numpy as np
 from museek.util.time_analysis import TimeAnalysis
+import re
 
 class SanityCheckObservationPlugin(AbstractPlugin):
     """
@@ -108,8 +109,6 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         self.create_plots_of_complete_observation(data=all_data)
         self.create_plots_of_scan_data(data=scan_data)
 
-        self.set_result(result=Result(location=ContextStorageEnum.DIRECTORY, result=output_path))
-        self.set_result(result=Result(location=ContextStorageEnum.FILE_NAME, result='context.pickle'))
         self.save_output(data=scan_data,
                          output_path=output_path,
                          time_analysis=time_analysis)
@@ -123,6 +122,19 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.savefig(self.output_path + plot_name)
         plt.close()
         self.report_writer.write_plot_description_to_report(description=description, plot_name=plot_name)
+
+
+    def remove_consecutive_duplicates(self, lst: str):
+        """ remove consecutive duplicate entries from the list while preserving the original order. """
+        if not lst:
+            return []
+
+        cleaned_list = [lst[0]]  # Start with the first item
+        for item in lst[1:]:
+            if item != cleaned_list[-1]:  # Add only if different from the last item
+                cleaned_list.append(item)
+
+        return cleaned_list
 
     def check_elevation(self, data: TimeOrderedData, report_writer: ReportWriter):
         """
@@ -355,21 +367,45 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         
         bad_elevation_num = len(bad_elevation)
 
-        azimuth_min = np.min(data.azimuth.array[:, :, no_straggler_indexes])
-        azimuth_max = np.max(data.azimuth.array[:, :, no_straggler_indexes])
-        dec_min = np.min(data.declination.array[:, :, no_straggler_indexes])
-        dec_max = np.max(data.declination.array[:, :, no_straggler_indexes])
-        ra_min = np.min(data.right_ascension.array[:, :, no_straggler_indexes])
-        ra_max = np.max(data.right_ascension.array[:, :, no_straggler_indexes])
-        targets = [i for i in data.obs_script_log if 'Observation targets' in i][0]
-        targets = targets.split('Observation')[-1]
+        ################  implement the mask from SARAO  for ra,dec,and azimuth statistics  #################
+        data.load_visibility_flags_weights()
+        initial_flags = data.flags.combine(threshold=1)
+        radec_flag = np.median(initial_flags.array, axis=1)
+        mask_ant = np.ma.zeros((len(data.timestamps.array.squeeze()), len(data.antennas)), dtype='bool')
+        for i_ant, ant in enumerate(data.antennas):
+            i_receiver_list= [i for i, receiver in enumerate(data.receivers) if receiver.antenna_name == ant.name]
+            # Sum flags across receivers (broadcasted sum of booleans is like OR)
+            mask_ant[:, i_ant] = np.any(radec_flag[:, i_receiver_list], axis=1)
+        ra = np.ma.masked_array(data.right_ascension.array, mask=mask_ant)
+        dec = np.ma.masked_array(data.declination.array, mask=mask_ant)
+        azimuth = np.ma.masked_array(data.azimuth.array, mask=mask_ant)
+        
+        azimuth_min = np.ma.min(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
+        azimuth_max = np.ma.max(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
+        dec_min = np.ma.min(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        dec_max = np.ma.max(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        dec_mean = np.ma.mean(np.ma.median(dec[:, :, no_straggler_indexes], axis=-1))
+        ra_min = np.ma.min(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+        ra_max = np.ma.max(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+        ra_mean = np.ma.mean(np.ma.median(ra[:, :, no_straggler_indexes], axis=-1))
+
+
+        targets = []
+        pattern = r"Initiating.*?target '([\w\d._+-]+)'"
+        for line in data.obs_script_log:
+            match = re.search(pattern, line)
+            if match:
+                targets.append(match.group(1))
+        
+        cleaned_targets = self.remove_consecutive_duplicates(targets)
+
 
         header = (
                 "block number | Description | observation start date/time (UTC) | "
                 "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
                 "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
-                "num of dishes used (after stragglers are removed) | num of dishes with bad elevation | elevation mean | "
-                "azimuth min | azimuth max | declination min | declination max | ra min | ra max | targets observed"
+                "num of dishes used (after stragglers are removed) | num of dishes with bad elevation (including stragglers) | elevation mean | "
+                "azimuth min | azimuth max | declination min | declination max | ra min | ra max | ra mean | dec mean | targets observed"
                 )
                 
         formatted_output = (
@@ -377,7 +413,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
                 f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
                 f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {bad_elevation_num} | {elevation_mean:.4f} | "
                 f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
-                f"{ra_max:.4f} | {targets}"
+                f"{ra_max:.4f} | {ra_mean:.4f} | {dec_mean:.4f} | {cleaned_targets}"
                 )
 
         with open(output_path+'/formatted_output.txt', 'w') as file:
