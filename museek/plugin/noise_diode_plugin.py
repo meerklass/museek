@@ -11,7 +11,7 @@ from museek.data_element import DataElement
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.util.tools import remove_outliers_zscore_mad, polynomial_flag_outlier
 import pysm3.units as u
@@ -72,7 +72,7 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         """
 
-        scan_data.load_visibility_flags_weights()
+        scan_data.load_visibility_flags_weights(polars='auto')
         initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
 
         noise_diode = NoiseDiode(dump_period=scan_data.dump_period, observation_log=scan_data.obs_script_log)
@@ -176,9 +176,10 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
 
         scan_data.flags.add_flag(flag=new_flag)
 
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
         receivers_list, flag_percent = flag_percent_recv(scan_data)
-        lines = ['...........................', 'Running NoiseDiodePlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running NoiseDiodePlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
