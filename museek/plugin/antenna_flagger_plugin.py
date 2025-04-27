@@ -12,7 +12,7 @@ from museek.flag_factory import FlagFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.clustering import Clustering
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 from museek.util.report_writer import ReportWriter
 import pickle
 from scipy import ndimage
@@ -60,10 +60,9 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
-        scan_data.load_visibility_flags_weights()
-        #self.flag_for_elevation(data=scan_data)
+        scan_data.load_visibility_flags_weights(polars='auto')
         self.flag_for_elevation_TOD(data=scan_data)
-        track_data.load_visibility_flags_weights()
+        track_data.load_visibility_flags_weights(polars='auto')
         #for data in [scan_data, track_data]:
         #    self.flag_outlier_antennas(data=data)
         for data in [scan_data, track_data]:
@@ -72,10 +71,11 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
 
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
         for data, label in zip([scan_data, track_data], ['scan_data', 'track_data']):
             receivers_list, flag_percent = flag_percent_recv(data)
-            lines = ['...........................', 'Running AntennaFlaggerPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+            lines = ['...........................', 'Running AntennaFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
             flag_report_writer.write_to_report(lines)
 
 
