@@ -147,15 +147,21 @@ script are minimal and for demonstration only, see below for a brief guideline o
     #!/bin/bash
 
     #SBATCH --job-name='MuSEEK'
-    #SBATCH --cpus-per-task=1
+    #SBATCH --cpus-per-task=13
     #SBATCH --ntasks=1
-    #SBATCH --mem=4GB
+    #SBATCH --mem=128GB
     #SBATCH --output=museek-stdout.log
     #SBATCH --error=museek-stderr.log
-    #SBATCH --time=00:05:00
+    #SBATCH --time=16:00:00
 
+    # Define repository directory as a variable
+    export MUSEEK_REPO_DIR="/path/to/project/museek"
+    
+    # Log repository information
     echo "Submitting Slurm job"
-    /path/to/virtualenv/bin/python /path/to/project/museek/cli/main.py museek.config.demo
+    echo "Repository directory: $MUSEEK_REPO_DIR"
+
+    /path/to/virtualenv/bin/python $MUSEEK_REPO_DIR/cli/main.py museek.config.demo
 
 Once the job is finished, you can check the results of the demo pipeline in your working directory and in `museek/results/demo`.
 To go from the demo pipeline to the real one, you will need to change `museek.config.demo` to the config you want to use, an example
