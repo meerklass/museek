@@ -168,7 +168,7 @@ KnownRfiPlugin = ConfigSection(
 
 RawdataFlaggerPlugin = ConfigSection(
         flag_lower_threshold=5.0,
-        do_store_context=True
+        do_store_context=False
 )
 
 GainCalibrationPlugin = ConfigSection(
