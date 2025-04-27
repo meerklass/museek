@@ -12,7 +12,7 @@ from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 import datetime
 
 class KnownRfiPlugin(AbstractPlugin):
@@ -57,7 +57,7 @@ class KnownRfiPlugin(AbstractPlugin):
         :param output_path: path to store results
         """
         mega = 1e6
-        data.load_visibility_flags_weights()
+        data.load_visibility_flags_weights(polars='auto')
         new_flag = np.zeros(data.shape, dtype=bool)
         for channel, frequency in enumerate(data.frequencies.squeeze):
             for rfi_tuple in self.rfi_list:
@@ -68,8 +68,9 @@ class KnownRfiPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         receivers_list, flag_percent = flag_percent_recv(data)
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running KnownRfiPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running KnownRfiPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(data.visibility.get(recv=0),
