@@ -368,7 +368,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         bad_elevation_num = len(bad_elevation)
 
         ################  implement the mask from SARAO  for ra,dec,and azimuth statistics  #################
-        data.load_visibility_flags_weights()
+        data.load_visibility_flags_weights(polars='auto')
         initial_flags = data.flags.combine(threshold=1)
         radec_flag = np.median(initial_flags.array, axis=1)
         mask_ant = np.ma.zeros((len(data.timestamps.array.squeeze()), len(data.antennas)), dtype='bool')
