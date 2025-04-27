@@ -12,7 +12,7 @@ from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 import datetime
 
 
@@ -46,7 +46,7 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         """
-        data.load_visibility_flags_weights()
+        data.load_visibility_flags_weights(polars='auto')
         new_flag = np.zeros(data.visibility.shape, dtype=bool)
         new_flag[data.visibility.array < self.flag_lower_threshold] = True
 
@@ -59,7 +59,8 @@ class RawdataFlaggerPlugin(AbstractPlugin):
                                        context_directory=output_path)
 
         receivers_list, flag_percent = flag_percent_recv(data)
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running RawdataFlaggerPlugin....Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running RawdataFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
