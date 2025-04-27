@@ -17,8 +17,9 @@ from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.rfi_mitigation.aoflagger_1d import gaussian_filter_1d
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import Synch_model_sm
+from museek.util.tools import Synch_model_sm, git_version_info
 from museek.util.tools import remove_outliers_zscore_mad, polynomial_flag_outlier
+from museek.util.tools import moving_median_masked, gaussian_filter_masked, interpolate_1d_masked_array
 from museek.visualiser import waterfall
 import pysm3
 import pysm3.units as u
@@ -27,8 +28,9 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 import pickle
 import gc
-from scipy.ndimage import median_filter
-
+import scipy
+import warnings
+import datetime
 
 class GainCalibrationPlugin(AbstractPlugin):
     """ Plugin to calibrtion the gain using synchrotron produced from pysm3 """
@@ -47,6 +49,8 @@ class GainCalibrationPlugin(AbstractPlugin):
                  polyflag_threshold: float,
                  polyfit_deg: int,
                  cali_method: str,
+                 window_movingmedian: int,
+                 nd_gausm_sigma: int,
                  **kwargs):
         """
         Initialise the plugin
@@ -65,6 +69,8 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param cali_method: Method for calibration: 'corr' or 'rms'.
                'corr': Uses the correlation between the synchrotron model and visibility data for calibration.
                'rms': Uses the ratio of the RMS values of the synchrotron model and visibility data for calibration. 
+        :param window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
+        :param nd_gausm_sigma: The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum.
 
         """
         super().__init__(**kwargs)
@@ -81,6 +87,8 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.polyflag_threshold = polyflag_threshold
         self.polyfit_deg = polyfit_deg
         self.cali_method = cali_method
+        self.window_movingmedian = window_movingmedian
+        self.nd_gausm_sigma = nd_gausm_sigma
 
     def set_requirements(self):
         """
@@ -91,9 +99,10 @@ class GainCalibrationPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
                              Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask'),
                              Requirement(location=ResultEnum.NOISE_DIODE_EXCESS, variable='noise_diode_excess'),
-                             Requirement(location=ResultEnum.NOISE_ON_INDEX, variable='noise_on_index')]
+                             Requirement(location=ResultEnum.NOISE_ON_INDEX, variable='noise_on_index'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, scan_data: TimeOrderedData, point_source_mask: np.ndarray, noise_diode_excess: np.ndarray, noise_on_index: np.ndarray, output_path: str, block_name: str):
+    def run(self, scan_data: TimeOrderedData, point_source_mask: np.ndarray, noise_diode_excess: np.ndarray, noise_on_index: np.ndarray, output_path: str, block_name: str, flag_report_writer: ReportWriter):
         """
         Run the gain calibration
         :return: the calibrated scan_data
@@ -103,10 +112,11 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param noise_on_index: the index of the noise firing timestamps
         :param output_path: path to store results
         :param block_name: name of the observation block
+        :param flag_report_writer: report of the flag info
         """
         
         ########  load the visibility  ###########
-        scan_data.load_visibility_flags_weights()
+        scan_data.load_visibility_flags_weights(polars='auto')
         initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
         freq = scan_data.frequencies.squeeze    ####  the unit of scan_data.frequencies is Hz 
         temperature = np.zeros(scan_data.visibility.array.shape)
@@ -122,16 +132,40 @@ class GainCalibrationPlugin(AbstractPlugin):
 
             ########  fit the noise diode on - off, and normalise the trend in time  #########
             if initial_flag.all():
-                noise_excess_recv_fit = np.ones(visibility_recv.shape[0])
+                noise_excess_recv_fit = np.ones(visibility_recv.shape)
             else:
-                noise_excess_recv_freqmedian = np.ma.median(noise_diode_excess[:,:,i_receiver], axis=1)
-                noise_excess_recv_freqmedian.mask = remove_outliers_zscore_mad(noise_excess_recv_freqmedian.data, noise_excess_recv_freqmedian.mask, self.zscoreflag_threshold)
-                noise_excess_recv_freqmedian.mask, p_fit = polynomial_flag_outlier(noise_on_index, noise_excess_recv_freqmedian.data, noise_excess_recv_freqmedian.mask, self.polyflag_deg, self.polyflag_threshold)
-                p_poly = np.polyfit(noise_on_index[~noise_excess_recv_freqmedian.mask], noise_excess_recv_freqmedian.data[~noise_excess_recv_freqmedian.mask], deg=self.polyfit_deg)
-                noise_excess_recv_fit = np.polyval(p_poly, np.arange(visibility_recv.shape[0]))
+                noise_excess_recv = noise_diode_excess[:,:,i_receiver]
+                noise_excess_recv_fit = np.ones(visibility_recv.shape)
+                for i_timestamp in np.arange(noise_excess_recv.shape[0]):
+                    if noise_excess_recv.mask[i_timestamp,:].all():
+                        pass
+                    else:
+                        noise_excess_time = noise_excess_recv[i_timestamp,:].copy()
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            ###  calculate the moving_median of the noise diode on - off signal
+                            noise_excess_time_mf = moving_median_masked(noise_excess_time, window_size=self.window_movingmedian)
+                            ###  flagging outliers
+                            noise_excess_time_residual = noise_excess_time_mf - noise_excess_time
+                            noise_excess_time.mask = remove_outliers_zscore_mad(noise_excess_time_residual.data, noise_excess_time_residual.mask, self.zscoreflag_threshold)
+                            ###  interpolating masked regions
+                            noise_excess_time = interpolate_1d_masked_array(noise_excess_time, kind='linear')
+                            ###  gaussian smoothing
+                            noise_excess_recv[i_timestamp] = scipy.ndimage.gaussian_filter(noise_excess_time, sigma=self.nd_gausm_sigma)
 
 
-            visibility_recv = visibility_recv / noise_excess_recv_fit[:, np.newaxis]
+                for i_freq in np.arange(noise_excess_recv.shape[1]):
+                    if noise_excess_recv.mask[:,i_freq].all():
+                        pass
+                    else:
+                        noise_excess_freq = noise_excess_recv[:,i_freq].copy()
+                        noise_excess_freq.mask = remove_outliers_zscore_mad(noise_excess_freq.data, noise_excess_freq.mask, self.zscoreflag_threshold)
+                        noise_excess_freq.mask, p_fit = polynomial_flag_outlier(noise_on_index, noise_excess_freq.data, noise_excess_freq.mask, self.polyflag_deg, self.polyflag_threshold)
+                        p_poly = np.polyfit(noise_on_index[~noise_excess_freq.mask], noise_excess_freq.data[~noise_excess_freq.mask], deg=self.polyfit_deg)
+                        noise_excess_recv_fit[:,i_freq] = np.polyval(p_poly, np.arange(visibility_recv.shape[0]))
+
+
+            visibility_recv = visibility_recv / noise_excess_recv_fit
             del noise_excess_recv_fit
             gc.collect()
 
@@ -202,6 +236,11 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_MASK, result=point_source_mask, allow_overwrite=True))
+
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running GainCalibrationPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S")]
+        flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
             context_file_name = 'gain_calibration_plugin.pickle'
