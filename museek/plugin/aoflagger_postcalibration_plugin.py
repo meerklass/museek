@@ -18,7 +18,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.tools import Synch_model_sm
 from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 from museek.util.tools import point_sources_coordinate, point_source_flag
 from museek.util.tools import remove_outliers_zscore_mad
 import pickle
@@ -138,7 +138,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         print(f'flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used')
 
         ######## mask antennas that have temperature far from the median temperature for all antennas
-        calibrated_data_median = np.ma.masked_array(np.zeros(len(scan_data.antennas)))
+        calibrated_data_median = np.ma.masked_array(np.zeros(len(scan_data.antennas)), mask=np.zeros(len(scan_data.antennas)))
         for i_antenna, antenna in enumerate(scan_data.antennas):
             calibrated_data_median[i_antenna] = np.ma.median(calibrated_data[:,:,i_antenna])
         antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_median.data, calibrated_data_median.mask, self.zscore_antenatempflag_threshold)
@@ -267,8 +267,9 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             flag_percent.append(round(np.sum(calibrated_data.mask[:,:,i_antenna]>=1)/len(calibrated_data.mask[:,:,i_antenna].flatten()), 4))
             antennas_list.append(str(antenna.name))
 
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
+        lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         #########   save results 
