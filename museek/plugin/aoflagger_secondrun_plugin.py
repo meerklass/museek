@@ -17,7 +17,7 @@ from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 import pickle
 import datetime
 import numpy as np
@@ -87,7 +87,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-        scan_data.load_visibility_flags_weights()
+        scan_data.load_visibility_flags_weights(polars='auto')
         initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
@@ -143,8 +143,9 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         scan_data.flags.add_flag(flag=new_flag)
 
         receivers_list, flag_percent = flag_percent_recv(scan_data)
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running AoflaggerSecondRunPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running AoflaggerSecondRunPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(scan_data.visibility.get(recv=0),
