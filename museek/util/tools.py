@@ -6,10 +6,69 @@ import healpy as hp
 from astropy.coordinates import SkyCoord
 import matplotlib.colors as colors
 import numpy as np
+from scipy import interpolate
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import warnings
 import scipy
+import subprocess
+import os
+
+def git_version_info(directory=None):
+    """
+    Get git branch and commit information.
+
+    Parameters:
+    directory: str - Optional path to the git repository. Uses current directory if None.
+
+    Returns:
+    tuple: (branch_name, commit_hash) or (None, None) if not in a git repository
+    """
+    # Store original directory to return to it later
+    original_dir = os.getcwd()
+    
+    # Use current directory if no repo_dir provided
+    if directory is None:
+        directory = os.environ.get('MUSEEK_REPO_DIR')
+        if directory is None:
+            # No explicit directory provided - use current directory
+            directory = os.getcwd()
+
+    try:
+        # Change to the specified directory
+        os.chdir(directory)
+
+        # Check if we're in a git repository first
+        result = subprocess.run(
+            ['git', 'rev-parse', '--is-inside-work-tree'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False
+        )
+
+        if result.returncode != 0:
+            return None, None
+
+        # Get branch name
+        branch = subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+        ).decode().strip()
+
+        # Get short commit hash
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD']
+        ).decode().strip()
+
+        return branch, commit
+
+    except Exception as e:
+        print(f"Error getting git info: {e}")
+        return None, None
+
+    finally:
+        # Return to original directory
+        os.chdir(original_dir)
+
 
 def flag_percent_recv(data: TimeOrderedData):
     """
@@ -483,3 +542,173 @@ def polynomial_flag_outlier(x, y, mask, degree, threshold):
         # Identify outliers
         initial_mask[~mask] |= np.abs(residuals) >= threshold * mad_residuals
     return initial_mask, p_fit
+
+
+def moving_median_masked(data, window_size=20):
+    """
+    Calculate the moving median for a masked array.
+
+    Parameters:
+    -----------
+    data : numpy.ma.MaskedArray
+        The input masked array
+    window_size : int, optional
+        The size of the window (default: 20)
+
+    Returns:
+    --------
+    numpy.ma.MaskedArray
+        Moving median values with the same shape as the input array
+    """
+    # Ensure the input is a masked array
+    if not isinstance(data, np.ma.MaskedArray):
+        data = np.ma.array(data, mask=np.isnan(data))
+
+    # Get the shape of the input array
+    n = len(data)
+
+    # Initialize output array
+    result = np.ma.zeros(n)
+    result.mask = np.ones(n, dtype=bool)  # Start with all values masked
+
+    # Calculate the moving median
+    half_window = window_size // 2
+
+    for i in range(n):
+        # Calculate the window boundaries
+        start = max(0, i - half_window)
+        end = min(n, i + half_window + 1)
+
+        # Extract the window
+        window = data[start:end]
+
+        # Skip if all values in the window are masked
+        if window.count() == 0:
+            continue
+
+        # Calculate median of unmasked values
+        result[i] = np.ma.median(window)
+
+    return result
+
+
+def gaussian_filter_masked(masked_array, sigma, **kwargs):
+    """
+    Apply a Gaussian filter to a masked array.
+
+    Parameters:
+    -----------
+    masked_array : numpy.ma.MaskedArray
+        The input masked array to filter
+    sigma : float or sequence of floats
+        Standard deviation for Gaussian kernel
+    **kwargs :
+        Additional arguments to pass to scipy.ndimage.gaussian_filter
+
+    Returns:
+    --------
+    numpy.ma.MaskedArray
+        The filtered array with the same mask as the input
+    """
+    # Get the data and mask
+    data = masked_array.filled(0)  # Fill masked values with 0
+    mask = masked_array.mask
+
+    if mask is np.ma.nomask:
+        # If there's no mask, just apply the filter to the data
+        filtered_data = scipy.ndimage.gaussian_filter(data, sigma, **kwargs)
+        return np.ma.array(filtered_data)
+
+    # Create an array of weights (0 for masked, 1 for unmasked)
+    weights = np.logical_not(mask).astype(float)
+
+    # Apply the filter to the data and weights
+    filtered_data = scipy.ndimage.gaussian_filter(data * weights, sigma, **kwargs)
+    filtered_weights = scipy.ndimage.gaussian_filter(weights, sigma, **kwargs)
+
+    # Avoid division by zero
+    filtered_weights = np.where(filtered_weights > 0, filtered_weights, 1)
+
+    # Normalize the filtered data by the filtered weights
+    result = filtered_data / filtered_weights
+
+    # Apply the original mask to the result
+    return np.ma.array(result, mask=mask)
+
+
+
+def interpolate_1d_masked_array(masked_array, kind='linear'):
+    """
+    Interpolate unmasked regions and extrapolate masked regions in a 1D masked array
+    using specified interpolation method.
+    
+    Parameters:
+    -----------
+    masked_array : numpy.ma.MaskedArray
+        The 1D masked array to process
+    kind : str, optional (default='linear')
+        Specifies the kind of interpolation as a string or integer
+        ('linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic', etc.)
+        
+    Returns:
+    --------
+    numpy.ndarray
+        1D array with interpolated and extrapolated values replacing masked areas
+    """
+    # Check if input is 1D
+    if masked_array.ndim != 1:
+        raise ValueError("Function only works with 1D masked arrays")
+    
+    # Make a copy to avoid modifying the original
+    result = masked_array.copy()
+    
+    # Get indices for all points
+    indices = np.arange(len(masked_array))
+    
+    # Get unmasked indices and values
+    valid_indices = indices[~masked_array.mask]
+    
+    # If all values are masked or no values are masked, return the original data
+    if len(valid_indices) == 0:
+        return result.data
+    if len(valid_indices) == len(indices):
+        return result.data
+        
+    valid_values = masked_array.data[valid_indices]
+    
+    # Check if we have enough points for the requested interpolation method
+    min_points = {
+        'linear': 2,
+        'nearest': 1,
+        'zero': 2,
+        'slinear': 2,
+        'quadratic': 3,
+        'cubic': 4,
+        'polynomial': 5
+    }
+    
+    # Default to linear if not in our dictionary
+    required_points = min_points.get(kind, 2)
+    
+    # Fall back to simpler interpolation if we don't have enough points
+    if len(valid_indices) < required_points:
+        if len(valid_indices) >= 2:
+            kind = 'linear'
+        else:
+            kind = 'nearest'
+    
+    # Create interpolation function
+    f = interpolate.interp1d(valid_indices, valid_values, 
+                            kind=kind, 
+                            bounds_error=False, 
+                            fill_value='extrapolate')
+    
+    # Apply to masked values only
+    masked_indices = indices[masked_array.mask]
+    if len(masked_indices) > 0:
+        result.data[masked_array.mask] = f(masked_indices)
+    
+    return result.data
+
+
+
