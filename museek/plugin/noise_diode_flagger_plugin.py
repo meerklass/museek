@@ -12,7 +12,7 @@ from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv
+from museek.util.tools import flag_percent_recv, git_version_info
 import datetime
 
 class NoiseDiodeFlaggerPlugin(AbstractPlugin):
@@ -38,7 +38,14 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         """
-        data.load_visibility_flags_weights()
+        data.load_visibility_flags_weights(polars='auto')
+
+        receivers_list, flag_percent = flag_percent_recv(data)
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running NoiseDiodeFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", ' Started at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
+
         noise_diode = NoiseDiode(dump_period=data.dump_period, observation_log=data.obs_script_log)
         noise_diode_off_dumps = noise_diode.get_noise_diode_off_scan_dumps(timestamps=data.original_timestamps)
         new_mask = np.ones(data.shape, dtype=bool)
@@ -48,8 +55,9 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
 
         receivers_list, flag_percent = flag_percent_recv(data)
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running NoiseDiodeFlaggerPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running NoiseDiodeFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         waterfall(data.visibility.get(recv=0),
