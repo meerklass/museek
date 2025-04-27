@@ -8,6 +8,9 @@ from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.time_ordered_data import TimeOrderedData
+from museek.util.report_writer import ReportWriter
+from museek.util.tools import flag_percent_recv, git_version_info
+import datetime
 
 
 class ScanTrackSplitPlugin(AbstractPlugin):
@@ -31,14 +34,16 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         """ Only requirement is the data. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, data: TimeOrderedData, block_name: str, output_path: str):
+    def run(self, data: TimeOrderedData, block_name: str, output_path: str, flag_report_writer: ReportWriter):
         """
         Split `data` into scanning and tracking part and save.
         If `self.do_delete_unsplit_data` is `True`, `data` is deleted.
         :param data: the complete time ordered data
         :param block_name: name of the observation block
+        :param flag_report_writer: report of the flagged fraction
         """
         scan_data = deepcopy(data)
         scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
@@ -60,6 +65,12 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_END,
                                       result=scan_observation_end,
                                       allow_overwrite=False))
+
+        receivers_list, flag_percent = flag_percent_recv(scan_data)
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running ScanTrackSplitPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
             context_file_name = 'scan_track_split_plugin.pickle'
