@@ -11,6 +11,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.util.tools import point_sources_coordinate, point_source_flag
+from museek.util.tools import flag_percent_recv, git_version_info
 import pysm3.units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
@@ -115,8 +116,9 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
             receivers_list.append(str(receiver))
 
         ## Note that the mask for point sources will be recovered after the aoflagger 
+        branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running PointSourceFlaggerPlugin...Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = ['...........................', 'Running PointSourceFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
 
