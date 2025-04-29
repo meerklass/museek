@@ -1,22 +1,18 @@
 import itertools
+import re
+from datetime import datetime
 
+import numpy as np
 import matplotlib.pylab as plt
-from ivory.enum.context_storage_enum import ContextStorageEnum
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from ivory.utils.result import Result
 
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
+from museek.antenna_sanity.from_log import FromLog
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.antenna_sanity.from_log import FromLog
-
-from definitions import SECONDS_IN_ONE_DAY
-from datetime import datetime, timedelta
-import numpy as np
 from museek.util.time_analysis import TimeAnalysis
-import re
 
 
 class SanityCheckObservationPlugin(AbstractPlugin):
