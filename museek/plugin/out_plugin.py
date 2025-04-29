@@ -25,6 +25,7 @@ class OutPlugin(AbstractPlugin):
 
     def run(self, block_name: str, output_path: str):
         """ Store the `flag_report_writer` as a result. """
+
         flag_report_writer = ReportWriter(output_path=output_path,
                                      report_name=self.report_file_name,
                                      data_name=block_name,

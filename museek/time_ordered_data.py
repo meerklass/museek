@@ -2,7 +2,6 @@ import os
 from copy import copy
 from datetime import datetime
 from typing import Optional, NamedTuple, Any
-import logging
 
 import katdal
 import numpy as np
@@ -17,8 +16,6 @@ from museek.factory.data_element_factory import AbstractDataElementFactory, Data
 from museek.flag_list import FlagList
 from museek.receiver import Receiver
 from museek.util.clustering import Clustering
-
-logger = logging.getLogger(__name__)
 
 
 class ScanTuple(NamedTuple):
@@ -135,18 +132,15 @@ class TimeOrderedData:
     def load_visibility_flags_weights(self):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         if self.flags is not None and self.weights is not None and self.visibility is not None:
-            logger.info('Visibility, flag and weight data is already loaded.')
+            print('Visibility, flag and weight data is already loaded.')
             return
-        logger.info("Loading visibility")
         visibility_array, flag_array, weight_array = self._visibility_flags_weights()
         self.visibility = self._element_factory.create(array=visibility_array)
         if self.flags is not None:
-            logger.info('Overwriting existing flags.')
-        logger.info("Loading flags")
+            print('Overwriting existing flags.')
         self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
         if self.weights is not None:
-            logger.info('Overwriting existing weights.')
-        logger.info("Loading weights")
+            print('Overwriting existing weights.')
         self.weights = self._element_factory.create(array=weight_array)
 
     def delete_visibility_flags_weights(self):
@@ -324,7 +318,7 @@ class TimeOrderedData:
                     correlator_products=data.corr_products
                 )
         else:
-            logger.info(f'Loading visibility, flags and weights for {self.name} from cache file...')
+            print(f'Loading visibility, flags and weights for {self.name} from cache file...')
             data_from_cache = np.load(self._cache_file)
             correlator_products = data_from_cache['correlator_products']
             try:  # if this fails it means that the cache file does not contain the correlator products
@@ -351,11 +345,9 @@ class TimeOrderedData:
         visibility = np.zeros(shape=self.shape, dtype=complex)
         flags = np.zeros(shape=self.shape, dtype=bool)
         weights = np.zeros(shape=self.shape, dtype=float)
-        logger.info("Loading autocorrelation visibility from DaskLazyIndexer ...")
         DaskLazyIndexer.get(arrays=[data.vis, data.flags, data.weights],
                             keep=...,
                             out=[visibility, flags, weights])
-        logger.info("Done loading autocorrelation visibility")
         flags = flags[np.newaxis]  # necessary for compatibility
         return visibility, flags, weights
 
