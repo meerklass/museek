@@ -367,18 +367,11 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         
         bad_elevation_num = len(bad_elevation)
 
-        ################  implement the mask from SARAO  for ra,dec,and azimuth statistics  #################
-        data.load_visibility_flags_weights()
-        initial_flags = data.flags.combine(threshold=1)
-        radec_flag = np.median(initial_flags.array, axis=1)
-        mask_ant = np.ma.zeros((len(data.timestamps.array.squeeze()), len(data.antennas)), dtype='bool')
-        for i_ant, ant in enumerate(data.antennas):
-            i_receiver_list= [i for i, receiver in enumerate(data.receivers) if receiver.antenna_name == ant.name]
-            # Sum flags across receivers (broadcasted sum of booleans is like OR)
-            mask_ant[:, i_ant] = np.any(radec_flag[:, i_receiver_list], axis=1)
-        ra = np.ma.masked_array(data.right_ascension.array, mask=mask_ant)
-        dec = np.ma.masked_array(data.declination.array, mask=mask_ant)
-        azimuth = np.ma.masked_array(data.azimuth.array, mask=mask_ant)
+        # TODO: How to exclude bad antennas without loading the flags, so it does not
+        # load the full data? 
+        ra = data.right_ascension.array
+        dec = data.declination.array
+        azimuth = data.azimuth.array
         
         azimuth_min = np.ma.min(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
         azimuth_max = np.ma.max(np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1))
