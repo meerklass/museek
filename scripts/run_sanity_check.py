@@ -75,22 +75,15 @@ BASE_DIR = Path("__file__").parent
     help="Path to the Python `conda` environment to use, "
     "e.g. ~/miniconda3/envs/meerklass. Not use if `--venv-path` is also given",
 )
-# @click.option(
-#     "--slurm/--local",
-#     default=True,
-#     show_default=True,
-#     help="Whether to make a job script and submit a slurm job to run the check or "
-#     "run it locally",
-# )
 @click.option(
     "--runtime",
-    default="00:15:00",
+    default="00:05:00",
     show_default=True,
     help="Time string for the slurm job",
 )
 @click.option(
     "--mem",
-    default=128,
+    default=10,
     show_default=True,
     help="Memory required in GB for the slurm job",
 )
