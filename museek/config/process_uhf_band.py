@@ -12,12 +12,12 @@ Pipeline = ConfigSection(
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.point_source_flagger_plugin',
         'museek.plugin.aoflagger_plugin',
-        'museek.plugin.aoflagger_cross_plugin',
         'museek.plugin.aoflagger_secondrun_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.noise_diode_plugin',
         'museek.plugin.gain_calibration_plugin',
         'museek.plugin.aoflagger_postcalibration_plugin',
+        #'museek.plugin.aoflagger_cross_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
@@ -35,11 +35,9 @@ InPlugin = ConfigSection(
     #data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_auto_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
     force_load_cross_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
-    #force_load_from_correlator_data=True,
-    # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
-    do_save_visibility_to_disc=True,
+    do_save_visibility_to_disc=True, # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_store_context=True,
-    context_folder='/idia/users/wkhu/calibration_results/noise_diode_2d/',  # directory to store results, if `None`, 'results/' is chosen
+    context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
 )
 
 
