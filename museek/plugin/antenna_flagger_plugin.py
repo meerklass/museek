@@ -49,9 +49,10 @@ class AntennaFlaggerPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
+                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
 
-    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, block_name: str):
+    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, block_name: str, flag_name_list: list):
         """
         Run the plugin
         :param scan_data: time ordered data of the scanning part
@@ -59,17 +60,21 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         :param flag_report_writer: report_writer of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
+        :param flag_name_list: list of the name of existing flags
         """
         scan_data.load_visibility_flags_weights(polars='auto')
         self.flag_for_elevation_TOD(data=scan_data)
+        flag_name_list.append('elevation_flag')
         track_data.load_visibility_flags_weights(polars='auto')
         #for data in [scan_data, track_data]:
         #    self.flag_outlier_antennas(data=data)
         for data in [scan_data, track_data]:
             self.flag_outlier_antennas_TOD(data=data)
+        flag_name_list.append('outlier_antenna_flag')
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
+        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
