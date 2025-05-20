@@ -69,12 +69,12 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask')]
+                             Requirement(location=ResultEnum.POINT_SOURCE_FLAG, variable='point_source_flag')]
 
     def map(self,
             scan_data: TimeOrderedData,
             flag_report_writer: ReportWriter,
-            point_source_mask: np.ndarray,
+            point_source_flag: np.ndarray,
             output_path: str,
             block_name: str) \
             -> Generator[tuple[str, DataElement, np.ndarray, np.ndarray], None, None]:
@@ -83,7 +83,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param flag_report_writer: report of the flag
-        :param point_source_mask: mask for point sources
+        :param point_source_flag: flag for point sources
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
@@ -98,7 +98,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
             visibility_cross = scan_data.visibility_cross.get(recv=i_receiver)
             i_antenna = scan_data.antenna_index_of_receiver(receiver=receiver)
             initial_flag_cross = initial_flags_cross.get(recv=i_receiver).squeeze + initial_flags.get(recv=i_receiver).squeeze
-            yield receiver_path, visibility_cross, initial_flag_cross, point_source_mask[:,:,i_antenna]
+            yield receiver_path, visibility_cross, initial_flag_cross, point_source_flag[:,:,i_antenna]
 
     def run_job(self, anything: tuple[str, DataElement, np.ndarray, np.ndarray]) -> FlagElement:
         """
@@ -106,9 +106,9 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param anything: `tuple` of the output path, the visibility and the initial flag
         :return: rfi mask as `FlagElement`
         """
-        receiver_path, visibility_cross, initial_flag_cross, point_source_mask_recv = anything
+        receiver_path, visibility_cross, initial_flag_cross, point_source_flag_recv = anything
         rfi_flag = get_rfi_mask_cross(time_ordered=visibility_cross,
-                                mask=FlagElement(array=(initial_flag_cross+point_source_mask_recv)[:,:,np.newaxis]),
+                                mask=FlagElement(array=(initial_flag_cross+point_source_flag_recv)[:,:,np.newaxis]),
                                 mask_type=self.mask_type,
                                 first_threshold=self.first_threshold,
                                 threshold_scales=self.threshold_scales,
@@ -117,8 +117,8 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
                                 smoothing_sigma=self.smoothing_sigma)
         
         rfi_flag = rfi_flag.squeeze
-        #unmask the point source, set rfi_flag to initial_flag where point_source_mask_recv is True, and then run post_process_flag (to avoid the point source mask being post processed)
-        rfi_flag = np.where(point_source_mask_recv, initial_flag_cross, rfi_flag)
+        #unmask the point source, set rfi_flag to initial_flag where point_source_flag_recv is True, and then run post_process_flag (to avoid the point source flag being post processed)
+        rfi_flag = np.where(point_source_flag_recv, initial_flag_cross, rfi_flag)
         initial_flag_cross = FlagElement(array=initial_flag_cross[:,:,np.newaxis])
         rfi_flag = FlagElement(array=rfi_flag[:,:,np.newaxis])
         return self.post_process_flag(flag=rfi_flag, initial_flag=initial_flag_cross)
@@ -126,7 +126,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
     def gather_and_set_result(self,
                               result_list: list[FlagElement],
                               scan_data: TimeOrderedData,
-                              point_source_mask: np.ndarray,
+                              point_source_flag: np.ndarray,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
