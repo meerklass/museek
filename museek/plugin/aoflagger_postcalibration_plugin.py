@@ -19,7 +19,7 @@ from museek.util.report_writer import ReportWriter
 from museek.util.tools import Synch_model_sm
 from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv, git_version_info
-from museek.util.tools import point_sources_coordinate, point_source_flag
+from museek.util.tools import point_sources_coordinate, point_source_flagger
 from museek.util.tools import remove_outliers_zscore_mad
 import pickle
 import numpy as np
@@ -114,26 +114,32 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask')]
+                             Requirement(location=ResultEnum.POINT_SOURCE_FLAG, variable='point_source_flag'),
+                             Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG, variable='calibrated_data_flag'),
+                             Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, variable='calibrated_data_flag_name_list')]
 
     def map(self,
             scan_data: TimeOrderedData,
             calibrated_data: np.ma.MaskedArray,
-            point_source_mask: np.ndarray,
+            point_source_flag: np.ndarray,
             freq_select: np.ndarray,
             flag_report_writer: ReportWriter,
             output_path: str,
-            block_name: str) \
+            block_name: str,
+            calibrated_data_flag: list[np.ndarray],
+            calibrated_data_flag_name_list: list) \
             -> Generator[tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str], None, None]:
         """
         Yield a `tuple` of the results path for one antenna, the scanning calibrated data for one antenna and the flag for one antenna.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
-        :param point_source_mask: mask for point sources
+        :param point_source_flag: mask for point sources
         :param freq_select: frequency for calibrated data, in [Hz]
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block
+        :param calibrated_data_flag: list of the existing flags for calibrated data
+        :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
         print(f'flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used')
 
@@ -143,6 +149,20 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrated_data_median[i_antenna] = np.ma.median(calibrated_data[:,:,i_antenna])
         antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_median.data, calibrated_data_median.mask, self.zscore_antenatempflag_threshold)
         calibrated_data.mask[:,:,antenna_mask_temp] = True
+        calibrated_data_flag.append(calibrated_data.mask)
+        calibrated_data_flag_name_list.append('temp_outlier_flag')
+
+        ##########   report of the flagging
+        flag_percent = []
+        antennas_list = []
+        for i_antenna, antenna in enumerate(scan_data.antennas):
+            flag_percent.append(round(np.sum(calibrated_data.mask[:,:,i_antenna]>=1)/len(calibrated_data.mask[:,:,i_antenna].flatten()), 4))
+            antennas_list.append(str(antenna.name))
+
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin with '+f"MuSEEK version: {branch} ({commit})", 'temperature outlier flagger finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
 
         ######## mask antennas that have larger temperature fluctuations 
         calibrated_data_std = np.ma.masked_array(np.zeros(len(scan_data.antennas)))
@@ -150,12 +170,27 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrated_data_std[i_antenna] = np.ma.std(calibrated_data[:,:,i_antenna])
         antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_std.data, calibrated_data_std.mask, self.zscore_antenatempflag_threshold)
         calibrated_data.mask[:,:,antenna_mask_temp] = True
+        calibrated_data_flag.append(calibrated_data.mask)
+        calibrated_data_flag_name_list.append('temp_fluctuation_flag')
 
+        ##########   report of the flagging
+        flag_percent = []
+        antennas_list = []
+        for i_antenna, antenna in enumerate(scan_data.antennas):
+            flag_percent.append(round(np.sum(calibrated_data.mask[:,:,i_antenna]>=1)/len(calibrated_data.mask[:,:,i_antenna].flatten()), 4))
+            antennas_list.append(str(antenna.name))
+
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running AoflaggerPostCalibrationPlugin with '+f"MuSEEK version: {branch} ({commit})", 'temperature fluctuation flagger, finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
+        flag_report_writer.write_to_report(lines)
+
+        ########################################
         receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield receiver_path, calibrated_data.data[:,:,i_antenna], calibrated_data.mask[:,:,i_antenna], point_source_mask[:,:,i_antenna], right_ascension, declination, freq_select, antenna.name
+            yield receiver_path, calibrated_data.data[:,:,i_antenna], calibrated_data.mask[:,:,i_antenna], point_source_flag[:,:,i_antenna], right_ascension, declination, freq_select, antenna.name
 
     def run_job(self, anything: tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]) -> np.ndarray:
         """
@@ -163,7 +198,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param anything: `tuple` of the output path, calibrated data, flag, right ascension, declination, frequency and antenna name
         :return: updated mask
         """
-        receiver_path, visibility_recv, initial_flag_recv, point_source_mask_recv, right_ascension, declination, freq_select, antenna  = anything
+        receiver_path, visibility_recv, initial_flag_recv, point_source_flag_recv, right_ascension, declination, freq_select, antenna  = anything
 
         ###########  fitting a powerlaw to the time median removed data and then mask outlier   ######## 
         visibility_recv_masked = np.ma.masked_array(visibility_recv, mask=initial_flag_recv)
@@ -225,31 +260,36 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         initial_flag_postflagfraction = initial_flag_post.squeeze + initial_flag_postrms
 
-        return self.flag_antennas_using_correlation_with_synch_model(visibility_recv, initial_flag_postflagfraction, point_source_mask_recv, right_ascension, declination, freq_select, antenna) 
+        return self.flag_antennas_using_correlation_with_synch_model(visibility_recv, initial_flag_postflagfraction, point_source_flag_recv, right_ascension, declination, freq_select, antenna)
 
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
                               scan_data: TimeOrderedData,
                               calibrated_data: np.ma.MaskedArray,
-                              point_source_mask: np.ndarray,
+                              point_source_flag: np.ndarray,
                               freq_select: np.ndarray,
                               flag_report_writer: ReportWriter,
                               output_path: str,
-                              block_name: str):
+                              block_name: str,
+                              calibrated_data_flag: list[np.ndarray],
+                              calibrated_data_flag_name_list: list):
         """
         Combine the `np.ma.MaskedArray`s in `result_list` into a new data set, and mask the frequencies that flag fraction is high (taking all antennas into consideration)
         :param result_list: `list` of `np.ndarray`s created from the RFI flagging
         :param scan_data: time ordered data containing the scanning part of the observation
         :param calibrated_data: calibrated data containing the scanning part of the observation
-        :param point_source_mask: mask for point sources
+        :param point_source_flag: mask for point sources
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
+        :param calibrated_data_flag: list of the existing flags for calibrated data
+        :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
 
         result_list = np.array(result_list, dtype='object')
         correlation_coefficient_ant = [result_list[i][1] for i in range(np.shape(result_list)[0])]
         calibrated_data.mask = np.array([result_list[i][0] for i in range(np.shape(result_list)[0])]).transpose(1, 2, 0)
+        polynomial_fit_flag = np.array([result_list[i][2] for i in range(np.shape(result_list)[0])]).transpose(1, 2, 0)
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [~calibrated_data[:,:,i_antenna].mask.all() for i_antenna, antenna in enumerate(scan_data.antennas)]
@@ -258,6 +298,11 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 calibrated_data.mask[:,i_freq,:] = True
             else:
                 pass
+
+        calibrated_data_flag.append(polynomial_fit_flag)
+        calibrated_data_flag_name_list.append('polynomial_fit_flag')
+        calibrated_data_flag.append(calibrated_data.mask)
+        calibrated_data_flag_name_list.append('synch_correlation_flag')
 
 
         ##########   report of the flagging  
@@ -275,6 +320,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         #########   save results 
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=calibrated_data, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.CORRELATION_COEFFICIENT_VIS_SYNCH_ANT, result=correlation_coefficient_ant, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS_FLAG, result=calibrated_data_flag, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, result=calibrated_data_flag_name_list, allow_overwrite=True))
         if self.do_store_context:
             context_file_name = 'aoflagger_plugin_postcalibration.pickle'
             self.store_context_to_disc(context_file_name=context_file_name,
@@ -317,7 +364,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             self, 
             calibrated_data: np.ndarray, 
             mask: np.ndarray, 
-            point_source_mask: np.ndarray,
+            point_source_flag: np.ndarray,
             ra: np.ndarray, 
             dec: np.ndarray, 
             freq: np.ndarray,
@@ -338,6 +385,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         bool array: mask all data for antennas considered to be bad.
         """
 
+        mask_ori = mask.copy()
         if mask.all():
             spearman_corr = np.nan
         else:
@@ -362,7 +410,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             phi = (c.galactic.l / u.degree).value
             synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta / 180. * np.pi, phi / 180. * np.pi)
 
-            map_freqmedian = np.ma.median(np.ma.masked_array(calibrated_data, mask = mask_update+point_source_mask), axis=1)
+            map_freqmedian = np.ma.median(np.ma.masked_array(calibrated_data, mask = mask_update+point_source_flag), axis=1)
             synch_I = np.ma.masked_array(synch_I, mask=map_freqmedian.mask)
             synch_I = synch_I / 10**6.   #####  convert from uK to K
 
@@ -374,7 +422,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 mask[:] = True
                 print(f'antenna {antenna} is masked, Spearman correlation coefficient is '+str(round(spearman_corr,3)))
 
-        return mask, spearman_corr
+        return mask, spearman_corr, mask_ori
 
 
     def polynomial_flag_outlier(self, x, y, mask, degree, threshold):
