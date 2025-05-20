@@ -60,16 +60,19 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
+                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
 
     def map(self,
             scan_data: TimeOrderedData,
-            flag_report_writer: ReportWriter,) \
+            flag_report_writer: ReportWriter,
+            flag_name_list:list) \
             -> Generator[tuple[np.ndarray, np.ndarray, np.ndarray, tuple], None, None]:
         """
         Yield a `tuple` of the scanning visibility data for one receiver and the initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param flag_report_writer: report of the flag
+        :param flag_name_list: list of the name of existing flags
         """
 
         scan_data.load_visibility_flags_weights(polars='auto')
@@ -85,13 +88,13 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         for i_receiver, receiver in enumerate(scan_data.receivers):
             visibility = scan_data.visibility.get(recv=i_receiver).squeeze
             initial_flag = initial_flags.get(recv=i_receiver).squeeze
-            yield visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios
+            yield visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios, scan_data.timestamps.array.squeeze()
 
 
-    def run_job(self, anything: tuple[DataElement, np.ndarray, np.ndarray, np.ndarray]) -> list[np.ndarray, np.ndarray]:
+    def run_job(self, anything: tuple[DataElement, np.ndarray, np.ndarray, np.ndarray, np.ndarray]) -> list[np.ndarray, np.ndarray, np.ndarray]:
         """ Run the plugin and calculate noise diode excess signal. """
 
-        visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios = anything
+        visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios, timestamps = anything
 
         noise_on = np.ones(np.shape(visibility)[0], dtype='bool')
         for i in noise_diode_off_dumps:
@@ -102,12 +105,17 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
 
         # calculate the noise diode firing index. Because there will be noise diode firing in two continuous timestamps, we need to re-calculate the index of noise diode firing by use of noise_diode_ratios weighted average 
         noise_on_index = []
+        noise_on_timestamp = []
+        timestamps_shifted = timestamps - timestamps.min()
         for i_index_list, index_list in enumerate(continuous_noise_on_index):
             if len(index_list) == 1:   # if noise diode firing is in one timestamp
                 noise_on_index.append(index_list[0])
+                noise_on_timestamp.append(timestamps_shifted[index_list[0]])
             elif len(index_list) > 1:  # if noise diode firing is in more than one timestamps
                 index_array = np.array(index_list)
                 noise_on_index.append(np.sum(index_array*noise_diode_ratios[index_array]) / np.sum(noise_diode_ratios[index_array]))
+                timestamps_shifted_array = np.array([timestamps_shifted[i] for i in index_list])
+                noise_on_timestamp.append(np.sum(timestamps_shifted_array*noise_diode_ratios[index_array]) / np.sum(noise_diode_ratios[index_array]))
 
         # calculate the noise diode firing - diode off, noise diode off is estimated by averaging two points (one before, one after) adjacent to the noise diode firing point
         with warnings.catch_warnings():
@@ -130,20 +138,23 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
 
         noise_diode_excess.mask[np.isnan(noise_diode_excess.data)] = True
 
-        return noise_diode_excess, noise_on_index 
+        return noise_diode_excess, noise_on_index, noise_on_timestamp
         
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
                               scan_data: TimeOrderedData,
-                              flag_report_writer: ReportWriter):
+                              flag_report_writer: ReportWriter,
+                              flag_name_list:list):
         """
         Combine the masks in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
         :param flag_report_writer: report of the flag
+        :param flag_name_list: list of the name of existing flags
         """
 
         noise_on_index = np.array(result_list[0][1])
+        noise_on_timestamp  = np.array(result_list[0][2])
         noise_diode_excess = np.ma.array([result_list[i][0] for i in range(len(result_list))]).transpose(1, 2, 0)
 
         # fit the noise diode excess and mask the receiver if the frequency median of its noise diode excess can not be fitted well by a 2-order polynomial
@@ -151,12 +162,12 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         for i_receiver, receiver in enumerate(scan_data.receivers):
             noise_excess_timemedian = np.ma.median(noise_diode_excess[:,:,i_receiver], axis=1)
             noise_excess_timemedian.mask = remove_outliers_zscore_mad(noise_excess_timemedian.data, noise_excess_timemedian.mask, self.zscoreflag_threshold)
-            noise_excess_timemedian.mask, p_fit = polynomial_flag_outlier(noise_on_index, noise_excess_timemedian.data, noise_excess_timemedian.mask, self.polyflag_deg, self.polyflag_threshold)
+            noise_excess_timemedian.mask, p_fit = polynomial_flag_outlier(noise_on_timestamp, noise_excess_timemedian.data, noise_excess_timemedian.mask, self.polyflag_deg, self.polyflag_threshold)
             if noise_excess_timemedian.mask.all():
                 rmsnorm_poly_fit_list.append(np.nan)
             else:
-                p_poly = np.polyfit(noise_on_index[~noise_excess_timemedian.mask], noise_excess_timemedian.data[~noise_excess_timemedian.mask], deg=self.polyfit_deg)
-                rmsnorm_poly_fit_list.append(np.std(np.polyval(p_poly, noise_on_index) / np.median(np.polyval(p_poly, noise_on_index))))
+                p_poly = np.polyfit(noise_on_timestamp[~noise_excess_timemedian.mask], noise_excess_timemedian.data[~noise_excess_timemedian.mask], deg=self.polyfit_deg)
+                rmsnorm_poly_fit_list.append(np.std(np.polyval(p_poly, noise_on_timestamp) / np.median(np.polyval(p_poly, noise_on_timestamp))))
 
         rmsnorm_poly_fit_list = np.array(rmsnorm_poly_fit_list)
         receiver_mask_poly_fit = remove_outliers_zscore_mad(rmsnorm_poly_fit_list, np.isnan(rmsnorm_poly_fit_list), self.zscore_antenaflag_threshold)
@@ -175,6 +186,7 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
             new_flag.insert_receiver_flag(flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0)
 
         scan_data.flags.add_flag(flag=new_flag)
+        flag_name_list.append('noise_diode_bad_behavior')
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
@@ -185,6 +197,8 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.NOISE_DIODE_EXCESS, result=noise_diode_excess, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.NOISE_ON_INDEX, result=noise_on_index, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.NOISE_ON_TIMESTAMP, result=noise_on_timestamp, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
 
     def find_continuous_noise_on_regions(self,
