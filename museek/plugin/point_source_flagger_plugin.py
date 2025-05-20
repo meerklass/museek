@@ -10,7 +10,7 @@ from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
-from museek.util.tools import point_sources_coordinate, point_source_flag
+from museek.util.tools import point_sources_coordinate, point_source_flagger
 from museek.util.tools import flag_percent_recv, git_version_info
 import pysm3.units as u
 from astropy.coordinates import SkyCoord
@@ -35,7 +35,7 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
         """
         Initialise the plugin
         :param point_source_file_path: path to the point source location file
-        :param beam_threshold: times of the beam size around the point source to be masked 
+        :param beam_threshold: times of the beam size around the point source to be flagged 
         :param point_sources_match_flux: flux threshold above which the point sources are selected
         :param point_sources_match_raregion: the ra distance to the median of observed ra to select the point sources [deg]
         :param point_sources_match_decregion: the dec region to the median of observed dec to select the point sources [deg]
@@ -84,9 +84,9 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
 
         right_ascension, declination, frequency, ra_point_source, dec_point_source = anything
 
-        point_source_mask = point_source_flag(ra_point_source, dec_point_source, right_ascension, declination, frequency, self.beam_threshold, self.beamsize, self.beam_frequency)
+        point_source_flag = point_source_flagger(ra_point_source, dec_point_source, right_ascension, declination, frequency, self.beam_threshold, self.beamsize, self.beam_frequency)
 
-        return point_source_mask
+        return point_source_flag
         
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
@@ -94,7 +94,7 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
                               flag_report_writer: ReportWriter,
                               block_name: str):
         """
-        Combine the masks in `result_list` into a new flag and set that as a result.
+        Combine the flags in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
         :param flag_report_writer: report of the flagged fraction
@@ -102,7 +102,7 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
         """
 
         result_list = np.array(result_list).transpose(1, 2, 0)
-        self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_MASK, result=result_list, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_FLAG, result=result_list, allow_overwrite=True))
 
         flag_percent = []
         receivers_list = []
@@ -115,7 +115,7 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
             flag_percent.append(round(np.sum(flag_recv_combine)/len(flag_recv_combine.flatten()), 4))
             receivers_list.append(str(receiver))
 
-        ## Note that the mask for point sources will be recovered after the aoflagger 
+        ## Note that the flag for point sources will be recovered after the aoflagger 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
         lines = ['...........................', 'Running PointSourceFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
