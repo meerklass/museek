@@ -418,7 +418,7 @@ def point_sources_coordinate(point_source_file_path, right_ascension_scan, decli
     return ra_sources_select, dec_sources_select, flux_sources_select
 
 
-def point_source_flag(ra_point_source, dec_point_source, ra_scan, dec_scan, frequency, beam_threshold, beamsize, beam_frequency):
+def point_source_flagger(ra_point_source, dec_point_source, ra_scan, dec_scan, frequency, beam_threshold, beamsize, beam_frequency):
     """
     Return TOD mask for point sources, as a funtion of frequency
 
