@@ -97,17 +97,17 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.POINT_SOURCE_MASK, variable='point_source_mask'),
+                             Requirement(location=ResultEnum.POINT_SOURCE_FLAG, variable='point_source_flag'),
                              Requirement(location=ResultEnum.NOISE_DIODE_EXCESS, variable='noise_diode_excess'),
                              Requirement(location=ResultEnum.NOISE_ON_INDEX, variable='noise_on_index'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, scan_data: TimeOrderedData, point_source_mask: np.ndarray, noise_diode_excess: np.ndarray, noise_on_index: np.ndarray, output_path: str, block_name: str, flag_report_writer: ReportWriter):
+    def run(self, scan_data: TimeOrderedData, point_source_flag: np.ndarray, noise_diode_excess: np.ndarray, noise_on_index: np.ndarray, output_path: str, block_name: str, flag_report_writer: ReportWriter):
         """
         Run the gain calibration
         :return: the calibrated scan_data
         :param data: the time ordered scan data
-        :param point_source_mask: mask for point sources
+        :param point_source_flag: mask for point sources
         :param noise_diode_excess: noise diode excess signal
         :param noise_on_index: the index of the noise firing timestamps
         :param output_path: path to store results
@@ -151,7 +151,7 @@ class GainCalibrationPlugin(AbstractPlugin):
                             ###  interpolating masked regions
                             noise_excess_time = interpolate_1d_masked_array(noise_excess_time, kind='linear')
                             ###  gaussian smoothing
-                            noise_excess_recv[i_timestamp] = scipy.ndimage.gaussian_filter(noise_excess_time, sigma=self.nd_gausm_sigma)
+                            noise_excess_recv[i_timestamp] = scipy.ndimage.gaussian_filter(noise_excess_time, sigma=self.nd_gausm_sigma, mode='nearest')
 
 
                 for i_freq in np.arange(noise_excess_recv.shape[1]):
@@ -175,7 +175,7 @@ class GainCalibrationPlugin(AbstractPlugin):
             time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than 0.05
 
             i_antenna = scan_data.antenna_index_of_receiver(receiver=receiver)
-            mask_update = initial_flag.copy() + point_source_mask[:,:,i_antenna]
+            mask_update = initial_flag.copy() + point_source_flag[:,:,i_antenna]
             mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
 
             visibility_recv = np.ma.masked_array(visibility_recv, mask=mask_update)
@@ -210,7 +210,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         freqhigh_index = np.argmin(np.abs(freq/10.**6 - self.frequency_high))
         temperature = temperature[:,freqlow_index:freqhigh_index,:]
         freq_select = freq[freqlow_index:freqhigh_index]
-        point_source_mask = point_source_mask[:,freqlow_index:freqhigh_index,:]
+        point_source_flag = point_source_flag[:,freqlow_index:freqhigh_index,:]
 
         temperature = np.ma.masked_array(temperature, mask=initial_flags.array[:,freqlow_index:freqhigh_index,:])
 
@@ -233,9 +233,15 @@ class GainCalibrationPlugin(AbstractPlugin):
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
 
+        calibrated_data_flag_name_list = ['HH_VV_combined']
+        calibrated_data_flag=[]
+        calibrated_data_flag.append(temperature_antennas.mask)
+
         self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS, result=temperature_antennas, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.FREQ_SELECT, result=freq_select, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_MASK, result=point_source_mask, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.POINT_SOURCE_FLAG, result=point_source_flag, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS_FLAG, result=calibrated_data_flag, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, result=calibrated_data_flag_name_list, allow_overwrite=True))
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
