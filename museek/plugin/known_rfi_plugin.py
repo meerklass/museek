@@ -47,14 +47,16 @@ class KnownRfiPlugin(AbstractPlugin):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
+                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
 
-    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str):
+    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, flag_name_list:list):
         """
         Flag all channels defined by `self.rfi_list` and save the result to the context.
         :param data: time ordered data of the entire block
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
+        :param flag_name_list: list of the name of existing flags
         """
         mega = 1e6
         data.load_visibility_flags_weights(polars='auto')
@@ -65,7 +67,9 @@ class KnownRfiPlugin(AbstractPlugin):
                     new_flag[:, channel, :] = True
                     continue
         data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
+        flag_name_list.append('known_rfi')
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
         receivers_list, flag_percent = flag_percent_recv(data)
         branch, commit = git_version_info()
