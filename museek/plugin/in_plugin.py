@@ -85,7 +85,12 @@ class InPlugin(AbstractPlugin):
                                          data_name=self.block_name,
                                          plugin_name=self.name)
 
-        self.set_result(result=Result(location=ResultEnum.FLAG_REPORT_WRITER, result=flag_report_writer, allow_overwrite=True))
+        flag_name_list = ['SARAO']
+
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = ['...........................', 'Running InPlugin with '+f"MuSEEK version: {branch} ({commit})", ' Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S")]
+        flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
 
@@ -97,17 +102,14 @@ class InPlugin(AbstractPlugin):
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=context_directory)
 
-
+        self.set_result(result=Result(location=ResultEnum.FLAG_REPORT_WRITER, result=flag_report_writer, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.DATA, result=data))
         self.set_result(result=Result(location=ResultEnum.RECEIVERS, result=receivers))
         self.set_result(result=Result(location=ResultEnum.OBSERVATION_DATE, result=observation_date))
         self.set_result(result=Result(location=ResultEnum.BLOCK_NAME, result=self.block_name))
         self.set_result(result=Result(location=ResultEnum.OUTPUT_PATH, result=context_directory))
+        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list))
 
-        branch, commit = git_version_info()
-        current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running InPlugin with '+f"MuSEEK version: {branch} ({commit})", ' Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S")]
-        flag_report_writer.write_to_report(lines)
 
     def check_context_folder_exists(self):
         """ Raises a `ValueError` if `self.context_folder` does not exist. """
