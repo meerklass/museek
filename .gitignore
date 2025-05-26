@@ -56,3 +56,6 @@ results/*
 # VS Code
 museek.code-workspace
 .vscode/*
+
+# SLURM logs
+*.log
