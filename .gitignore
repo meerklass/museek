@@ -54,7 +54,7 @@ results/*
 .idea/*
 
 # VS Code
-museek.code-workspace
+*.code-workspace
 .vscode/*
 
 # SLURM logs
