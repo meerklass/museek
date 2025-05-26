@@ -451,10 +451,11 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             )
         )
 
-        dishnum_used = len(data.all_antennas) - len(self.straggler_list)
+        num_dish = len(data.all_antennas)
+        num_strangger = len(self.straggler_list)
         elevation_mean = np.median(data.elevation.array[:, :, no_straggler_indexes])
 
-        bad_elevation_num = len(bad_elevation)
+        num_bad_el = len(bad_elevation)
 
         # TODO: How to exclude bad antennas without loading the flags, so it does not
         # load the full data?
@@ -487,15 +488,15 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         header = (
             "block number | Description | observation start date/time (UTC) | "
             "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
-            "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
-            "num of dishes used (after stragglers are removed) | num of dishes with bad elevation (including stragglers) | elevation mean | "
+            "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | dishes used | "
+            "stragglers | dishes with bad elevation | elevation mean | "
             "azimuth min | azimuth max | declination min | declination max | ra min | ra max | ra mean | dec mean | targets observed"
         )
 
         formatted_output = (
             f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
             f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
-            f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {bad_elevation_num} | {elevation_mean:.4f} | "
+            f"{(sunrise_end_diff/60.):.4f} | {num_dish} | {num_strangger} | {num_bad_el} | {elevation_mean:.4f} | "
             f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
             f"{ra_max:.4f} | {ra_mean:.4f} | {dec_mean:.4f} | {cleaned_targets}"
         )
