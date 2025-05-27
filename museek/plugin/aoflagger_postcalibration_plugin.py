@@ -165,7 +165,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         flag_report_writer.write_to_report(lines)
 
         ######## mask antennas that have larger temperature fluctuations 
-        calibrated_data_std = np.ma.masked_array(np.zeros(len(scan_data.antennas)))
+        calibrated_data_std = np.ma.masked_array(np.zeros(len(scan_data.antennas)), mask=np.zeros(len(scan_data.antennas)))
         for i_antenna, antenna in enumerate(scan_data.antennas):
             calibrated_data_std[i_antenna] = np.ma.std(calibrated_data[:,:,i_antenna])
         antenna_mask_temp = remove_outliers_zscore_mad(calibrated_data_std.data, calibrated_data_std.mask, self.zscore_antenatempflag_threshold)
