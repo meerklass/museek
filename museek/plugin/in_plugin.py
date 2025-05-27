@@ -51,7 +51,7 @@ class InPlugin(AbstractPlugin):
         self.context_folder = context_folder
         if self.context_folder is None:
             self.context_folder = os.path.join(ROOT_DIR, 'results/')
-        self.check_context_folder_exists()
+        #self.check_context_folder_exists()
 
     def set_requirements(self):
         """ First plugin, no requirements. """
