@@ -41,7 +41,8 @@ class TimeOrderedData:
                  token: Optional[str],
                  data_folder: Optional[str],
                  scan_state: ScanStateEnum | None = None,
-                 force_load_from_correlator_data: bool = False,
+                 force_load_auto_from_correlator_data: bool = False,
+                 force_load_cross_from_correlator_data: bool = False,
                  do_create_cache: bool = True):
         """
         Initialise
@@ -51,7 +52,8 @@ class TimeOrderedData:
         :param data_folder: folder where data is stored
         :param scan_state: optional `ScanStateEnum` defining the scan state name. If it is given, only timestamps for
                            that scan state are loaded.
-        :param force_load_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
+        :param force_load_auto_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
+        :param force_load_cross_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
         """
@@ -59,6 +61,10 @@ class TimeOrderedData:
         self.visibility: DataElement | None = None
         self.flags: FlagList | None = None
         self.weights: DataElement | None = None
+
+        self.visibility_cross: DataElement | None = None
+        self.flags_cross: FlagList | None = None
+        self.weights_cross: DataElement | None = None
 
         self._block_name = block_name
         self._token = token
@@ -69,19 +75,23 @@ class TimeOrderedData:
         # to be able to load the katdal data again if needed
         self._katdal_open_argument: Optional[str] = None
 
-        self._force_load_from_correlator_data = force_load_from_correlator_data
+        self._force_load_auto_from_correlator_data = force_load_auto_from_correlator_data
+        self._force_load_cross_from_correlator_data = force_load_cross_from_correlator_data
         self._do_create_cache = do_create_cache
 
         data = self._get_data()
         self.receivers = self._get_receivers(requested_receivers=receivers, data=data)
-        self.correlator_products = self._get_correlator_products()
+        self.auto_correlator_products = self._get_auto_correlator_products()
+        self.cross_correlator_products = self._get_cross_correlator_products()
         self.all_antennas = data.ants
-        self._select(data=data)
+        self._auto_select(data=data)
         self._data_str = str(data)
-        self._cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
+        self._auto_cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
+        self._cross_cache_file_name = f'{data.name}_cross_visibility_flags_weights.npz'
         cache_file_directory = os.path.join(ROOT_DIR, 'cache')
         os.makedirs(cache_file_directory, exist_ok=True)
-        self._cache_file = os.path.join(cache_file_directory, self._cache_file_name)
+        self._auto_cache_file = os.path.join(cache_file_directory, self._auto_cache_file_name)
+        self._cross_cache_file = os.path.join(cache_file_directory, self._cross_cache_file_name)
 
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
@@ -129,25 +139,48 @@ class TimeOrderedData:
         else:
             self._set_data_elements_from_self(scan_state=scan_state)
 
-    def load_visibility_flags_weights(self):
+    def load_visibility_flags_weights(self, polars: str):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
-        if self.flags is not None and self.weights is not None and self.visibility is not None:
-            print('Visibility, flag and weight data is already loaded.')
-            return
-        visibility_array, flag_array, weight_array = self._visibility_flags_weights()
-        self.visibility = self._element_factory.create(array=visibility_array)
-        if self.flags is not None:
-            print('Overwriting existing flags.')
-        self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
-        if self.weights is not None:
-            print('Overwriting existing weights.')
-        self.weights = self._element_factory.create(array=weight_array)
+        if polars == 'auto':
+            if self.flags is not None and self.weights is not None and self.visibility is not None:
+                print('Auto Visibility, flag and weight data is already loaded.')
+                return
+            visibility_array, flag_array, weight_array = self._visibility_flags_weights(polars)
+            self.visibility = self._element_factory.create(array=visibility_array)
+            if self.flags is not None:
+                print('Overwriting existing auto flags.')
+            self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
+            if self.weights is not None:
+                print('Overwriting existing auto weights.')
+            self.weights = self._element_factory.create(array=weight_array)
+        elif polars == 'cross':
+            if self.flags_cross is not None and self.weights_cross is not None and self.visibility_cross is not None:
+                print('Cross Visibility, flag and weight data is already loaded.')
+                return
+            visibility_array, flag_array, weight_array = self._visibility_flags_weights(polars)
+            self.visibility_cross = self._element_factory.create(array=visibility_array)
+            if self.flags_cross is not None:
+                print('Overwriting existing cross flags.')
+            self.flags_cross = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
+            if self.weights_cross is not None:
+                print('Overwriting existing cross weights.')
+            self.weights_cross = self._element_factory.create(array=weight_array)
+        else:
+            raise ValueError(f'Input `polars` should be "auto" or "cross", got {polars!r}')
 
-    def delete_visibility_flags_weights(self):
+
+    def delete_visibility_flags_weights(self, polars: str):
         """ Delete large arrays from memory, i.e. replace them with `None`. """
-        self.visibility = None
-        self.flags = None
-        self.weights = None
+        if polars == 'auto': 
+            self.visibility = None
+            self.flags = None
+            self.weights = None
+        elif polars == 'cross':
+            self.visibility_cross = None
+            self.flags_cross = None
+            self.weights_cross = None
+        else:
+            raise ValueError(f'Input `polars` should be "auto" or "cross", got {polars!r}')
 
     def antenna(self, receiver) -> Antenna:
         """ Returns the `Antenna` object belonging to `receiver`. """
@@ -184,7 +217,7 @@ class TimeOrderedData:
         """
         if data is None:
             data = self._get_data()
-            self._select(data=data)
+            self._auto_select(data=data)
         if scan_state is not None:
             self._do_create_cache = False  # only the entire data can be stored, not individual scan states
         self.scan_state = scan_state
@@ -247,6 +280,11 @@ class TimeOrderedData:
             self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
             self.weights = self._element_factory.create(array=self.weights.array)
 
+        if self.visibility_cross is not None:
+            self.visibility_cross = self._element_factory.create(array=self.visibility_cross.array)
+            self.flags_cross = FlagList.from_array(array=self.flags_cross.array, element_factory=self._flag_element_factory)
+            self.weights_cross = self._element_factory.create(array=self.weights_cross.array)
+
     def _get_data(self) -> DataSet:
         """
         Loads and returns the data from `katdal` for `self._block_name` using either `self._token`
@@ -296,45 +334,87 @@ class TimeOrderedData:
             return FlagElementFactory()
         return self.scan_state.factory(scan_dumps=self._dumps(), component=FlagElementFactory())
 
-    def _visibility_flags_weights(self, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _visibility_flags_weights(self, polars: str, data: DataSet | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns a tuple of visibility, flags and weights as `np.ndarray`s.
         It first looks for a cache file containing these. If that file is unavailabe, incomplete or
-        if `self._force_load_from_correlator_data` is `True`, the cache file is created again.
+        if `self._force_load_auto_from_correlator_data` is `True`, the cache file for auto is created again.
+        if `self._force_load_cross_from_correlator_data` is `True`, the cache file for cross is created again.
         :param data: optional `katdal` `DataSet`, defaults to `None`
+        :param polars: 'auto' to load autocorrelations, 'cross' to load cross-correlations
         :return: a tuple of visibility, flags and weights as `np.ndarray` each
         """
-        if not os.path.exists(self._cache_file) or self._force_load_from_correlator_data:
-            self._force_load_from_correlator_data = False
+
+        if polars == 'auto':
+            cache_file = self._auto_cache_file
+            select_fn = self._auto_select
+            force_load = self._force_load_auto_from_correlator_data
+        elif polars == 'cross':
+            cache_file = self._cross_cache_file
+            select_fn = self._cross_select
+            force_load = self._force_load_cross_from_correlator_data
+        else:
+            raise ValueError(f'Input `polars` should be "auto" or "cross", got {polars!r}')
+
+        if not os.path.exists(cache_file) or force_load:
+            if polars == 'auto':
+                self._force_load_auto_from_correlator_data = False
+            else:
+                self._force_load_cross_from_correlator_data = False
+
             if data is None:
                 data = katdal.open(self._katdal_open_argument)
-                self._select(data=data)
-            visibility, flags, weights = self._load_autocorrelation_visibility(data=data)
+                select_fn(data=data)
+
+            visibility, flags, weights = self._load_visibility(data=data)
+            correlator_products = data.corr_products
+
             if self._do_create_cache:
                 self._visibility_flag_weights_to_cache_file(
+                    cache_file=cache_file,
                     visibility=visibility,
                     flags=flags,
                     weights=weights,
-                    correlator_products=data.corr_products
+                    correlator_products=correlator_products
                 )
-        else:
-            print(f'Loading visibility, flags and weights for {self.name} from cache file...')
-            data_from_cache = np.load(self._cache_file)
-            correlator_products = data_from_cache['correlator_products']
-            try:  # if this fails it means that the cache file does not contain the correlator products
-                correlator_products_indices = self._correlator_products_indices(
-                    all_correlator_products=correlator_products
-                )
-            except ValueError:
-                self._force_load_from_correlator_data = True
-                self._do_create_cache = True
-                return self._visibility_flags_weights(data=data)
-            visibility = data_from_cache['visibility'][:, :, correlator_products_indices]
-            flags = data_from_cache['flags'][:, :, :, correlator_products_indices]
-            weights = data_from_cache['weights'][:, :, correlator_products_indices]
-        return visibility.real, flags, weights
 
-    def _load_autocorrelation_visibility(self, data: DataSet) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        else:
+            print(f'Loading {polars} visibility, flags and weights for {self.name} from cache file...')
+            data_from_cache = np.load(cache_file)
+
+            try:
+                correlator_products = data_from_cache['correlator_products']
+            except ValueError:
+                if polars == 'auto':
+                    self._force_load_auto_from_correlator_data = True
+                else:
+                    self._force_load_cross_from_correlator_data = True
+                self._do_create_cache = True
+                return self._visibility_flags_weights(data=data, polars=polars)
+
+            visibility = data_from_cache['visibility']
+            flags = data_from_cache['flags']
+            weights = data_from_cache['weights']
+
+        #####  extract the proper index for auto or cross subset, to make the receiver order of visibility in the same receiver order of self.receivers 
+        auto_products_subset, cross_products_subset =  self._split_cross_and_auto_products(all_correlator_products=correlator_products)
+
+        if polars == 'auto':
+            correlator_products_subset_indices = [np.where(np.prod(auto_products_subset == pair, axis=1))[0]
+                    for pair in self.auto_correlator_products]
+        elif polars == 'cross':
+            correlator_products_subset_indices = [np.where(np.prod(cross_products_subset == pair, axis=1))[0]
+                    for pair in self.cross_correlator_products]
+        else:
+            raise ValueError(f'Input `polars` should be "auto" or "cross", got {polars!r}')
+
+        correlator_products_subset_indices = np.asarray(correlator_products_subset_indices, dtype=object)
+        correlator_products_subset_indices = np.atleast_1d(np.squeeze(correlator_products_subset_indices)).tolist()
+
+        return np.abs(visibility)[:, :, correlator_products_subset_indices], flags[:, :, :, correlator_products_subset_indices], weights[:, :, correlator_products_subset_indices]
+
+
+    def _load_visibility(self, data: DataSet) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Loads and returns the visibility, flags and weights from katdal lazy indexer.
         Note: this consumes a lot of memory depending on the selection of `data`.
@@ -352,12 +432,14 @@ class TimeOrderedData:
         return visibility, flags, weights
 
     def _visibility_flag_weights_to_cache_file(self,
+                                               cache_file: str,
                                                visibility: np.ndarray,
                                                flags: np.ndarray,
                                                weights: np.ndarray,
                                                correlator_products: np.ndarray[str]):
         """
         Store visibility, flag and weights to `npz` file.
+        :param cache_file: the directory+filename as str
         :param visibility: visibilities as 3-dimensional `numpy` array, `(time, frequency, receivers)`
         :param flags: flags as 3-dimensional `numpy` array, `(time, frequency, receivers)`
         :param weights: weights as 4-dimensional `numpy` array, `(1, time, frequency, receivers)`
@@ -368,11 +450,37 @@ class TimeOrderedData:
             raise ValueError(f'Data with scan_state {self.scan_state} '
                              f'cannot store visibility, flag and weight data to cache file.')
         print(f'Creating cache file for {self.name}...')
-        np.savez_compressed(self._cache_file,
+        np.savez_compressed(cache_file,
                             visibility=visibility,
                             flags=flags,
                             weights=weights,
                             correlator_products=np.asarray(correlator_products))
+
+    def _split_cross_and_auto_products(self, all_correlator_products: np.ndarray) -> Any:
+        """
+        Returns two products belonging to the autocorrelation and croscorrelation separately. 
+        """
+        # Extract antenna and polarization from each product
+        ant0 = [s[:-1] for s in all_correlator_products[:, 0]]
+        ant1 = [s[:-1] for s in all_correlator_products[:, 1]]
+        pol0 = [s[-1]  for s in all_correlator_products[:, 0]]
+        pol1 = [s[-1]  for s in all_correlator_products[:, 1]]
+
+        # Convert to NumPy arrays for logical masking
+        ant0 = np.array(ant0)
+        ant1 = np.array(ant1)
+        pol0 = np.array(pol0)
+        pol1 = np.array(pol1)
+
+        # Create masks
+        mask_auto = (ant0 == ant1) & (pol0 == pol1)
+        mask_cross = (ant0 == ant1) & (pol0 != pol1)
+
+        # Apply masks
+        auto_products_subset = all_correlator_products[mask_auto]
+        cross_products_subset = all_correlator_products[mask_cross]
+        return auto_products_subset, cross_products_subset
+
 
     def _correlator_products_indices(self, all_correlator_products: np.ndarray) -> Any:
         """
@@ -380,23 +488,49 @@ class TimeOrderedData:
         relative to `all_correlator_products`.
         """
         result = [np.where(np.prod(all_correlator_products == correlator_product, axis=1))[0]
-                  for correlator_product in self.correlator_products]
+                  for correlator_product in self.auto_correlator_products]
         result = np.asarray(result, dtype=object)
-        if len(result) != len(self.correlator_products) or len(result.shape) != 2 or result.shape[1] == 0:
+        if len(result) != len(self.auto_correlator_products) or len(result.shape) != 2 or result.shape[1] == 0:
             raise ValueError(f'Input `all_correlator_products` must contain all receivers.')
         result = np.atleast_1d(np.squeeze(result)).tolist()
         return result
 
-    def _get_correlator_products(self) -> list[list[str, str]]:
+    def _get_auto_correlator_products(self) -> list[list[str, str]]:
         """
         Returns a `list` containing a `list` with the same element twice, namely the `receiver` name,
         for each `receiver` in `self.receivers`.
         """
         return [[str(receiver)] * 2 for receiver in self.receivers]
 
-    def _select(self, data: DataSet):
-        """ Run `data._select()` on the correlator products in `self`. """
+    def _cross_correlator_products_indices(self, all_correlator_products: np.ndarray) -> Any:
+        """
+        Returns the indices belonging to the crosscorrelation of the input receivers
+        relative to `all_correlator_products`.
+        """
+        result = [np.where(np.prod(all_correlator_products == correlator_product, axis=1))[0]
+                  for correlator_product in self.cross_correlator_products]
+        result = np.asarray(result, dtype=object)
+        if any(len(arr) == 0 for arr in result):
+            raise ValueError(f'Empty indice is produced, Cross-correlation must only involve signals from the same antenna.')
+        if len(result) != len(self.cross_correlator_products) or len(result.shape) != 2 or result.shape[1] == 0:
+            raise ValueError(f'Input `all_correlator_products` must contain all receivers.')
+        result = np.atleast_1d(np.squeeze(result)).tolist()
+        return result
+
+    def _get_cross_correlator_products(self) -> list[list[str, str]]:
+        """
+        Returns a `list` containing a `list` with the combination of two polarizations,
+        for each `receiver` in `self.receivers`.
+        """
+        return [[str(self.receivers[i]), str(self.receivers[i + 1])] if i % 2 == 0 else [str(self.receivers[i]), str(self.receivers[i - 1])] for i in range(len(self.receivers))]
+
+    def _auto_select(self, data: DataSet):
+        """ Run `data.select()` on the auto correlator products in `self`. """
         data.select(corrprods=self._correlator_products_indices(all_correlator_products=data.corr_products))
+
+    def _cross_select(self, data: DataSet):
+        """ Run `data.select()` on the cross correlator products in `self`. """
+        data.select(corrprods=self._cross_correlator_products_indices(all_correlator_products=data.corr_products))
 
     @staticmethod
     def _get_receivers(requested_receivers: list[Receiver] | None, data: DataSet) -> list[Receiver]:

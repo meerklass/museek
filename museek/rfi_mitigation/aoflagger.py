@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from museek.data_element import DataElement
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
+import warnings
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -16,6 +17,7 @@ A collection of functions for RFI flagging using the AOflagger algorithm.
 def get_rfi_mask(
         time_ordered: DataElement,
         mask: FlagElement,
+        mask_type: str,
         first_threshold: float,
         threshold_scales: list[float],
         smoothing_window_size: tuple[int, int],
@@ -27,6 +29,7 @@ def get_rfi_mask(
 
     :param time_ordered: `DataElement` with RFI to be masked
     :param mask: the initial mask
+    :param mask_type: the data to which the flagger will be applied
     :param first_threshold: initial threshold to be used for the aoflagger algorithm
     :param threshold_scales: list of sensitivities
     :param smoothing_window_size: smoothing kernel window size tuple for axes 0 and 1
@@ -34,10 +37,43 @@ def get_rfi_mask(
     :param output_path: if not `None`, statistics plots are stored at that location
     :return: the mask covering the identified RFI
     """
-    data = time_ordered.squeeze
+    if mask_type == 'vis':
+        data = time_ordered.squeeze
 
-    if output_path is not None:
-        plot_moments(data, output_path)
+    elif mask_type == 'inverse':
+        data = (1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
+
+    elif mask_type == 'inverse_timemedian':
+        data = np.tile(np.median((1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
+
+    elif mask_type == 'timemedian':
+        data = np.tile(np.median((np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
+        
+    elif mask_type == 'flag_fraction':
+        flag_fraction = np.mean(mask.squeeze, axis=0)
+        data = np.tile(flag_fraction, (np.shape(mask.squeeze)[0], 1))
+
+    elif mask_type == 'rms':
+        data_vis_time_median = np.median(time_ordered.squeeze, axis=0, keepdims=True)
+
+        #####  Update the mask to eliminate discontinuities in the RMS spectra across different frequencies.  ######
+        select_freq = np.all(mask.squeeze, axis=0)  # select the all-timepoint masked frequency points and ingnore them in the mask_fraction calculation
+        mask_fraction = np.mean(mask.squeeze[:,~select_freq], axis=1)
+        time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than the threshold
+        mask_update = mask.squeeze.copy()
+        mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
+        ############################################################################################################
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            data_norm = np.ma.masked_array(time_ordered.squeeze / data_vis_time_median, mask=mask_update)
+        data_std = np.ma.std(data_norm, axis=0)
+        data = np.tile(data_std.data, (time_ordered.shape[0], 1))
+
+    else:
+        raise ValueError("Unknown mask_type {}".format(mask_type))
+
+    #if output_path is not None:
+    #    plot_moments(data, output_path)
 
     max_pixels = 8  # Maximum neighbourhood size
     pixel_arange = np.arange(1, max_pixels)
@@ -188,14 +224,14 @@ def _run_sumthreshold(data: np.ndarray,
                                                      n_iteration=n_iteration,
                                                      threshold=threshold).T
 
-    if output_path is not None:
-        plot_step(data,
-                  sum_threshold_mask,
-                  smoothed_data,
-                  residual,
-                  title=f'Tresholds: {threshold_scale} {thresholds}',
-                  plot_name=f'sum_threshold_step_at_threshold_scale_{threshold_scale}.png',
-                  output_path=output_path)
+    #if output_path is not None:
+    #    plot_step(data,
+    #              sum_threshold_mask,
+    #              smoothed_data,
+    #              residual,
+    #              title=f'Tresholds: {threshold_scale} {thresholds}',
+    #              plot_name=f'sum_threshold_step_at_threshold_scale_{threshold_scale}.png',
+    #              output_path=output_path)
 
     return sum_threshold_mask
 

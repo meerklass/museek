@@ -33,12 +33,12 @@ class RfiPostProcess:
             to_dilate = self._flag.squeeze
         dilated = ndimage.binary_dilation(to_dilate,
                                           structure=self._struct,
-                                          iterations=5)
+                                          iterations=3)
         self._flag = self._factory.create(array=dilated[:, :, np.newaxis])
 
     def binary_mask_closing(self):
         """ Close the mask. """
-        closed = ndimage.binary_closing(self._flag.squeeze, structure=self._struct, iterations=5)
+        closed = ndimage.binary_closing(self._flag.squeeze, structure=self._struct, iterations=3)
         self._flag = self._factory.create(array=closed[:, :, np.newaxis])
 
     def flag_all_channels(self, channel_flag_threshold: float):
