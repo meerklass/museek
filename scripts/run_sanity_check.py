@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os
+import subprocess
 import click
 from pathlib import Path
 
@@ -7,7 +7,6 @@ from pathlib import Path
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 100}
 
 
-BASE_DIR = Path("__file__").parent
 
 
 @click.command(
@@ -122,7 +121,7 @@ def run_sanity_check(
         token = archive_url.split("?token=")[1]
     else:
         if block_number is None:
-            raise ValueError("`--block-number must be given.")
+            raise ValueError("--block-number must be given.")
         if token is None and data_folder is None:
             raise ValueError("either `--token` or `--data-folder` must be given.")
 
@@ -132,7 +131,7 @@ def run_sanity_check(
             "museek",
             f"--InPlugin-block-name={block_number}",
             f"--InPlugin-token={token}" if token is not None else "",
-            f"--Inplugin-data-folder={data_folder}" if data_folder is not None else "",
+            f"--InPlugin-data-folder={data_folder}" if data_folder is not None else "",
             f"--InPlugin-context-folder={context_folder}",
             "museek.config.sanity_check",
         ]
@@ -203,7 +202,7 @@ echo "Executing command: {museek_cmd}"
         print("-------END OF SBATCH-------")
         fl.write(program)
 
-    os.system("sbatch _run_sanity_check.sbatch")
+    subprocess.run(["sbatch", "_run_sanity_check.sbatch"], check=True)
 
 
 if __name__ == "__main__":
