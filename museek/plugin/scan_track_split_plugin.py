@@ -30,9 +30,10 @@ class ScanTrackSplitPlugin(AbstractPlugin):
     def set_requirements(self):
         """ Only requirement is the data. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
+                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
 
-    def run(self, data: TimeOrderedData, block_name: str):
+    def run(self, data: TimeOrderedData, block_name: str, output_path: str):
         """
         Split `data` into scanning and tracking part and save.
         If `self.do_delete_unsplit_data` is `True`, `data` is deleted.
@@ -62,10 +63,8 @@ class ScanTrackSplitPlugin(AbstractPlugin):
 
         if self.do_store_context:
             context_file_name = 'scan_track_split_plugin.pickle'
-            context_folder = os.path.join(ROOT_DIR, 'results/')
-            context_directory = os.path.join(context_folder, f'{block_name}/')
             self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=context_directory)
+                                       context_directory=output_path)
 
     @staticmethod
     def _observation_start_end(data: TimeOrderedData) -> tuple[float, float]:
