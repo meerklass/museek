@@ -1,6 +1,7 @@
 import itertools
 import re
 from datetime import datetime
+from typing import List
 
 import numpy as np
 import matplotlib.pylab as plt
@@ -151,7 +152,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             description=description, plot_name=plot_name
         )
 
-    def remove_consecutive_duplicates(self, lst: str):
+    def remove_consecutive_duplicates(self, lst: List[str]):
         """remove consecutive duplicate entries from the list while preserving the original order."""
         if not lst:
             return []
