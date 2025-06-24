@@ -59,3 +59,4 @@ results/*
 
 # SLURM logs
 *.log
+_*.sbatch
