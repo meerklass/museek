@@ -57,6 +57,7 @@ class InPlugin(AbstractPlugin):
         Loads the complete data and the scanning part as `TimeOrderedData` and sets it as a result.
         Depending on the config, will store the context to hard disc with visibility loaded.
         """
+        print(f'Working on block {self.block_name}...')
         receivers = None
         if self.receiver_list is not None:
             receivers = [Receiver.from_string(receiver_string=receiver) for receiver in self.receiver_list]
