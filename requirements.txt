@@ -1,4 +1,4 @@
-numpy==1.23.3
+numpy>=1.23.3
 scipy
 Cython
 h5py
@@ -11,3 +11,4 @@ astropy
 scikit-learn
 katdal
 sphinx
+matplotlib
