@@ -11,6 +11,7 @@ from katpoint import Target, Antenna
 
 from definitions import ROOT_DIR
 from museek.data_element import DataElement
+from museek.enums.flag_enum import FlagEnum
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory, FlagElementFactory
 from museek.flag_list import FlagList
@@ -138,7 +139,9 @@ class TimeOrderedData:
         self.visibility = self._element_factory.create(array=visibility_array)
         if self.flags is not None:
             print('Overwriting existing flags.')
-        self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
+        self.flags = FlagList.from_array(array=flag_array,
+                                         element_factory=self._flag_element_factory,
+                                         flag_names=[FlagEnum.BUILT_IN])
         if self.weights is not None:
             print('Overwriting existing weights.')
         self.weights = self._element_factory.create(array=weight_array)
@@ -244,7 +247,9 @@ class TimeOrderedData:
         # visibility, flags and weights
         if self.visibility is not None:
             self.visibility = self._element_factory.create(array=self.visibility.array)
-            self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
+            self.flags = FlagList.from_array(array=self.flags.array,
+                                             element_factory=self._flag_element_factory,
+                                             flag_names=self.flags._flag_names)  # TODO(amadeus): don't access private
             self.weights = self._element_factory.create(array=self.weights.array)
 
     def _get_data(self) -> DataSet:

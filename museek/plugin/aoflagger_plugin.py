@@ -8,6 +8,7 @@ from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibP
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.data_element import DataElement
+from museek.enums.flag_enum import FlagEnum
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.flag_factory import FlagFactory
@@ -113,7 +114,7 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        scan_data.flags.add_flag(flag=new_flag)
+        scan_data.flags.add_flag(flag=new_flag, flag_names=[FlagEnum.AOFLAGGER])
 
         waterfall(scan_data.visibility.get(recv=0),
                   scan_data.flags.get(recv=0),
