@@ -65,49 +65,80 @@ class TestNoiseDiode(unittest.TestCase):
         self.assertEqual(20.0, period)
         self.assertEqual(1556120503.0, set_at)
 
-    @patch.object(NoiseDiode, '_get_noise_diode_ratios')
-    def test_get_where_noise_diode_is_off(self, mock_get_noise_diode_ratios):
-        mock_get_noise_diode_ratios.return_value = np.array([0, 0.1, 0.5])
-        np.testing.assert_array_equal(np.array([0]), self.noise_diode._get_where_noise_diode_is_off(Mock(), Mock()))
+    @patch.object(np, 'where')
+    @patch.object(NoiseDiode, '_set_noise_diode_ratios')
+    def test_get_where_noise_diode_is_off(self, mock_get_noise_diode_ratios, mock_np_where):
+        mock_np_where.return_value = ['return']
+        noise_diode_off = self.noise_diode._get_where_noise_diode_is_off(Mock(), Mock())
+        mock_get_noise_diode_ratios.assert_called_once()
+        mock_np_where.assert_called_once_with(self.noise_diode.noise_diode_ratios == 0)
+        self.assertEqual('return', noise_diode_off)
 
-    def test_get_noise_diode_ratios_when_duration_short(self):
+    def test_set_noise_diode_ratios_when_duration_short(self):
         mock_timestamps = DataElement(
             array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])[:, np.newaxis, np.newaxis]
         )
         mock_noise_diode_cycle_starts = np.array([1, 4, 7, 10])
         mock_dump_period = 1
         self.noise_diode.duration = 0.1
-        ratios = self.noise_diode._get_noise_diode_ratios(timestamps=mock_timestamps,
-                                                          noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
-                                                          dump_period=mock_dump_period)
+        self.noise_diode._set_noise_diode_ratios(timestamps=mock_timestamps,
+                                                 noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
+                                                 dump_period=mock_dump_period)
         expect = np.array([0, 0.1, 0, 0, 0.1, 0, 0, 0.1, 0, 0, 0.1, 0, 0])
-        np.testing.assert_array_equal(expect, ratios)
+        np.testing.assert_array_equal(expect, self.noise_diode.noise_diode_ratios)
 
-    def test_get_noise_diode_ratios_when_duration_short_and_span_two_timestamps(self):
+    def test_set_noise_diode_ratios_when_duration_short_and_span_two_timestamps(self):
         mock_timestamps = DataElement(
             array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])[:, np.newaxis, np.newaxis]
         )
         mock_noise_diode_cycle_starts = np.array([1.46, 4.46, 7.46, 10.46])
         mock_dump_period = 1
         self.noise_diode.duration = 0.1
-        ratios = self.noise_diode._get_noise_diode_ratios(timestamps=mock_timestamps,
-                                                          noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
-                                                          dump_period=mock_dump_period)
+        self.noise_diode._set_noise_diode_ratios(timestamps=mock_timestamps,
+                                                 noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
+                                                 dump_period=mock_dump_period)
         expect = np.array([0, 0.04, 0.06, 0, 0.04, 0.06, 0, 0.04, 0.06, 0, 0.04, 0.06, 0])
-        np.testing.assert_array_almost_equal(expect, ratios)
+        np.testing.assert_array_almost_equal(expect, self.noise_diode.noise_diode_ratios)
 
-    def test_get_noise_diode_ratios_when_duration_long_and_span_two_timestamps(self):
+    def test_set_noise_diode_ratios_when_duration_long_and_span_two_timestamps(self):
         mock_timestamps = DataElement(
             array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])[:, np.newaxis, np.newaxis]
         )
         mock_noise_diode_cycle_starts = np.array([3, 6, 9])
         mock_dump_period = 1
         self.noise_diode.duration = 1.1
-        ratios = self.noise_diode._get_noise_diode_ratios(timestamps=mock_timestamps,
-                                                          noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
-                                                          dump_period=mock_dump_period)
+        self.noise_diode._set_noise_diode_ratios(timestamps=mock_timestamps,
+                                                 noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
+                                                 dump_period=mock_dump_period)
         expect = np.array([0, 0, 0, 0.5, 0.6, 0, 0.5, 0.6, 0, 0.5, 0.6, 0, 0])
-        np.testing.assert_array_almost_equal(expect, ratios)
+        np.testing.assert_array_almost_equal(expect, self.noise_diode.noise_diode_ratios)
+
+    def test_set_noise_diode_ratios_when_ratios_exist_expect_pass(self):
+        self.noise_diode.noise_diode_ratios = 1
+        mock_timestamps = DataElement(
+            array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])[:, np.newaxis, np.newaxis]
+        )
+        mock_noise_diode_cycle_starts = np.array([3, 6, 9])
+        mock_dump_period = 1
+        self.noise_diode._set_noise_diode_ratios(timestamps=mock_timestamps,
+                                                 noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
+                                                 dump_period=mock_dump_period)
+        self.assertEqual(1, self.noise_diode.noise_diode_ratios)
+
+    def test_set_noise_diode_ratios_when_ratios_exist_expect_overwrite(self):
+        self.noise_diode.noise_diode_ratios = 1
+        mock_timestamps = DataElement(
+            array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])[:, np.newaxis, np.newaxis]
+        )
+        mock_noise_diode_cycle_starts = np.array([3, 6, 9])
+        mock_dump_period = 1
+        self.noise_diode.duration = 1.1
+        self.noise_diode._set_noise_diode_ratios(timestamps=mock_timestamps,
+                                                 noise_diode_cycle_starts=mock_noise_diode_cycle_starts,
+                                                 dump_period=mock_dump_period,
+                                                 force=True)
+        expect = np.array([0, 0, 0, 0.5, 0.6, 0, 0.5, 0.6, 0, 0.5, 0.6, 0, 0])
+        np.testing.assert_array_almost_equal(expect, self.noise_diode.noise_diode_ratios)
 
     def test_get_noise_diode_cycle_start_times(self):
         self.noise_diode.first_set_at = 0
@@ -125,3 +156,7 @@ class TestNoiseDiode(unittest.TestCase):
         self.noise_diode.first_set_at = 10
         self.noise_diode.period = 3
         self.assertRaises(ValueError, self.noise_diode._get_noise_diode_cycle_start_times, timestamps=np.array([5]))
+
+
+if __name__ == '__main__':
+    unittest.main()

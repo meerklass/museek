@@ -14,6 +14,7 @@ class NoiseDiode:
         self.duration = duration
         self.period = period
         self.first_set_at = first_set_at
+        self.noise_diode_ratios: np.ndarray | None = None
 
     def get_noise_diode_off_scan_dumps(self, timestamps: DataElement) -> np.ndarray:
         """ Returns a `list` of integer indices of `timestamps` where the noise diode is off. """
@@ -104,42 +105,45 @@ class NoiseDiode:
         :param noise_diode_cycle_starts: `array` of noise diode cycle starting timestamps
         :return: `array` on integer timestamp indices where the noise diode is off
         """
-        noise_diode_ratios = self._get_noise_diode_ratios(timestamps=timestamps,
-                                                          noise_diode_cycle_starts=noise_diode_cycle_starts,
-                                                          dump_period=self._dump_period)
-        return np.where(noise_diode_ratios == 0)[0]
+        self._set_noise_diode_ratios(timestamps=timestamps,
+                                     noise_diode_cycle_starts=noise_diode_cycle_starts,
+                                     dump_period=self._dump_period)
+        return np.where(self.noise_diode_ratios == 0)[0]
 
-    def _get_noise_diode_ratios(self,
+    def _set_noise_diode_ratios(self,
                                 timestamps: DataElement,
                                 noise_diode_cycle_starts: np.ndarray,
-                                dump_period: float) \
+                                dump_period: float,
+                                force: bool = False) \
             -> np.ndarray:
         """
-        Returns a float between 0 and 1 indicating the relative duration of noise diode firing within the timestamp.
+        Sets `self.noise_diode_ratios`, an `array` of floats between 0 and 1 indicating the relative duration 
+        of noise diode firing within the timestamp. If it already exists nothing is done, unless `force` is `True`.
         :param timestamps: the output indices are relative to these timestamps
         :param noise_diode_cycle_starts: `array` of noise diode cycle starting timestamps
         :param dump_period: timestamp duration
-        :return: an array of floats of the same length as `timestamps`
+        :param force: if `True` the calculation is repeated
         """
-        timestamp_array = timestamps.squeeze
-        noise_diode_ratios = np.zeros_like(timestamp_array, dtype=float)
+        if force or self.noise_diode_ratios is None:
+            timestamp_array = timestamps.squeeze
+            noise_diode_ratios = np.zeros_like(timestamp_array, dtype=float)
 
-        for noise_diode_cycle_start_time in noise_diode_cycle_starts:
-            gap_list = abs(noise_diode_cycle_start_time - timestamp_array)
-            dump_closest_timestamp = np.argmin(gap_list)
-            gap_closest_timestamp = gap_list[dump_closest_timestamp]
+            for noise_diode_cycle_start_time in noise_diode_cycle_starts:
+                gap_list = abs(noise_diode_cycle_start_time - timestamp_array)
+                dump_closest_timestamp = np.argmin(gap_list)
+                gap_closest_timestamp = gap_list[dump_closest_timestamp]
 
-            if gap_closest_timestamp <= dump_period / 2.:
-                timestamp_edge = timestamp_array[dump_closest_timestamp] + dump_period / 2
-                cycle_start_to_timestamp_edge = timestamp_edge - noise_diode_cycle_start_time
-                if cycle_start_to_timestamp_edge >= self.duration:  # diode in one dump
-                    noise_diode_ratios[dump_closest_timestamp] = self.duration / dump_period
-                elif cycle_start_to_timestamp_edge < self.duration:  # diode in two dumps
-                    noise_diode_ratios[dump_closest_timestamp] = cycle_start_to_timestamp_edge / dump_period
-                    if dump_closest_timestamp + 1 < len(timestamp_array):
-                        noise_diode_ratios[dump_closest_timestamp + 1] = self.duration / dump_period \
-                                                                         - noise_diode_ratios[dump_closest_timestamp]
-        return noise_diode_ratios
+                if gap_closest_timestamp <= dump_period / 2.:
+                    timestamp_edge = timestamp_array[dump_closest_timestamp] + dump_period / 2
+                    cycle_start_to_timestamp_edge = timestamp_edge - noise_diode_cycle_start_time
+                    if cycle_start_to_timestamp_edge >= self.duration:  # diode in one dump
+                        noise_diode_ratios[dump_closest_timestamp] = self.duration / dump_period
+                    elif cycle_start_to_timestamp_edge < self.duration:  # diode in two dumps
+                        noise_diode_ratios[dump_closest_timestamp] = cycle_start_to_timestamp_edge / dump_period
+                        if dump_closest_timestamp + 1 < len(timestamp_array):
+                            noise_diode_ratios[dump_closest_timestamp + 1] = self.duration / dump_period \
+                                - noise_diode_ratios[dump_closest_timestamp]
+            self.noise_diode_ratios = noise_diode_ratios
 
     def _get_noise_diode_cycle_start_times(self, timestamps: DataElement) -> np.ndarray:
         """
