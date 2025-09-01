@@ -1,6 +1,6 @@
 import os
 
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
