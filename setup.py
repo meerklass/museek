@@ -13,7 +13,7 @@ setup(
         ]
     },
     install_requires=[
-        'numpy==1.23.3',
+        'numpy>=2.0',
         'scipy',
         'Cython',
         'h5py',
@@ -25,7 +25,8 @@ setup(
         'astropy',
         'scikit-learn',
         'katdal',
-        'sphinx'
+        'sphinx',
+        'matplotlib'
     ],
     classifiers=[
         'GPLv3',

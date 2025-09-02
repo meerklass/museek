@@ -28,3 +28,5 @@ class ResultEnum(Enum):
     FLAG_NAME_LIST = auto()
     CALIBRATED_VIS_FLAG = auto()
     CALIBRATED_VIS_FLAG_NAME_LIST = auto()
+    CALIBRATOR_VALIDATED_PERIODS = auto()
+    CALIBRATOR_DUMP_INDICES = auto()
