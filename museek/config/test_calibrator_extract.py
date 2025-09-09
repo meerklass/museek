@@ -32,19 +32,6 @@ InPlugin = ConfigSection(
 )
 
 
-NoiseDiodePlugin = ConfigSection(
-    n_jobs=10,
-    verbose=0,
-    flag_combination_threshold=1,
-    zscoreflag_threshold = 5., # threshold (times of MAD) for flagging noise diode excess using modified zscore method
-    polyflag_deg = 5, # degree of the polynomials used for fitting and flagging noise diode excess
-    polyflag_threshold = 3., # threshold (times of MAD) for flagging noise diode excess using polynomials fit
-    polyfit_deg = 5, # degree of the polynomials used for fitting flagged noise diode excess
-    zscore_antenaflag_threshold = 10, # threshold (times of MAD) for flagging the rms of noise diode excess of receivers using modified zscore method
-    noise_diode_excess_lowlim = 5., # threshold for flagging the mean value of noise diode excess of receivers
-)
-
-
 RawdataFlaggerPlugin = ConfigSection(
         flag_lower_threshold=5.0,
         do_store_context=False
