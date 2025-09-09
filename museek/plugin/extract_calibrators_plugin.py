@@ -17,8 +17,8 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
                  n_calibrator_observations: int,
                  calibrator_names: list[str],
                  n_pointings: int,
-                 max_gap_seconds: float = 30.0,
-                 min_duration_seconds: float = 10.0,
+                 max_gap_seconds: float = 40.0,
+                 min_duration_seconds: float = 20.0,
                  ):
         """
         Initialize with calibrator finding parameters.
@@ -105,9 +105,15 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         
         # Process each period: report findings and validate
         for period, result in calibrator_results.items():
+            # Get correct calibrator name for this period
+            if period == 'before_scan':
+                calibrator_name = self.calibrator_names[0]
+            else:  # after_scan
+                calibrator_name = self.calibrator_names[-1]
+            
             if result is not None:
                 dump_indices, scan_count, total_duration = result
-                print(f'{period}: Found {scan_count} consecutive "{self.calibrator_names[0]}" tracks, '
+                print(f'{period}: Found {scan_count} consecutive "{calibrator_name}" tracks, '
                       f'total duration: {total_duration:.1f}s')
                 
                 # Validate scan count for this period
@@ -116,7 +122,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
                 else:
                     print(f'{period}: INVALID - Found {scan_count} tracks, need exactly {self.n_pointings}')
             else:
-                print(f'{period}: No valid "{self.calibrator_names[0]}" tracks found')
+                print(f'{period}: No valid "{calibrator_name}" tracks found')
         
         # Validate overall results based on n_calibrator_observations
         validation_success = False
@@ -137,8 +143,14 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
                 print(f'ERROR: Found {len(validated_periods)} valid periods, expected exactly 2')
             else:
                 for period in validated_periods:
+                    # Get correct calibrator name for this period
+                    if period == 'before_scan':
+                        calibrator_name = self.calibrator_names[0]
+                    else:  # after_scan
+                        calibrator_name = self.calibrator_names[-1]
+                    
                     dump_indices, scan_count, total_duration = calibrator_results[period]
-                    print(f'SUCCESS: {period} calibrator validated with {len(dump_indices)} dumps')
+                    print(f'SUCCESS: {period} calibrator "{calibrator_name}" validated with {len(dump_indices)} dumps')
                 validation_success = True
         
         return validation_success, validated_periods
@@ -178,12 +190,20 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         
         plt.xlabel('Right Ascension (degrees)')
         plt.ylabel('Declination (degrees)')
-        plt.title(f'Calibrator Track Positions - {self.calibrator_names[0]}')
+        if len(set(self.calibrator_names)) == 1:
+            # Same calibrator for all periods
+            plt.title(f'Calibrator Track Positions - {self.calibrator_names[0]}')
+            plot_filename = f'calibrator_positions_{self.calibrator_names[0].lower()}.png'
+        else:
+            # Different calibrators
+            calibrator_list = '_'.join([name.lower() for name in self.calibrator_names])
+            plt.title(f'Calibrator Track Positions - {" & ".join(self.calibrator_names)}')
+            plot_filename = f'calibrator_positions_{calibrator_list}.png'
+        
         plt.legend()
         plt.grid(True, alpha=0.3)
         
         # Save plot
-        plot_filename = f'calibrator_positions_{self.calibrator_names[0].lower()}.png'
         plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
         print(f'Calibrator position plot saved to: {plot_filename}')
         plt.close()
@@ -226,12 +246,20 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         
         plt.xlabel('Time (minutes from start)')
         plt.ylabel('Elevation (degrees)')
-        plt.title(f'Calibrator Elevation vs Time - {self.calibrator_names[0]}')
+        if len(set(self.calibrator_names)) == 1:
+            # Same calibrator for all periods
+            plt.title(f'Calibrator Elevation vs Time - {self.calibrator_names[0]}')
+            plot_filename = f'calibrator_elevation_{self.calibrator_names[0].lower()}.png'
+        else:
+            # Different calibrators
+            calibrator_list = '_'.join([name.lower() for name in self.calibrator_names])
+            plt.title(f'Calibrator Elevation vs Time - {" & ".join(self.calibrator_names)}')
+            plot_filename = f'calibrator_elevation_{calibrator_list}.png'
+        
         plt.legend()
         plt.grid(True, alpha=0.3)
         
         # Save plot
-        plot_filename = f'calibrator_elevation_{self.calibrator_names[0].lower()}.png'
         plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
         print(f'Calibrator elevation plot saved to: {plot_filename}')
         plt.close()

@@ -6,6 +6,9 @@ from ivory.utils.config_section import ConfigSection
 Pipeline = ConfigSection(
     plugins=[
         'museek.plugin.in_plugin',
+        'museek.plugin.noise_diode_flagger_plugin',
+        'museek.plugin.known_rfi_plugin',
+        'museek.plugin.rawdata_flagger_plugin',
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.extract_calibrators_plugin',
     ],
@@ -14,7 +17,8 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1675632179',  # observation time stamp
+#    block_name='1675632179',  # observation time stamp
+    block_name='1675021905',  # observation time stamp
     receiver_list=['m000h','m000v'],
     #receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
@@ -27,6 +31,36 @@ InPlugin = ConfigSection(
     context_folder='/idia/users/msantos/museek',  # directory to store results, if `None`, 'results/' is chosen
 )
 
+
+NoiseDiodePlugin = ConfigSection(
+    n_jobs=10,
+    verbose=0,
+    flag_combination_threshold=1,
+    zscoreflag_threshold = 5., # threshold (times of MAD) for flagging noise diode excess using modified zscore method
+    polyflag_deg = 5, # degree of the polynomials used for fitting and flagging noise diode excess
+    polyflag_threshold = 3., # threshold (times of MAD) for flagging noise diode excess using polynomials fit
+    polyfit_deg = 5, # degree of the polynomials used for fitting flagged noise diode excess
+    zscore_antenaflag_threshold = 10, # threshold (times of MAD) for flagging the rms of noise diode excess of receivers using modified zscore method
+    noise_diode_excess_lowlim = 5., # threshold for flagging the mean value of noise diode excess of receivers
+)
+
+
+RawdataFlaggerPlugin = ConfigSection(
+        flag_lower_threshold=5.0,
+        do_store_context=False
+)
+
+
+KnownRfiPlugin = ConfigSection(
+    gsm_900_uplink=None,
+    gsm_900_downlink=(925, 960),
+    gsm_1800_uplink=None,
+    #gps=(1170, 1390),
+    #extra_rfi=[(1524, 1630)],
+    gps=None,
+    extra_rfi=None
+)
+
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=True,
     do_store_context=True
@@ -35,8 +69,8 @@ ScanTrackSplitPlugin = ConfigSection(
 ExtractCalibratorsPlugin = ConfigSection(
     # Essential parameters for target validation testing
     n_calibrator_observations=2,  # number of single dish calibrators present in the data. Only one before and one after is allowed.
-    calibrator_names=['PictorA','PictorA'],  # Corresponding calibrator names
+    calibrator_names=['HydraA','PictorA'],  # Corresponding calibrator names. Same order as data: [before,after]
     n_pointings=7,  # Valid consecutive tracks required for each calibrator
-    max_gap_seconds=30.0,  # Maximum allowed time gap between calibrator track scans in seconds
-    min_duration_seconds=10.0,  # Minimum scan duration in seconds to be considered valid
+    max_gap_seconds=40.0,  # Maximum allowed time gap between calibrator track scans in seconds
+    min_duration_seconds=20.0,  # Minimum scan duration in seconds to be considered valid
 )
