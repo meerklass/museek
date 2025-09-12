@@ -110,6 +110,9 @@ class AntennaFlaggerPlugin(AbstractPlugin):
 
             feature = np.asarray([antenna_elevation,
                                   antenna_azimuth]).T
+            # Ensure feature is always 2D for clustering
+            if feature.ndim == 1:
+                feature = feature.reshape(1, -1)
             outlier_indices = Clustering().iterative_outlier_indices(feature_vector=feature,
                                                                  distance_threshold=self.outlier_threshold)
 

@@ -105,8 +105,15 @@ class Clustering:
         Return the indices of outlier samples in `feature_vector` `(n_samples, n_features)`
         imposing that non-outliers should be contained within an separation of `distance_threshold`.
         """
+        # Handle cases with insufficient data for clustering
+        if feature_vector.shape[0] <= 1:
+            return []  # No outliers possible with ≤1 antenna
+        
         metric = self._max_difference_to_mean_metric
-        if any(metric(features=feature_vector) > distance_threshold):
+        metric_result = metric(features=feature_vector)
+        # Ensure metric_result is always an array for any() function
+        metric_result = np.atleast_1d(metric_result)
+        if any(metric_result > distance_threshold):
             outlier_cluster = self._iterative_outlier_cluster(feature_vector=feature_vector,
                                                               n_clusters=2,
                                                               metric=metric,

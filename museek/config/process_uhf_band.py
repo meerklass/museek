@@ -154,6 +154,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     do_store_context=True
 )
 
+
 KnownRfiPlugin = ConfigSection(
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
@@ -161,7 +162,11 @@ KnownRfiPlugin = ConfigSection(
     #gps=(1170, 1390),
     #extra_rfi=[(1524, 1630)],
     gps=None,
-    extra_rfi=None
+    extra_rfi=[
+    (765, 775),  # Vodacom
+    (801, 811),  # MTN
+    (811, 821)   # Telkom
+    ]
 )
 
 RawdataFlaggerPlugin = ConfigSection(

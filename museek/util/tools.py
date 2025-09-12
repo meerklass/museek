@@ -711,4 +711,32 @@ def interpolate_1d_masked_array(masked_array, kind='linear'):
     return result.data
 
 
+def consecutive_subsets(lst):
+    """
+    Split a sorted list of integer numbers into subsets of consecutive values.
 
+    Parameters
+    ----------
+    numbers : List[Number]
+        A sorted list of integers 
+    step : float, optional
+        The expected difference between consecutive elements.
+        Default is 1.0.
+
+    Returns
+    -------
+    List[List[Number]]
+        A list of consecutive subsets, where each subset is a list of numbers.
+    """
+    subsets = []
+    current = [lst[0]]
+
+    for i in range(1, len(lst)):
+        if lst[i] == lst[i-1] + 1:   # consecutive
+            current.append(lst[i])
+        else:  # gap -> start new subset
+            subsets.append(current)
+            current = [lst[i]]
+
+    subsets.append(current)  # add the last group
+    return subsets
