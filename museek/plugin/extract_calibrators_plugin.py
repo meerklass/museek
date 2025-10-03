@@ -166,22 +166,18 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         dec_data = track_data.declination.get(recv=antenna_index)
         
         plt.figure(figsize=(10, 8))
-        
-        # Create mapping from absolute dump indices to track data indices
-        track_dumps = track_data._dumps()  # Array of absolute dump indices in track data
-        dump_index_map = {abs_idx: track_idx for track_idx, abs_idx in enumerate(track_dumps)}
-        
+
         # Plot for each validated period
         colors = ['blue', 'red']  # Different colors for before_scan vs after_scan
         for i, period in enumerate(validated_periods):
             dump_indices, scan_count, total_duration = calibrator_results[period]
-            
-            # Convert absolute dump indices to track data indices
-            track_indices = [dump_index_map[abs_idx] for abs_idx in dump_indices if abs_idx in dump_index_map]
-            
-            # Extract RA, Dec for these track data indices
-            ra_values = ra_data.get(time=track_indices).squeeze
-            dec_values = dec_data.get(time=track_indices).squeeze
+
+            # Get boolean mask for absolute dump indices
+            select = track_data.dump_mask(dump_indices)
+
+            # Extract RA, Dec using boolean indexing
+            ra_values = ra_data.squeeze[select]
+            dec_values = dec_data.squeeze[select]
             
             # Create scatter plot (data is already in degrees)
             plt.scatter(ra_values, dec_values, 
@@ -217,24 +213,20 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         # Get elevation and timestamp data for first receiver
         elevation_data = track_data.elevation.get(recv=antenna_index)
         timestamp_data = track_data.original_timestamps.get(recv=antenna_index)
-        
-        # Create mapping from absolute dump indices to track data indices
-        track_dumps = track_data._dumps()
-        dump_index_map = {abs_idx: track_idx for track_idx, abs_idx in enumerate(track_dumps)}
-        
+
         plt.figure(figsize=(12, 6))
-        
+
         # Plot for each validated period
         colors = ['blue', 'red']
         for i, period in enumerate(validated_periods):
             dump_indices, scan_count, total_duration = calibrator_results[period]
-            
-            # Convert absolute dump indices to track data indices
-            track_indices = [dump_index_map[abs_idx] for abs_idx in dump_indices if abs_idx in dump_index_map]
-            
-            # Extract elevation and timestamps for these track data indices
-            elevation_values = elevation_data.get(time=track_indices).squeeze
-            timestamp_values = timestamp_data.get(time=track_indices).squeeze
+
+            # Get boolean mask for absolute dump indices
+            select = track_data.dump_mask(dump_indices)
+
+            # Extract elevation and timestamps using boolean indexing
+            elevation_values = elevation_data.squeeze[select]
+            timestamp_values = timestamp_data.squeeze[select]
             
             # Convert timestamps to relative time in minutes from first timestamp
             time_minutes = (timestamp_values - timestamp_values[0]) / 60.0

@@ -209,6 +209,16 @@ class TimeOrderedData:
             return
         return self.visibility / self.gain_solution
 
+    def dump_mask(self, absolute_dump_indices: list[int]) -> np.ndarray:
+        """
+        Get boolean mask for absolute dump indices within this TimeOrderedData.
+
+        :param absolute_dump_indices: List of absolute dump indices from original dataset
+        :return: Boolean array where True indicates the dump is present in this data
+        """
+        dumps = self._dumps()
+        return np.isin(dumps, absolute_dump_indices)
+
     def _set_data_elements_from_katdal(self, scan_state: ScanStateEnum | None, data: DataSet | None = None):
         """
         Initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.

@@ -21,7 +21,10 @@ import datetime
 import numpy as np
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
-    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
+    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. 
+        Note: time gap boundaries (slew times) between scan lines are ignored.
+    """
+    
 
     def __init__(self,
                  mask_type: str,
