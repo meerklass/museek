@@ -163,7 +163,7 @@ source /path/to/virtualenv/museek/bin/activate
 echo "Using a Python virtual environment: $(which)"
 
 echo "Creating output directory"
-mkdir -P demo_results
+mkdir -p demo_results
 
 echo "Submitting Slurm job"
 museek --DemoLoadPlugin-context-folder=demo_results museek.config.demo
