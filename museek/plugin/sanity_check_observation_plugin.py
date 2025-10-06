@@ -1,20 +1,18 @@
 import itertools
+import re
+from datetime import datetime
+from typing import List
 
+import numpy as np
 import matplotlib.pylab as plt
-from ivory.enum.context_storage_enum import ContextStorageEnum
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
-from ivory.utils.result import Result
 
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
+from museek.antenna_sanity.from_log import FromLog
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.antenna_sanity.from_log import FromLog
-
-from definitions import SECONDS_IN_ONE_DAY
-from datetime import datetime, timedelta
-import numpy as np
 from museek.util.time_analysis import TimeAnalysis
 import re
 
@@ -155,7 +153,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             description=description, plot_name=plot_name
         )
 
-    def remove_consecutive_duplicates(self, lst: str):
+    def remove_consecutive_duplicates(self, lst: List[str]):
         """remove consecutive duplicate entries from the list while preserving the original order."""
         if not lst:
             return []
@@ -455,29 +453,17 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             )
         )
 
-        dishnum_used = len(data.all_antennas) - len(self.straggler_list)
+        num_dish = len(data.all_antennas)
+        num_strangger = len(self.straggler_list)
         elevation_mean = np.median(data.elevation.array[:, :, no_straggler_indexes])
 
-        bad_elevation_num = len(bad_elevation)
+        num_bad_el = len(bad_elevation)
 
-        ################  implement the mask from SARAO  for ra,dec,and azimuth statistics  #################
-        data.load_visibility_flags_weights(polars="auto")
-        initial_flags = data.flags.combine(threshold=1)
-        radec_flag = np.median(initial_flags.array, axis=1)
-        mask_ant = np.ma.zeros(
-            (len(data.timestamps.array.squeeze()), len(data.antennas)), dtype="bool"
-        )
-        for i_ant, ant in enumerate(data.antennas):
-            i_receiver_list = [
-                i
-                for i, receiver in enumerate(data.receivers)
-                if receiver.antenna_name == ant.name
-            ]
-            # Sum flags across receivers (broadcasted sum of booleans is like OR)
-            mask_ant[:, i_ant] = np.any(radec_flag[:, i_receiver_list], axis=1)
-        ra = np.ma.masked_array(data.right_ascension.array, mask=mask_ant)
-        dec = np.ma.masked_array(data.declination.array, mask=mask_ant)
-        azimuth = np.ma.masked_array(data.azimuth.array, mask=mask_ant)
+        # TODO: How to exclude bad antennas without loading the flags, so it does not
+        # load the full data?
+        ra = data.right_ascension.array
+        dec = data.declination.array
+        azimuth = data.azimuth.array
 
         azimuth_min = np.ma.min(
             np.ma.median(azimuth[:, :, no_straggler_indexes], axis=-1)
@@ -504,15 +490,15 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         header = (
             "block number | Description | observation start date/time (UTC) | "
             "observation duration (minutes) | scan start date/time | scan duration (minutes) | "
-            "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | "
-            "num of dishes used (after stragglers are removed) | num of dishes with bad elevation (including stragglers) | elevation mean | "
+            "obs. start - nearest sunset (minutes) | nearest sunrise - obs. end (minutes) | dishes used | "
+            "stragglers | dishes with bad elevation | elevation mean | "
             "azimuth min | azimuth max | declination min | declination max | ra min | ra max | ra mean | dec mean | targets observed"
         )
 
         formatted_output = (
             f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
             f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
-            f"{(sunrise_end_diff/60.):.4f} | {dishnum_used} | {bad_elevation_num} | {elevation_mean:.4f} | "
+            f"{(sunrise_end_diff/60.):.4f} | {num_dish} | {num_strangger} | {num_bad_el} | {elevation_mean:.4f} | "
             f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
             f"{ra_max:.4f} | {ra_mean:.4f} | {dec_mean:.4f} | {cleaned_targets}"
         )

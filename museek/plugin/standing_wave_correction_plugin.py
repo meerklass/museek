@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 from matplotlib import pyplot as plt
 
-from definitions import MEGA
+from museek.definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from museek.data_element import DataElement

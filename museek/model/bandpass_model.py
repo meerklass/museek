@@ -6,7 +6,7 @@ import scipy
 from matplotlib import pyplot as plt
 from numpy.polynomial import legendre
 
-from definitions import MEGA, SPEED_OF_LIGHT
+from museek.definitions import MEGA, SPEED_OF_LIGHT
 from museek.data_element import DataElement
 
 

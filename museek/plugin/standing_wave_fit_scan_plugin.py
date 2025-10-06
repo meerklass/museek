@@ -5,7 +5,7 @@ from typing import Callable
 import numpy as np
 from matplotlib import pyplot as plt
 
-from definitions import MEGA
+from museek.definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result

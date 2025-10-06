@@ -1,5 +1,7 @@
 import os
-from definitions import ROOT_DIR
+from datetime import datetime
+
+from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum
@@ -7,7 +9,6 @@ from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.tools import flag_percent_recv, git_version_info
-import datetime
 
 
 class InPlugin(AbstractPlugin):
@@ -83,7 +84,7 @@ class InPlugin(AbstractPlugin):
         )
 
         # observation date from file name
-        observation_date = datetime.datetime.fromtimestamp(int(data.name.split("_")[0]))
+        observation_date = datetime.fromtimestamp(int(data.name.split("_")[0]))
         context_directory = os.path.join(self.context_folder, f"{self.block_name}/")
         os.makedirs(context_directory, exist_ok=True)
 
@@ -97,7 +98,7 @@ class InPlugin(AbstractPlugin):
         flag_name_list = ["SARAO"]
 
         branch, commit = git_version_info()
-        current_datetime = datetime.datetime.now()
+        current_datetime = datetime.now()
         lines = [
             "...........................",
             "Running InPlugin with " + f"MuSEEK version: {branch} ({commit})",
