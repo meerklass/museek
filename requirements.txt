@@ -10,10 +10,9 @@ healpy
 astropy
 scikit-learn
 katdal
-sphinx
 matplotlib
 jupyterlab
 ipykernel
 pysm3
 sphinx
-matplotlib
+git+https://github.com/meerklass/ivory.git
