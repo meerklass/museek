@@ -16,10 +16,14 @@ class NoiseDiode:
         self.first_set_at = first_set_at
 
     def get_noise_diode_off_scan_dumps(self, timestamps: DataElement) -> np.ndarray:
-        """ Returns a `list` of integer indices of `timestamps` where the noise diode is off. """
-        noise_diode_cycle_start_times = self._get_noise_diode_cycle_start_times(timestamps)
-        noise_diode_off = self._get_where_noise_diode_is_off(timestamps=timestamps,
-                                                             noise_diode_cycle_starts=noise_diode_cycle_start_times)
+        """Returns a `list` of integer indices of `timestamps` where the noise diode is off."""
+        noise_diode_cycle_start_times = self._get_noise_diode_cycle_start_times(
+            timestamps
+        )
+        noise_diode_off = self._get_where_noise_diode_is_off(
+            timestamps=timestamps,
+            noise_diode_cycle_starts=noise_diode_cycle_start_times,
+        )
         return noise_diode_off
 
     def _get_noise_diode_settings(self) -> tuple[float, float, float]:
@@ -30,14 +34,22 @@ class NoiseDiode:
         :return: a `tuple` of duration of the noise diode turned on, the duration of one cycle or period, and the
                  timestamp of it being turned on.
         """
-        duration, period, first_set_at = self._get_noise_diode_settings_from_obs_script()
+        duration, period, first_set_at = (
+            self._get_noise_diode_settings_from_obs_script()
+        )
         if duration is None or period is None or first_set_at is None:
-            duration, period, first_set_at = self._get_noise_diode_settings_from_2019_obs_script()
+            duration, period, first_set_at = (
+                self._get_noise_diode_settings_from_2019_obs_script()
+            )
         if duration is None or period is None or first_set_at is None:
-            raise NotImplementedError('Noise diode settings could not be read from the observation script log.')
+            raise NotImplementedError(
+                "Noise diode settings could not be read from the observation script log."
+            )
         return duration, period, first_set_at
 
-    def _get_noise_diode_settings_from_obs_script(self) -> tuple[float | None, float | None, float | None]:
+    def _get_noise_diode_settings_from_obs_script(
+        self,
+    ) -> tuple[float | None, float | None, float | None]:
         """
         Reads the noise diode settings from `data.obs_script_log` `list` of `string`s.
         This method assumes exact wording in `data.obs_script_log` and will fail if that is not present.
@@ -49,22 +61,36 @@ class NoiseDiode:
         noise_diode_on_duration: float | None = None
         noise_diode_period: float | None = None
         for observation_log_line in self._observation_log:
-            if 'INFO' in observation_log_line:
-                if (search_string_1 := 'Repeat noise diode pattern every ') in observation_log_line:
-                    if (search_string_2 := ' sec on') in observation_log_line:
-                        start_index = observation_log_line.index(search_string_1) + len(search_string_1)
+            if "INFO" in observation_log_line:
+                if (
+                    search_string_1 := "Repeat noise diode pattern every "
+                ) in observation_log_line:
+                    if (search_string_2 := " sec on") in observation_log_line:
+                        start_index = observation_log_line.index(search_string_1) + len(
+                            search_string_1
+                        )
                         end_index = observation_log_line.index(search_string_2)
-                        string_with_two_floats = observation_log_line[start_index:end_index]
-                        string_with_two_floats_split = string_with_two_floats.split(' ')
+                        string_with_two_floats = observation_log_line[
+                            start_index:end_index
+                        ]
+                        string_with_two_floats_split = string_with_two_floats.split(" ")
                         noise_diode_period = float(string_with_two_floats_split[0])
-                        noise_diode_on_duration = float(string_with_two_floats_split[-1])
-                elif (search_string_1 := 'Report: Switch noise-diode pattern on at ') in observation_log_line:
-                    start_index = observation_log_line.index(search_string_1) + len(search_string_1)
+                        noise_diode_on_duration = float(
+                            string_with_two_floats_split[-1]
+                        )
+                elif (
+                    search_string_1 := "Report: Switch noise-diode pattern on at "
+                ) in observation_log_line:
+                    start_index = observation_log_line.index(search_string_1) + len(
+                        search_string_1
+                    )
                     string_with_one_float = observation_log_line[start_index:]
                     noise_diode_set_at = float(string_with_one_float)
         return noise_diode_on_duration, noise_diode_period, noise_diode_set_at
 
-    def _get_noise_diode_settings_from_2019_obs_script(self) -> tuple[float | None, float | None, float | None]:
+    def _get_noise_diode_settings_from_2019_obs_script(
+        self,
+    ) -> tuple[float | None, float | None, float | None]:
         """
         Reads the noise diode settings from `data.obs_script_log` `list` of `string`s.
         This method assumes exact wording in `data.obs_script_log` and will fail if that is not present.
@@ -76,27 +102,39 @@ class NoiseDiode:
         noise_diode_on_duration: float | None = None
         noise_diode_period: float | None = None
         for observation_log_line in self._observation_log:
-            if 'INFO' in observation_log_line:
-                if (search_string_1 := 'Request noise diode pattern to repeat every ') in observation_log_line:
-                    if (search_string_2 := ' sec on') in observation_log_line:
-                        start_index = observation_log_line.index(search_string_1) + len(search_string_1)
+            if "INFO" in observation_log_line:
+                if (
+                    search_string_1 := "Request noise diode pattern to repeat every "
+                ) in observation_log_line:
+                    if (search_string_2 := " sec on") in observation_log_line:
+                        start_index = observation_log_line.index(search_string_1) + len(
+                            search_string_1
+                        )
                         end_index = observation_log_line.index(search_string_2)
-                        string_with_two_floats = observation_log_line[start_index:end_index]
-                        string_with_two_floats_split = string_with_two_floats.split(' ')
+                        string_with_two_floats = observation_log_line[
+                            start_index:end_index
+                        ]
+                        string_with_two_floats_split = string_with_two_floats.split(" ")
                         noise_diode_period = float(string_with_two_floats_split[0])
-                        noise_diode_on_duration = float(string_with_two_floats_split[-1])
-            elif 'WARNING' in observation_log_line:
-                if (search_string_1 := 'Set noise diode pattern to activate at ') in observation_log_line:
-                    start_index = observation_log_line.index(search_string_1) + len(search_string_1)
-                    end_index = observation_log_line.index(', with ')
+                        noise_diode_on_duration = float(
+                            string_with_two_floats_split[-1]
+                        )
+            elif "WARNING" in observation_log_line:
+                if (
+                    search_string_1 := "Set noise diode pattern to activate at "
+                ) in observation_log_line:
+                    start_index = observation_log_line.index(search_string_1) + len(
+                        search_string_1
+                    )
+                    end_index = observation_log_line.index(", with ")
                     string_with_one_float = observation_log_line[start_index:end_index]
                     noise_diode_set_at = float(string_with_one_float)
         return noise_diode_on_duration, noise_diode_period, noise_diode_set_at
 
     def _get_where_noise_diode_is_off(
-            self,
-            timestamps: DataElement,
-            noise_diode_cycle_starts: np.ndarray,
+        self,
+        timestamps: DataElement,
+        noise_diode_cycle_starts: np.ndarray,
     ) -> np.ndarray:
         """
         Returns the timestamp indices where the noise diode is entirely off.
@@ -104,16 +142,19 @@ class NoiseDiode:
         :param noise_diode_cycle_starts: `array` of noise diode cycle starting timestamps
         :return: `array` on integer timestamp indices where the noise diode is off
         """
-        noise_diode_ratios = self._get_noise_diode_ratios(timestamps=timestamps,
-                                                          noise_diode_cycle_starts=noise_diode_cycle_starts,
-                                                          dump_period=self._dump_period)
+        noise_diode_ratios = self._get_noise_diode_ratios(
+            timestamps=timestamps,
+            noise_diode_cycle_starts=noise_diode_cycle_starts,
+            dump_period=self._dump_period,
+        )
         return np.where(noise_diode_ratios == 0)[0]
 
-    def _get_noise_diode_ratios(self,
-                                timestamps: DataElement,
-                                noise_diode_cycle_starts: np.ndarray,
-                                dump_period: float) \
-            -> np.ndarray:
+    def _get_noise_diode_ratios(
+        self,
+        timestamps: DataElement,
+        noise_diode_cycle_starts: np.ndarray,
+        dump_period: float,
+    ) -> np.ndarray:
         """
         Returns a float between 0 and 1 indicating the relative duration of noise diode firing within the timestamp.
         :param timestamps: the output indices are relative to these timestamps
@@ -129,16 +170,28 @@ class NoiseDiode:
             dump_closest_timestamp = np.argmin(gap_list)
             gap_closest_timestamp = gap_list[dump_closest_timestamp]
 
-            if gap_closest_timestamp <= dump_period / 2.:
-                timestamp_edge = timestamp_array[dump_closest_timestamp] + dump_period / 2
-                cycle_start_to_timestamp_edge = timestamp_edge - noise_diode_cycle_start_time
+            if gap_closest_timestamp <= dump_period / 2.0:
+                timestamp_edge = (
+                    timestamp_array[dump_closest_timestamp] + dump_period / 2
+                )
+                cycle_start_to_timestamp_edge = (
+                    timestamp_edge - noise_diode_cycle_start_time
+                )
                 if cycle_start_to_timestamp_edge >= self.duration:  # diode in one dump
-                    noise_diode_ratios[dump_closest_timestamp] = self.duration / dump_period
-                elif cycle_start_to_timestamp_edge < self.duration:  # diode in two dumps
-                    noise_diode_ratios[dump_closest_timestamp] = cycle_start_to_timestamp_edge / dump_period
+                    noise_diode_ratios[dump_closest_timestamp] = (
+                        self.duration / dump_period
+                    )
+                elif (
+                    cycle_start_to_timestamp_edge < self.duration
+                ):  # diode in two dumps
+                    noise_diode_ratios[dump_closest_timestamp] = (
+                        cycle_start_to_timestamp_edge / dump_period
+                    )
                     if dump_closest_timestamp + 1 < len(timestamp_array):
-                        noise_diode_ratios[dump_closest_timestamp + 1] = self.duration / dump_period \
-                                                                         - noise_diode_ratios[dump_closest_timestamp]
+                        noise_diode_ratios[dump_closest_timestamp + 1] = (
+                            self.duration / dump_period
+                            - noise_diode_ratios[dump_closest_timestamp]
+                        )
         return noise_diode_ratios
 
     def _get_noise_diode_cycle_start_times(self, timestamps: DataElement) -> np.ndarray:
@@ -148,8 +201,12 @@ class NoiseDiode:
         """
         timespan = timestamps[-1] - self.first_set_at
         if timespan < 0:
-            raise ValueError('Input `timestamps` end before the noise diode was first started.')
+            raise ValueError(
+                "Input `timestamps` end before the noise diode was first started."
+            )
         if timespan < self.period:
             return np.array([self.first_set_at])
-        noise_diode_cycle_starts = np.arange(timespan // self.period) * self.period + self.first_set_at
+        noise_diode_cycle_starts = (
+            np.arange(timespan // self.period) * self.period + self.first_set_at
+        )
         return noise_diode_cycle_starts

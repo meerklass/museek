@@ -13,7 +13,7 @@ class TestScanStateEnum(unittest.TestCase):
     def test_scan_name(self):
         enum = ScanStateEnum.SCAN
         scan_name = enum.scan_name
-        self.assertEqual('scan', scan_name)
+        self.assertEqual("scan", scan_name)
 
     def test_get_enum_when_scan(self):
-        self.assertEqual(ScanStateEnum.SCAN, ScanStateEnum.get_enum(enum_string='scan'))
+        self.assertEqual(ScanStateEnum.SCAN, ScanStateEnum.get_enum(enum_string="scan"))

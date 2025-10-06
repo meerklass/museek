@@ -14,6 +14,7 @@ from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.time_analysis import TimeAnalysis
+import re
 
 
 class SanityCheckObservationPlugin(AbstractPlugin):

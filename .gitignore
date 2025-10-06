@@ -57,6 +57,10 @@ results/*
 *.code-workspace
 .vscode/*
 
+# others
+claude.md
+CLAUDE.md
+
 # SLURM logs
 *.log
 _*.sbatch

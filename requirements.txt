@@ -1,4 +1,4 @@
-numpy==1.23.3
+numpy
 scipy
 Cython
 h5py
@@ -10,4 +10,9 @@ healpy
 astropy
 scikit-learn
 katdal
+matplotlib
+jupyterlab
+ipykernel
+pysm3
 sphinx
+git+https://github.com/meerklass/ivory.git
