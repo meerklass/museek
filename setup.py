@@ -7,6 +7,7 @@ setup(
     author="",
     author_email="",
     packages=find_packages(),
+    python_requires='>=3.10, <4',
     entry_points={
         "console_scripts": [
             "museek = ivory.cli.main:run",
