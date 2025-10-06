@@ -12,4 +12,4 @@ source /path/to/virtualenv/museek/bin/activate
 echo "Using a Python virtual environment: $(which python)"
 
 echo "Submitting Slurm job"
-python museek museek.config.demo
+museek museek.config.demo
