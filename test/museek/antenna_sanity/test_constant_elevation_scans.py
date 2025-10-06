@@ -12,9 +12,11 @@ class TestConstantElevationScans(unittest.TestCase):
         mock_antenna_3 = Mock()
         mock_data.antennas = [mock_antenna_1, mock_antenna_2, mock_antenna_3]
 
-        type(mock_data.elevation.get.return_value).squeeze = PropertyMock(side_effect=[[1, 2, 3],
-                                                                                       [1, 1.1, 0.9],
-                                                                                       [0, 0, 0.1]])
+        type(mock_data.elevation.get.return_value).squeeze = PropertyMock(
+            side_effect=[[1, 2, 3], [1, 1.1, 0.9], [0, 0, 0.1]]
+        )
 
-        antennas = ConstantElevationScans.get_antennas_with_non_constant_elevation(data=mock_data, threshold=0.1)
+        antennas = ConstantElevationScans.get_antennas_with_non_constant_elevation(
+            data=mock_data, threshold=0.1
+        )
         self.assertListEqual([mock_antenna_1], antennas)

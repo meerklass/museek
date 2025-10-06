@@ -15,14 +15,14 @@ A collection of functions for RFI flagging using the AOflagger algorithm.
 
 
 def get_rfi_mask_1d(
-        time_ordered: DataElement,
-        mask: FlagElement,
-        mask_type: str,
-        first_threshold: float,
-        threshold_scales: list[float],
-        smoothing_window_size: int,
-        smoothing_sigma: float,
-        output_path: str | None = None
+    time_ordered: DataElement,
+    mask: FlagElement,
+    mask_type: str,
+    first_threshold: float,
+    threshold_scales: list[float],
+    smoothing_window_size: int,
+    smoothing_sigma: float,
+    output_path: str | None = None,
 ) -> FlagElement:
     """
     Computes a mask to cover the RFI in a 1-dimensional data set.
@@ -37,15 +37,14 @@ def get_rfi_mask_1d(
     :param output_path: if not `None`, statistics plots are stored at that location
     :return: the mask covering the identified RFI
     """
-    if mask_type == 'vis':
+    if mask_type == "vis":
         data = time_ordered.squeeze
 
-    elif mask_type == 'inverse':
-        data = (1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
+    elif mask_type == "inverse":
+        data = (1.0 / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
 
     else:
         raise ValueError("Unknown mask_type {}".format(mask_type))
-
 
     max_pixels = 8  # Maximum neighbourhood size
     pixel_arange = np.arange(1, max_pixels)
@@ -55,22 +54,25 @@ def get_rfi_mask_1d(
 
     sum_threshold_mask = mask.squeeze
     for threshold_scale in threshold_scales:
-        sum_threshold_mask = _run_sumthreshold_1d(data=data,
-                                               initial_mask=sum_threshold_mask,
-                                               threshold_scale=threshold_scale,
-                                               n_iterations=n_iterations,
-                                               thresholds=thresholds,
-                                               output_path=output_path,
-                                               smoothing_window_size=smoothing_window_size,
-                                               smoothing_sigma=smoothing_sigma)
+        sum_threshold_mask = _run_sumthreshold_1d(
+            data=data,
+            initial_mask=sum_threshold_mask,
+            threshold_scale=threshold_scale,
+            n_iterations=n_iterations,
+            thresholds=thresholds,
+            output_path=output_path,
+            smoothing_window_size=smoothing_window_size,
+            smoothing_sigma=smoothing_sigma,
+        )
 
-    return FlagElementFactory().create(array=sum_threshold_mask[:, np.newaxis, np.newaxis])
+    return FlagElementFactory().create(
+        array=sum_threshold_mask[:, np.newaxis, np.newaxis]
+    )
 
 
-def gaussian_filter_1d(array: np.ndarray,
-                    mask: np.ndarray,
-                    window_size: int = 40,
-                    sigma: float = 0.5) -> np.ndarray[float | None]:
+def gaussian_filter_1d(
+    array: np.ndarray, mask: np.ndarray, window_size: int = 40, sigma: float = 0.5
+) -> np.ndarray[float | None]:
     """
     Apply a gaussian filter (smoothing) to the given positive definite array taking into account masked values,
     any result entries that are zero are replaced by `None`
@@ -82,23 +84,21 @@ def gaussian_filter_1d(array: np.ndarray,
     """
 
     def exponential_window_1d(x, sigma_x):
-        return np.exp(-x ** 2 / (2 * sigma_x ** 2))
+        return np.exp(-(x**2) / (2 * sigma_x**2))
 
     window_ranges = np.arange(-window_size / 2, window_size / 2 + 1)
     kernel = exponential_window_1d(x=window_ranges, sigma_x=sigma)
 
-    result = _apply_kernel_1d(array=array,
-                           mask=mask,
-                           kernel=kernel,
-                           even_window_size=window_size)
+    result = _apply_kernel_1d(
+        array=array, mask=mask, kernel=kernel, even_window_size=window_size
+    )
     result[result == 0] = None
     return result
 
 
-def _apply_kernel_1d(array: np.ndarray,
-                  mask: np.ndarray,
-                  kernel: np.ndarray,
-                  even_window_size: int) -> np.ndarray:
+def _apply_kernel_1d(
+    array: np.ndarray, mask: np.ndarray, kernel: np.ndarray, even_window_size: int
+) -> np.ndarray:
     """
     Apply smoothing with `kernel` to `array` taking into account values masked by `mask` and return the result.
     :param array: `numpy` `array` to be smoothed
@@ -108,12 +108,12 @@ def _apply_kernel_1d(array: np.ndarray,
     :return: smoothed array
     """
     array_larger = np.zeros((array.shape[0] + even_window_size))
-    array_larger[even_window_size // 2:-even_window_size // 2] = array[:]
+    array_larger[even_window_size // 2 : -even_window_size // 2] = array[:]
 
     mask_larger = np.zeros_like(array_larger)
-    mask_larger[even_window_size // 2:-even_window_size // 2] = ~mask[:]
+    mask_larger[even_window_size // 2 : -even_window_size // 2] = ~mask[:]
 
-    window_size_half = even_window_size // 2 
+    window_size_half = even_window_size // 2
 
     tmp_array = np.zeros_like(array_larger)
     result = np.zeros_like(array_larger)
@@ -122,12 +122,14 @@ def _apply_kernel_1d(array: np.ndarray,
             tmp_array[i] = 0
         else:
             value = np.sum(
-                (mask_larger[i - window_size_half:i + window_size_half + 1]
-                 * array_larger[i - window_size_half:i + window_size_half + 1]
-                 * kernel)
+                (
+                    mask_larger[i - window_size_half : i + window_size_half + 1]
+                    * array_larger[i - window_size_half : i + window_size_half + 1]
+                    * kernel
+                )
             )
             tmp_array[i] = value / np.sum(
-                mask_larger[i - window_size_half:i + window_size_half + 1] * kernel
+                mask_larger[i - window_size_half : i + window_size_half + 1] * kernel
             )
 
     # remove window on either end
@@ -135,15 +137,17 @@ def _apply_kernel_1d(array: np.ndarray,
     result[mask] = array[mask]
     return result
 
-def _run_sumthreshold_1d(data: np.ndarray,
-                      initial_mask: np.ndarray,
-                      threshold_scale: float,
-                      n_iterations: list[int],
-                      thresholds: list[float],
-                      smoothing_window_size: int,
-                      smoothing_sigma: float,
-                      output_path: str | None = None) \
-        -> np.ndarray:
+
+def _run_sumthreshold_1d(
+    data: np.ndarray,
+    initial_mask: np.ndarray,
+    threshold_scale: float,
+    n_iterations: list[int],
+    thresholds: list[float],
+    smoothing_window_size: int,
+    smoothing_sigma: float,
+    output_path: str | None = None,
+) -> np.ndarray:
     """
     Perform one SumThreshold operation: sum the un-masked data after
     subtracting a smooth background and threshold it.
@@ -158,7 +162,9 @@ def _run_sumthreshold_1d(data: np.ndarray,
     :return: SumThreshold mask
     """
 
-    smoothed_data = gaussian_filter_1d(data, initial_mask, window_size=smoothing_window_size, sigma=smoothing_sigma)
+    smoothed_data = gaussian_filter_1d(
+        data, initial_mask, window_size=smoothing_window_size, sigma=smoothing_sigma
+    )
     residual = (data - smoothed_data) / smoothed_data
 
     sum_threshold_mask = initial_mask.copy()
@@ -168,19 +174,18 @@ def _run_sumthreshold_1d(data: np.ndarray,
         if n_iteration == 1:
             sum_threshold_mask = sum_threshold_mask | (threshold <= residual)
         else:
-            sum_threshold_mask = _sum_threshold_mask_1d(data=residual,
-                                                     mask=sum_threshold_mask,
-                                                     n_iteration=n_iteration,
-                                                     threshold=threshold)
+            sum_threshold_mask = _sum_threshold_mask_1d(
+                data=residual,
+                mask=sum_threshold_mask,
+                n_iteration=n_iteration,
+                threshold=threshold,
+            )
 
     return sum_threshold_mask
 
 
 def _sum_threshold_mask_1d(
-        data: np.ndarray,
-        mask: np.ndarray[bool],
-        n_iteration: int,
-        threshold: float
+    data: np.ndarray, mask: np.ndarray[bool], n_iteration: int, threshold: float
 ) -> np.ndarray[bool]:
     """
     Return the boolean mask obtained from summing and thresholding.
@@ -201,7 +206,7 @@ def _sum_threshold_mask_1d(
 
     for index_axis in range(n_iteration, data.shape[0]):
         if sum_ > threshold * count:
-            result[index_axis - n_iteration:index_axis - 1] = True
+            result[index_axis - n_iteration : index_axis - 1] = True
 
         if not mask[index_axis]:
             sum_ += data[index_axis]
@@ -211,5 +216,3 @@ def _sum_threshold_mask_1d(
             sum_ -= data[index_axis - n_iteration]
             count -= 1
     return result
-
-

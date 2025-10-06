@@ -14,6 +14,7 @@ import scipy
 import subprocess
 import os
 
+
 def git_version_info(directory=None):
     """
     Get git branch and commit information.
@@ -26,10 +27,10 @@ def git_version_info(directory=None):
     """
     # Store original directory to return to it later
     original_dir = os.getcwd()
-    
+
     # Use current directory if no repo_dir provided
     if directory is None:
-        directory = os.environ.get('MUSEEK_REPO_DIR')
+        directory = os.environ.get("MUSEEK_REPO_DIR")
         if directory is None:
             # No explicit directory provided - use current directory
             directory = os.getcwd()
@@ -40,24 +41,28 @@ def git_version_info(directory=None):
 
         # Check if we're in a git repository first
         result = subprocess.run(
-            ['git', 'rev-parse', '--is-inside-work-tree'],
+            ["git", "rev-parse", "--is-inside-work-tree"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            check=False
+            check=False,
         )
 
         if result.returncode != 0:
             return None, None
 
         # Get branch name
-        branch = subprocess.check_output(
-            ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
-        ).decode().strip()
+        branch = (
+            subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+            .decode()
+            .strip()
+        )
 
         # Get short commit hash
-        commit = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD']
-        ).decode().strip()
+        commit = (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+            .decode()
+            .strip()
+        )
 
         return branch, commit
 
@@ -79,14 +84,19 @@ def flag_percent_recv(data: TimeOrderedData):
     for i_receiver, receiver in enumerate(data.receivers):
         flag_recv = data.flags.get(recv=i_receiver)
         flag_recv_combine = flag_recv.combine(threshold=1)
-        flag_percent.append(round(np.sum(flag_recv_combine.array>=1)/len(flag_recv_combine.array.flatten()), 4))
+        flag_percent.append(
+            round(
+                np.sum(flag_recv_combine.array >= 1)
+                / len(flag_recv_combine.array.flatten()),
+                4,
+            )
+        )
         receivers_list.append(str(receiver))
 
     return receivers_list, flag_percent
 
 
 def Synch_model_sm(data: TimeOrderedData, synch_model, nside, beamsize, beam_frequency):
-
     """
     return the beam smoothed Synch model that occupies the same frequency and spatial region as the scan data
     param synch_model: the model used to create the synchrotron sky [str]
@@ -105,64 +115,104 @@ def Synch_model_sm(data: TimeOrderedData, synch_model, nside, beamsize, beam_fre
     for i_freq in np.arange(synch_model.shape[1]):
 
         map_reference = sky.get_emission(freq[i_freq]).value
-        map_reference_smoothed = pysm3.apply_smoothing_and_coord_transform(map_reference, fwhm=beamsize*u.arcmin * ((beam_frequency*u.MHz)/(freq[i_freq])).decompose().value )
-
+        map_reference_smoothed = pysm3.apply_smoothing_and_coord_transform(
+            map_reference,
+            fwhm=beamsize
+            * u.arcmin
+            * ((beam_frequency * u.MHz) / (freq[i_freq])).decompose().value,
+        )
 
         for i_receiver, receiver in enumerate(data.receivers):
             i_antenna = data.antenna_index_of_receiver(receiver=receiver)
             right_ascension = data.right_ascension.get(recv=i_antenna).squeeze
             declination = data.declination.get(recv=i_antenna).squeeze
 
-            c = SkyCoord(ra=right_ascension * u.degree, dec=declination * u.degree, frame='icrs')
-            theta = 90. - (c.galactic.b / u.degree).value
+            c = SkyCoord(
+                ra=right_ascension * u.degree, dec=declination * u.degree, frame="icrs"
+            )
+            theta = 90.0 - (c.galactic.b / u.degree).value
             phi = (c.galactic.l / u.degree).value
 
-            synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta / 180. * np.pi, phi / 180. * np.pi)
+            synch_I = hp.pixelfunc.get_interp_val(
+                map_reference_smoothed[0], theta / 180.0 * np.pi, phi / 180.0 * np.pi
+            )
 
-            synch_model[:,i_freq,i_receiver] = synch_I
+            synch_model[:, i_freq, i_receiver] = synch_I
 
     return synch_model
 
-def plot_data(x, y, z, gsize=30, levels=15, grid_method='linear', scatter=False, cmap='jet', vmin=None, vmax=None):
+
+def plot_data(
+    x,
+    y,
+    z,
+    gsize=30,
+    levels=15,
+    grid_method="linear",
+    scatter=False,
+    cmap="jet",
+    vmin=None,
+    vmax=None,
+):
     """
     Plotting function
     This plots a rasterscan as an intensity image
     x,y,z must be the same length and z is the amplitude
-    
+
     param x, y: the position of the data points
     param z: the intensity map
     param gsize: the number of the regrid pixels
     param levels: level for the contour
     param grid_method: the method to interpolate
     param scatter: adds markers to indicate the data points
-    param cmap: color map used for imshow 
+    param cmap: color map used for imshow
     param vmin, vmax: define the data range that the colormap covers
     """
 
     if type(z) == np.ma.core.MaskedArray:
         m = ~z.mask
         x = x[m]
-        y = y[m]            
+        y = y[m]
         z = z[m]
     else:
-        print ('type error, z should be masked array')
+        print("type error, z should be masked array")
 
     # define grid.
     npts = z.shape[0]
     xi = np.linspace(x.min(), x.max(), gsize)
     yi = np.linspace(y.min(), y.max(), gsize)
     # grid the data.
-    zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method = grid_method)
-    IM = plt.imshow(zi[::-1, :], vmin=vmin, vmax=vmax, extent=(x.min(),x.max(),y.min(),y.max()), cmap=plt.get_cmap(cmap,255), aspect='auto')
-    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors='k')
+    zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method=grid_method)
+    IM = plt.imshow(
+        zi[::-1, :],
+        vmin=vmin,
+        vmax=vmax,
+        extent=(x.min(), x.max(), y.min(), y.max()),
+        cmap=plt.get_cmap(cmap, 255),
+        aspect="auto",
+    )
+    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
 
     if scatter:
-        plt.scatter(x,y)
+        plt.scatter(x, y)
 
     return IM
 
 
-def plot_mdata(x, y, z, gsize=90, levels=6, x_mask=1, y_mask=1, grid_method='linear', cmap='jet', scatter=False, vmin=None, vmax=None):
+def plot_mdata(
+    x,
+    y,
+    z,
+    gsize=90,
+    levels=6,
+    x_mask=1,
+    y_mask=1,
+    grid_method="linear",
+    cmap="jet",
+    scatter=False,
+    vmin=None,
+    vmax=None,
+):
     """
     Plotting function
     This plots a rasterscan as an intensity image, masked area set to NaN
@@ -183,43 +233,54 @@ def plot_mdata(x, y, z, gsize=90, levels=6, x_mask=1, y_mask=1, grid_method='lin
     if type(z) == np.ma.core.MaskedArray:
         if np.ndim(z) == 1:
             m = ~z.mask
-            #masked area
-            mx= x[z.mask]
-            my= y[z.mask]
-            #plot area
+            # masked area
+            mx = x[z.mask]
+            my = y[z.mask]
+            # plot area
             xx = x[m]
             yy = y[m]
             zz = z[m]
         else:
-            print ('shape error')
+            print("shape error")
     # define grid.
     xi = np.linspace(x.min(), x.max(), gsize)
     yi = np.linspace(y.min(), y.max(), gsize)
 
-    x_nan_list=[]
-    y_nan_list=[]
+    x_nan_list = []
+    y_nan_list = []
     for i in range(len(mx)):
-        ii=np.where(abs(xi-mx[i])==np.min(abs(xi-mx[i])))[0][0]
-        jj=np.where(abs(yi-my[i])==np.min(abs(yi-my[i])))[0][0]
+        ii = np.where(abs(xi - mx[i]) == np.min(abs(xi - mx[i])))[0][0]
+        jj = np.where(abs(yi - my[i]) == np.min(abs(yi - my[i])))[0][0]
         x_nan_list.append(ii)
         y_nan_list.append(jj)
 
     # grid the data.
-    zi = griddata((xx, yy), zz, (xi[None, :], yi[:, None]), method = grid_method)
+    zi = griddata((xx, yy), zz, (xi[None, :], yi[:, None]), method=grid_method)
 
     for i in range(len(x_nan_list)):
-        zi[y_nan_list[i]-y_mask:y_nan_list[i]+y_mask+1,x_nan_list[i]-x_mask:x_nan_list[i]+x_mask+1]=np.NaN #imshow, (y,x) is confirmed by plot#
+        zi[
+            y_nan_list[i] - y_mask : y_nan_list[i] + y_mask + 1,
+            x_nan_list[i] - x_mask : x_nan_list[i] + x_mask + 1,
+        ] = np.NaN  # imshow, (y,x) is confirmed by plot#
     # contour the gridded data, plotting dots at the randomly spaced data points.
-    IM = plt.imshow(zi[::-1, :], vmin=vmin, vmax=vmax, extent=(x.min(),x.max(),y.min(),y.max()), cmap=cmap, aspect='auto' )
-    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors='k')
+    IM = plt.imshow(
+        zi[::-1, :],
+        vmin=vmin,
+        vmax=vmax,
+        extent=(x.min(), x.max(), y.min(), y.max()),
+        cmap=cmap,
+        aspect="auto",
+    )
+    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
 
     if scatter:
-        plt.scatter(xx,yy)
+        plt.scatter(xx, yy)
 
     return IM
 
 
 # define the function to project the calibrated visibility on a 2D grid
+
 
 def project_2d(x, y, data, shape, weights=None):
     """Project x,y, data TOIs on a 2D grid.
@@ -375,7 +436,14 @@ def project_3d(x, y, z, data, shape, weights=None, weighted_output=False):
     return _data, _weights, _hits.astype(int)
 
 
-def point_sources_coordinate(point_source_file_path, right_ascension_scan, declination_scan, point_sources_match_flux, point_sources_match_raregion, point_sources_match_decregion):
+def point_sources_coordinate(
+    point_source_file_path,
+    right_ascension_scan,
+    declination_scan,
+    point_sources_match_flux,
+    point_sources_match_raregion,
+    point_sources_match_decregion,
+):
     """
     Return coordinates of selected point sources
 
@@ -387,7 +455,7 @@ def point_sources_coordinate(point_source_file_path, right_ascension_scan, decli
     the median of the right ascension of a scan [deg]
     declination_scan: float
     the median of the declination of a scan [deg]
-    point_sources_match_flux: float 
+    point_sources_match_flux: float
     flux threshold for selecting the point source for masking [Jy]
     point_sources_match_raregion: float
     the ra distance to the median of observed ra to select the point sources [deg]
@@ -400,14 +468,20 @@ def point_sources_coordinate(point_source_file_path, right_ascension_scan, decli
     the ra, dec, and flux of the selected point sources
     """
 
-    ps_info = np.genfromtxt(point_source_file_path+'/1jy_scat-V0_new.txt', delimiter='|')
-    ra_sources = ps_info[:,1]
-    dec_sources = ps_info[:,2]
-    flux_sources = ps_info[:,3]
+    ps_info = np.genfromtxt(
+        point_source_file_path + "/1jy_scat-V0_new.txt", delimiter="|"
+    )
+    ra_sources = ps_info[:, 1]
+    dec_sources = ps_info[:, 2]
+    flux_sources = ps_info[:, 3]
 
-    ra_selection = (ra_sources>=right_ascension_scan-point_sources_match_raregion) & (ra_sources<=right_ascension_scan+point_sources_match_raregion)
-    dec_selection = (dec_sources>=declination_scan-point_sources_match_decregion) & (dec_sources<=declination_scan+point_sources_match_decregion)
-    flux_selection = (flux_sources>=point_sources_match_flux)
+    ra_selection = (
+        ra_sources >= right_ascension_scan - point_sources_match_raregion
+    ) & (ra_sources <= right_ascension_scan + point_sources_match_raregion)
+    dec_selection = (
+        dec_sources >= declination_scan - point_sources_match_decregion
+    ) & (dec_sources <= declination_scan + point_sources_match_decregion)
+    flux_selection = flux_sources >= point_sources_match_flux
 
     select_sources = ra_selection & dec_selection & flux_selection
 
@@ -418,7 +492,16 @@ def point_sources_coordinate(point_source_file_path, right_ascension_scan, decli
     return ra_sources_select, dec_sources_select, flux_sources_select
 
 
-def point_source_flagger(ra_point_source, dec_point_source, ra_scan, dec_scan, frequency, beam_threshold, beamsize, beam_frequency):
+def point_source_flagger(
+    ra_point_source,
+    dec_point_source,
+    ra_scan,
+    dec_scan,
+    frequency,
+    beam_threshold,
+    beamsize,
+    beam_frequency,
+):
     """
     Return TOD mask for point sources, as a funtion of frequency
 
@@ -447,18 +530,27 @@ def point_source_flagger(ra_point_source, dec_point_source, ra_scan, dec_scan, f
     mask_point_source = np.zeros(shape, dtype=bool)
 
     # create a `list` of `SkyCoord` coordinates of scan pointings
-    skycoord_scan = SkyCoord(ra_scan * u.deg, dec_scan * u.deg, frame='icrs')
+    skycoord_scan = SkyCoord(ra_scan * u.deg, dec_scan * u.deg, frame="icrs")
 
     # create a `list` of `SkyCoord` coordinates of point sources that will be masked
-    skycoord_point_source = [SkyCoord(ra_ps * u.deg, dec_ps * u.deg, frame='icrs') for ra_ps, dec_ps in zip(ra_point_source, dec_point_source)]
-    
+    skycoord_point_source = [
+        SkyCoord(ra_ps * u.deg, dec_ps * u.deg, frame="icrs")
+        for ra_ps, dec_ps in zip(ra_point_source, dec_point_source)
+    ]
+
     for i_freq, freq in enumerate(frequency):
-        fwhm = beamsize / 60. * ((beam_frequency*u.MHz)/(freq * u.Hz)).decompose().value  ## in deg
+        fwhm = (
+            beamsize
+            / 60.0
+            * ((beam_frequency * u.MHz) / (freq * u.Hz)).decompose().value
+        )  ## in deg
 
         mask_point_source_dump_list = []
         for mask_coord in skycoord_point_source:
-            separation = (mask_coord.separation(skycoord_scan) / u.deg)
-            mask_point_source_dump_list.extend( np.where(separation < (beam_threshold * fwhm) )[0])
+            separation = mask_coord.separation(skycoord_scan) / u.deg
+            mask_point_source_dump_list.extend(
+                np.where(separation < (beam_threshold * fwhm))[0]
+            )
         mask_point_source_dump_list = list(set(mask_point_source_dump_list))
         mask_point_source_dump_list.sort()
 
@@ -474,8 +566,8 @@ def remove_outliers_zscore_mad(data, mask, threshold=3.5):
     Parameters:
     data (array-like): The input signal.
     mask (array-like): Boolean mask for the sample points, where True represents masked points.
-    threshold (float): The threshold in terms of modified Z-score based on MAD. 
-                       Data points with a modified Z-score greater than this threshold 
+    threshold (float): The threshold in terms of modified Z-score based on MAD.
+                       Data points with a modified Z-score greater than this threshold
                        will be considered outliers.
 
     Returns:
@@ -524,7 +616,7 @@ def polynomial_flag_outlier(x, y, mask, degree, threshold):
     """
     initial_mask = mask.copy()
     ########  mask the whole data if the flagged fraction is larger than 0.6
-    if np.mean(mask>0) > 0.6:
+    if np.mean(mask > 0) > 0.6:
         initial_mask[:] = True
         p_fit = None
     else:
@@ -636,12 +728,11 @@ def gaussian_filter_masked(masked_array, sigma, **kwargs):
     return np.ma.array(result, mask=mask)
 
 
-
-def interpolate_1d_masked_array(masked_array, kind='linear'):
+def interpolate_1d_masked_array(masked_array, kind="linear"):
     """
     Interpolate unmasked regions and extrapolate masked regions in a 1D masked array
     using specified interpolation method.
-    
+
     Parameters:
     -----------
     masked_array : numpy.ma.MaskedArray
@@ -649,7 +740,7 @@ def interpolate_1d_masked_array(masked_array, kind='linear'):
     kind : str, optional (default='linear')
         Specifies the kind of interpolation as a string or integer
         ('linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic', etc.)
-        
+
     Returns:
     --------
     numpy.ndarray
@@ -658,56 +749,59 @@ def interpolate_1d_masked_array(masked_array, kind='linear'):
     # Check if input is 1D
     if masked_array.ndim != 1:
         raise ValueError("Function only works with 1D masked arrays")
-    
+
     # Make a copy to avoid modifying the original
     result = masked_array.copy()
-    
+
     # Get indices for all points
     indices = np.arange(len(masked_array))
-    
+
     # Get unmasked indices and values
     valid_indices = indices[~masked_array.mask]
-    
+
     # If all values are masked or no values are masked, return the original data
     if len(valid_indices) == 0:
         return result.data
     if len(valid_indices) == len(indices):
         return result.data
-        
+
     valid_values = masked_array.data[valid_indices]
-    
+
     # Check if we have enough points for the requested interpolation method
     min_points = {
-        'linear': 2,
-        'nearest': 1,
-        'zero': 2,
-        'slinear': 2,
-        'quadratic': 3,
-        'cubic': 4,
-        'polynomial': 5
+        "linear": 2,
+        "nearest": 1,
+        "zero": 2,
+        "slinear": 2,
+        "quadratic": 3,
+        "cubic": 4,
+        "polynomial": 5,
     }
-    
+
     # Default to linear if not in our dictionary
     required_points = min_points.get(kind, 2)
-    
+
     # Fall back to simpler interpolation if we don't have enough points
     if len(valid_indices) < required_points:
         if len(valid_indices) >= 2:
-            kind = 'linear'
+            kind = "linear"
         else:
-            kind = 'nearest'
-    
+            kind = "nearest"
+
     # Create interpolation function
-    f = interpolate.interp1d(valid_indices, valid_values, 
-                            kind=kind, 
-                            bounds_error=False, 
-                            fill_value='extrapolate')
-    
+    f = interpolate.interp1d(
+        valid_indices,
+        valid_values,
+        kind=kind,
+        bounds_error=False,
+        fill_value="extrapolate",
+    )
+
     # Apply to masked values only
     masked_indices = indices[masked_array.mask]
     if len(masked_indices) > 0:
         result.data[masked_array.mask] = f(masked_indices)
-    
+
     return result.data
 
 
@@ -718,7 +812,7 @@ def consecutive_subsets(lst):
     Parameters
     ----------
     numbers : List[Number]
-        A sorted list of integers 
+        A sorted list of integers
     step : float, optional
         The expected difference between consecutive elements.
         Default is 1.0.
@@ -732,7 +826,7 @@ def consecutive_subsets(lst):
     current = [lst[0]]
 
     for i in range(1, len(lst)):
-        if lst[i] == lst[i-1] + 1:   # consecutive
+        if lst[i] == lst[i - 1] + 1:  # consecutive
             current.append(lst[i])
         else:  # gap -> start new subset
             subsets.append(current)

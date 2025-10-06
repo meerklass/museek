@@ -15,14 +15,14 @@ A collection of functions for RFI flagging using the AOflagger algorithm.
 
 
 def get_rfi_mask_cross(
-        time_ordered: DataElement,
-        mask: FlagElement,
-        mask_type: str,
-        first_threshold: float,
-        threshold_scales: list[float],
-        smoothing_window_size: tuple[int, int],
-        smoothing_sigma: tuple[float, float],
-        output_path: str | None = None
+    time_ordered: DataElement,
+    mask: FlagElement,
+    mask_type: str,
+    first_threshold: float,
+    threshold_scales: list[float],
+    smoothing_window_size: tuple[int, int],
+    smoothing_sigma: tuple[float, float],
+    output_path: str | None = None,
 ) -> FlagElement:
     """
     Computes a mask to cover the RFI in a data set.
@@ -37,42 +37,64 @@ def get_rfi_mask_cross(
     :param output_path: if not `None`, statistics plots are stored at that location
     :return: the mask covering the identified RFI
     """
-    if mask_type == 'vis':
+    if mask_type == "vis":
         data = time_ordered.squeeze
 
-    elif mask_type == 'inverse':
-        data = (1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
+    elif mask_type == "inverse":
+        data = (1.0 / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
 
-    elif mask_type == 'inverse_timemedian':
-        data = np.tile(np.median((1. / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
+    elif mask_type == "inverse_timemedian":
+        data = np.tile(
+            np.median(
+                (
+                    1.0 / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)
+                ).data,
+                axis=0,
+            ),
+            (time_ordered.shape[0], 1),
+        )
 
-    elif mask_type == 'timemedian':
-        data = np.tile(np.median((np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data, axis=0), (time_ordered.shape[0], 1))
-        
-    elif mask_type == 'flag_fraction':
+    elif mask_type == "timemedian":
+        data = np.tile(
+            np.median(
+                (np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data,
+                axis=0,
+            ),
+            (time_ordered.shape[0], 1),
+        )
+
+    elif mask_type == "flag_fraction":
         flag_fraction = np.mean(mask.squeeze, axis=0)
         data = np.tile(flag_fraction, (np.shape(mask.squeeze)[0], 1))
 
-    elif mask_type == 'rms':
+    elif mask_type == "rms":
         data_vis_time_median = np.median(time_ordered.squeeze, axis=0, keepdims=True)
 
         #####  Update the mask to eliminate discontinuities in the RMS spectra across different frequencies.  ######
-        select_freq = np.all(mask.squeeze, axis=0)  # select the all-timepoint masked frequency points and ingnore them in the mask_fraction calculation
-        mask_fraction = np.mean(mask.squeeze[:,~select_freq], axis=1)
-        time_points_to_mask = mask_fraction > 0.05  # Find time points where the mask fraction is greater than the threshold
+        select_freq = np.all(
+            mask.squeeze, axis=0
+        )  # select the all-timepoint masked frequency points and ingnore them in the mask_fraction calculation
+        mask_fraction = np.mean(mask.squeeze[:, ~select_freq], axis=1)
+        time_points_to_mask = (
+            mask_fraction > 0.05
+        )  # Find time points where the mask fraction is greater than the threshold
         mask_update = mask.squeeze.copy()
-        mask_update[time_points_to_mask, :] = True  # For those time points, mask all frequency points
+        mask_update[time_points_to_mask, :] = (
+            True  # For those time points, mask all frequency points
+        )
         ############################################################################################################
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            data_norm = np.ma.masked_array(time_ordered.squeeze / data_vis_time_median, mask=mask_update)
+            data_norm = np.ma.masked_array(
+                time_ordered.squeeze / data_vis_time_median, mask=mask_update
+            )
         data_std = np.ma.std(data_norm, axis=0)
         data = np.tile(data_std.data, (time_ordered.shape[0], 1))
 
     else:
         raise ValueError("Unknown mask_type {}".format(mask_type))
 
-    #if output_path is not None:
+    # if output_path is not None:
     #    plot_moments(data, output_path)
 
     max_pixels = 8  # Maximum neighbourhood size
@@ -83,22 +105,26 @@ def get_rfi_mask_cross(
 
     sum_threshold_mask = mask.squeeze
     for threshold_scale in threshold_scales:
-        sum_threshold_mask = _run_sumthreshold(data=data,
-                                               initial_mask=sum_threshold_mask,
-                                               threshold_scale=threshold_scale,
-                                               n_iterations=n_iterations,
-                                               thresholds=thresholds,
-                                               output_path=output_path,
-                                               smoothing_window_size=smoothing_window_size,
-                                               smoothing_sigma=smoothing_sigma)
+        sum_threshold_mask = _run_sumthreshold(
+            data=data,
+            initial_mask=sum_threshold_mask,
+            threshold_scale=threshold_scale,
+            n_iterations=n_iterations,
+            thresholds=thresholds,
+            output_path=output_path,
+            smoothing_window_size=smoothing_window_size,
+            smoothing_sigma=smoothing_sigma,
+        )
 
     return FlagElementFactory().create(array=sum_threshold_mask[:, :, np.newaxis])
 
 
-def gaussian_filter(array: np.ndarray,
-                    mask: np.ndarray,
-                    window_size: tuple[int, int] = (20, 40),
-                    sigma: tuple[float, float] = (0.5, 0.5)) -> np.ndarray[float | None]:
+def gaussian_filter(
+    array: np.ndarray,
+    mask: np.ndarray,
+    window_size: tuple[int, int] = (20, 40),
+    sigma: tuple[float, float] = (0.5, 0.5),
+) -> np.ndarray[float | None]:
     """
     Apply a gaussian filter (smoothing) to the given positive definite array taking into account masked values,
     any result entries that are zero are replaced by `None`
@@ -110,24 +136,32 @@ def gaussian_filter(array: np.ndarray,
     """
 
     def exponential_window(x, y, sigma_x, sigma_y):
-        return np.exp(-x ** 2 / (2 * sigma_x ** 2) - y ** 2 / (2 * sigma_y ** 2))
+        return np.exp(-(x**2) / (2 * sigma_x**2) - y**2 / (2 * sigma_y**2))
 
     window_ranges = [np.arange(-size / 2, size / 2 + 1) for size in window_size]
-    kernel_0 = exponential_window(x=window_ranges[0], y=0, sigma_x=sigma[0], sigma_y=sigma[1]).T
-    kernel_1 = exponential_window(x=0, y=window_ranges[1], sigma_x=sigma[0], sigma_y=sigma[1]).T
+    kernel_0 = exponential_window(
+        x=window_ranges[0], y=0, sigma_x=sigma[0], sigma_y=sigma[1]
+    ).T
+    kernel_1 = exponential_window(
+        x=0, y=window_ranges[1], sigma_x=sigma[0], sigma_y=sigma[1]
+    ).T
 
-    result = _apply_kernel(array=array,
-                           mask=mask,
-                           kernel=(kernel_0, kernel_1),
-                           even_window_size=window_size)
+    result = _apply_kernel(
+        array=array,
+        mask=mask,
+        kernel=(kernel_0, kernel_1),
+        even_window_size=window_size,
+    )
     result[result == 0] = None
     return result
 
 
-def _apply_kernel(array: np.ndarray,
-                  mask: np.ndarray,
-                  kernel: tuple[np.ndarray, np.ndarray],
-                  even_window_size: tuple[int, int]) -> np.ndarray:
+def _apply_kernel(
+    array: np.ndarray,
+    mask: np.ndarray,
+    kernel: tuple[np.ndarray, np.ndarray],
+    even_window_size: tuple[int, int],
+) -> np.ndarray:
     """
     Apply smoothing with `kernel` to `array` taking into account values masked by `mask` and return the result.
     :param array: `numpy` `array` to be smoothed
@@ -136,13 +170,19 @@ def _apply_kernel(array: np.ndarray,
     :param even_window_size: smoothing window size in axes 0 and 1, must be divisible by 2
     :return: smoothed array
     """
-    array_larger = np.zeros((array.shape[0] + even_window_size[0], array.shape[1] + even_window_size[1]))
-    array_larger[even_window_size[0] // 2:-even_window_size[0] // 2,
-    even_window_size[1] // 2:-even_window_size[1] // 2] = array[:]
+    array_larger = np.zeros(
+        (array.shape[0] + even_window_size[0], array.shape[1] + even_window_size[1])
+    )
+    array_larger[
+        even_window_size[0] // 2 : -even_window_size[0] // 2,
+        even_window_size[1] // 2 : -even_window_size[1] // 2,
+    ] = array[:]
 
     mask_larger = np.zeros_like(array_larger)
-    mask_larger[even_window_size[0] // 2:-even_window_size[0] // 2,
-    even_window_size[1] // 2:-even_window_size[1] // 2] = ~mask[:]
+    mask_larger[
+        even_window_size[0] // 2 : -even_window_size[0] // 2,
+        even_window_size[1] // 2 : -even_window_size[1] // 2,
+    ] = ~mask[:]
 
     window_size_half = [size // 2 for size in even_window_size]
 
@@ -154,12 +194,21 @@ def _apply_kernel(array: np.ndarray,
                 tmp_array[i, j] = 0
             else:
                 value = np.sum(
-                    (mask_larger[i - window_size_half[0]:i + window_size_half[0] + 1, j]
-                     * array_larger[i - window_size_half[0]:i + window_size_half[0] + 1, j]
-                     * kernel[0])
+                    (
+                        mask_larger[
+                            i - window_size_half[0] : i + window_size_half[0] + 1, j
+                        ]
+                        * array_larger[
+                            i - window_size_half[0] : i + window_size_half[0] + 1, j
+                        ]
+                        * kernel[0]
+                    )
                 )
                 tmp_array[i, j] = value / np.sum(
-                    mask_larger[i - window_size_half[0]:i + window_size_half[0] + 1, j] * kernel[0]
+                    mask_larger[
+                        i - window_size_half[0] : i + window_size_half[0] + 1, j
+                    ]
+                    * kernel[0]
                 )
 
     for j2 in range(window_size_half[1], array.shape[1] + window_size_half[1]):
@@ -168,29 +217,42 @@ def _apply_kernel(array: np.ndarray,
                 result[i2, j2] = 0
             else:
                 value = np.sum(
-                    (mask_larger[i2, j2 - window_size_half[1]:j2 + window_size_half[1] + 1]
-                     * tmp_array[i2, j2 - window_size_half[1]:j2 + window_size_half[1] + 1]
-                     * kernel[1])
+                    (
+                        mask_larger[
+                            i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
+                        ]
+                        * tmp_array[
+                            i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
+                        ]
+                        * kernel[1]
+                    )
                 )
                 result[i2, j2] = value / np.sum(
-                    mask_larger[i2, j2 - window_size_half[1]:j2 + window_size_half[1] + 1] * kernel[1]
+                    mask_larger[
+                        i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
+                    ]
+                    * kernel[1]
                 )
 
     # remove window on either end
-    result = result[window_size_half[0]:-window_size_half[0], window_size_half[1]:-window_size_half[1]]
+    result = result[
+        window_size_half[0] : -window_size_half[0],
+        window_size_half[1] : -window_size_half[1],
+    ]
     result[mask] = array[mask]
     return result
 
 
-def _run_sumthreshold(data: np.ndarray,
-                      initial_mask: np.ndarray,
-                      threshold_scale: float,
-                      n_iterations: list[int],
-                      thresholds: list[float],
-                      smoothing_window_size: tuple[int, int],
-                      smoothing_sigma: tuple[float, float],
-                      output_path: str | None = None) \
-        -> np.ndarray:
+def _run_sumthreshold(
+    data: np.ndarray,
+    initial_mask: np.ndarray,
+    threshold_scale: float,
+    n_iterations: list[int],
+    thresholds: list[float],
+    smoothing_window_size: tuple[int, int],
+    smoothing_sigma: tuple[float, float],
+    output_path: str | None = None,
+) -> np.ndarray:
     """
     Perform one SumThreshold operation: sum the un-masked data after
     subtracting a smooth background and threshold it.
@@ -205,9 +267,11 @@ def _run_sumthreshold(data: np.ndarray,
     :return: SumThreshold mask
     """
 
-    smoothed_data = gaussian_filter(data, initial_mask, window_size=smoothing_window_size, sigma=smoothing_sigma)
-    #residual = (data - smoothed_data) / smoothed_data
-    residual = (data - smoothed_data)
+    smoothed_data = gaussian_filter(
+        data, initial_mask, window_size=smoothing_window_size, sigma=smoothing_sigma
+    )
+    # residual = (data - smoothed_data) / smoothed_data
+    residual = data - smoothed_data
 
     sum_threshold_mask = initial_mask.copy()
 
@@ -216,16 +280,20 @@ def _run_sumthreshold(data: np.ndarray,
         if n_iteration == 1:
             sum_threshold_mask = sum_threshold_mask | (threshold <= residual)
         else:
-            sum_threshold_mask = _sum_threshold_mask(data=residual,
-                                                     mask=sum_threshold_mask,
-                                                     n_iteration=n_iteration,
-                                                     threshold=threshold)
-            sum_threshold_mask = _sum_threshold_mask(data=residual.T,
-                                                     mask=sum_threshold_mask.T,
-                                                     n_iteration=n_iteration,
-                                                     threshold=threshold).T
+            sum_threshold_mask = _sum_threshold_mask(
+                data=residual,
+                mask=sum_threshold_mask,
+                n_iteration=n_iteration,
+                threshold=threshold,
+            )
+            sum_threshold_mask = _sum_threshold_mask(
+                data=residual.T,
+                mask=sum_threshold_mask.T,
+                n_iteration=n_iteration,
+                threshold=threshold,
+            ).T
 
-    #if output_path is not None:
+    # if output_path is not None:
     #    plot_step(data,
     #              sum_threshold_mask,
     #              smoothed_data,
@@ -238,10 +306,7 @@ def _run_sumthreshold(data: np.ndarray,
 
 
 def _sum_threshold_mask(
-        data: np.ndarray,
-        mask: np.ndarray[bool],
-        n_iteration: int,
-        threshold: float
+    data: np.ndarray, mask: np.ndarray[bool], n_iteration: int, threshold: float
 ) -> np.ndarray[bool]:
     """
     Return the boolean mask obtained from summing and thresholding.
@@ -257,13 +322,17 @@ def _sum_threshold_mask(
         count = 0
 
         max_index_axis_1 = min(n_iteration, data.shape[1])
-        indices_to_sum = np.where(np.logical_not(mask[index_axis_0, :max_index_axis_1]))[0]
+        indices_to_sum = np.where(
+            np.logical_not(mask[index_axis_0, :max_index_axis_1])
+        )[0]
         sum_ += np.sum(data[index_axis_0, indices_to_sum])
         count += len(indices_to_sum)
 
         for index_axis_1 in range(n_iteration, data.shape[1]):
             if sum_ > threshold * count:
-                result[index_axis_0, index_axis_1 - n_iteration:index_axis_1 - 1] = True
+                result[index_axis_0, index_axis_1 - n_iteration : index_axis_1 - 1] = (
+                    True
+                )
 
             if not mask[index_axis_0, index_axis_1]:
                 sum_ += data[index_axis_0, index_axis_1]
@@ -286,57 +355,65 @@ def plot_moments(data, output_path: str):
     mean_freuqency = np.mean(data, axis=1)
     plt.subplot(221)
     plt.plot(mean_time)
-    plt.xlabel('time')
-    plt.ylabel('mean')
+    plt.xlabel("time")
+    plt.ylabel("mean")
     plt.subplot(222)
     plt.plot(std_time)
-    plt.xlabel('time')
-    plt.ylabel('std')
+    plt.xlabel("time")
+    plt.ylabel("std")
     plt.subplot(223)
     plt.plot(mean_freuqency)
-    plt.xlabel('freuqency')
-    plt.ylabel('mean')
+    plt.xlabel("freuqency")
+    plt.ylabel("mean")
     plt.subplot(224)
     plt.plot(std_freuqency)
-    plt.xlabel('freuqency')
-    plt.ylabel('std')
+    plt.xlabel("freuqency")
+    plt.ylabel("std")
     plt.tight_layout()
-    plot_name = 'standard_deviation_and_mean.png'
+    plot_name = "standard_deviation_and_mean.png"
     plt.savefig(os.path.join(output_path, plot_name))
     plt.close()
 
 
-def plot_data(data, ax, title, vmin=None, vmax=None, cb=True, norm=None, extent=None, cmap=None):
+def plot_data(
+    data, ax, title, vmin=None, vmax=None, cb=True, norm=None, extent=None, cmap=None
+):
     """
     Plot `data`.
     """
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     ax.set_title(title)
-    im = ax.imshow(data,
-                   aspect='auto',
-                   origin='lower',
-                   norm=norm,
-                   extent=extent,
-                   cmap=cmap,
-                   interpolation='nearest', vmin=vmin, vmax=vmax)
+    im = ax.imshow(
+        data,
+        aspect="auto",
+        origin="lower",
+        norm=norm,
+        extent=extent,
+        cmap=cmap,
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+    )
 
     if cb:
         divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='20%', pad=0.05)
+        cax = divider.append_axes("right", size="20%", pad=0.05)
         plt.colorbar(im, cax=cax)
 
 
-def plot_step(data, mask, smoothed_data, residual, title, plot_name: str, output_path: str):
+def plot_step(
+    data, mask, smoothed_data, residual, title, plot_name: str, output_path: str
+):
     """
     Plot individual step of SumThreshold.
     """
     fig, ax = plt.subplots(2, 2, figsize=(15, 8))
     fig.suptitle(title)
-    plot_data(data, ax[0, 0], 'data')
-    plot_data(mask, ax[1, 0], f'mask {mask.sum()}', 0, 1)
+    plot_data(data, ax[0, 0], "data")
+    plot_data(mask, ax[1, 0], f"mask {mask.sum()}", 0, 1)
     smoothed = np.ma.MaskedArray(smoothed_data, mask)
-    plot_data(smoothed, ax[0, 1], 'smooth')
-    plot_data(residual, ax[1, 1], 'residual')
+    plot_data(smoothed, ax[0, 1], "smooth")
+    plot_data(residual, ax[1, 1], "residual")
     fig.savefig(os.path.join(output_path, plot_name))
     plt.close()

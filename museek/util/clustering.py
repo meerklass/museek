@@ -15,44 +15,52 @@ class Clustering:
     """
 
     def ordered_dumps_of_coherent_clusters(
-            self,
-            features: np.ndarray,
-            n_clusters: int
+        self, features: np.ndarray, n_clusters: int
     ) -> list[range, range]:
         """
         Assume that clustered samples are next to each other inside `features` and return a list of the `range`s
         from first to last index of `n_clusters` clusters.
         """
-        cluster_indices_list, _ = self.split_clusters(feature_vector=features,
-                                                      n_clusters=n_clusters)
-        dumps = [range(min(indices), max(indices) + 1) for indices in cluster_indices_list]
+        cluster_indices_list, _ = self.split_clusters(
+            feature_vector=features, n_clusters=n_clusters
+        )
+        dumps = [
+            range(min(indices), max(indices) + 1) for indices in cluster_indices_list
+        ]
         return dumps
 
-    def split_clusters(self, feature_vector: np.ndarray, n_clusters: int) -> tuple[list[np.ndarray], np.ndarray]:
+    def split_clusters(
+        self, feature_vector: np.ndarray, n_clusters: int
+    ) -> tuple[list[np.ndarray], np.ndarray]:
         """
         Return a `list` of indices belonging to each of `n_clusters` clusters in `feature_vector`.
         The return `list` is ordered according to the clusters' first appearances in `feature_vector`.
         Uses the `KMeans` algorithm.
         """
         feature = self._atleast_2d(array=feature_vector)
-        model = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(feature)
+        model = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(
+            feature
+        )
         clusters = model.predict(feature)
 
         ordered_cluster_labels = self._ordered_and_unique(array_or_list=clusters)
         cluster_centres = model.cluster_centers_[ordered_cluster_labels]
 
-        cluster_indices_list = [np.where(clusters == cluster_label)[0] for cluster_label in ordered_cluster_labels]
+        cluster_indices_list = [
+            np.where(clusters == cluster_label)[0]
+            for cluster_label in ordered_cluster_labels
+        ]
 
         return cluster_indices_list, cluster_centres
 
     def split_pointings(
-            self,
-            coordinate_1: np.ndarray,
-            coordinate_2: np.ndarray,
-            timestamps: np.ndarray,
-            n_pointings: int,
-            n_centre_observations: int,
-            distance_threshold: float
+        self,
+        coordinate_1: np.ndarray,
+        coordinate_2: np.ndarray,
+        timestamps: np.ndarray,
+        n_pointings: int,
+        n_centre_observations: int,
+        distance_threshold: float,
     ) -> tuple[list[np.ndarray], np.ndarray]:
         """
         Return a tuple of a list of dumps for each calibrator pointing
@@ -66,15 +74,20 @@ class Clustering:
         :return: a tuple, first entry is a list of dump indices, second entry a 2-d array containing coordinates
         """
         feature = np.asarray([[a, b] for a, b in zip(coordinate_1, coordinate_2)])
-        outlier_cluster = self._iterative_outlier_cluster(feature_vector=feature,
-                                                          n_clusters=n_pointings,
-                                                          metric=self._separations_from_mean_metric,
-                                                          get_outlier=self._get_outlier_cluster,
-                                                          distance_threshold=distance_threshold)
-        no_outlier_indices = np.asarray([i for i, out in enumerate(outlier_cluster) if out != 1])
+        outlier_cluster = self._iterative_outlier_cluster(
+            feature_vector=feature,
+            n_clusters=n_pointings,
+            metric=self._separations_from_mean_metric,
+            get_outlier=self._get_outlier_cluster,
+            distance_threshold=distance_threshold,
+        )
+        no_outlier_indices = np.asarray(
+            [i for i, out in enumerate(outlier_cluster) if out != 1]
+        )
 
-        pointing_indices, pointing_centres = self.split_clusters(feature_vector=feature[no_outlier_indices],
-                                                                 n_clusters=n_pointings)
+        pointing_indices, pointing_centres = self.split_clusters(
+            feature_vector=feature[no_outlier_indices], n_clusters=n_pointings
+        )
         # re-insert the outlier indices
         pointing_dumps = [no_outlier_indices[pointing] for pointing in pointing_indices]
 
@@ -85,22 +98,27 @@ class Clustering:
             np.argmax(centre_declination),
             np.argmax(centre_right_ascension),
             np.argmin(centre_declination),
-            np.argmin(centre_right_ascension)
+            np.argmin(centre_right_ascension),
         ]  # clock-wise top, right, down, left
-        on_centre_cluster = np.argmin(self._separations_from_mean_metric(pointing_centres))
+        on_centre_cluster = np.argmin(
+            self._separations_from_mean_metric(pointing_centres)
+        )
         all_on_centre_dumps = pointing_dumps[on_centre_cluster]
         split_the_centre_dumps = self.ordered_dumps_of_coherent_clusters(
-            features=timestamps[all_on_centre_dumps],
-            n_clusters=n_centre_observations
+            features=timestamps[all_on_centre_dumps], n_clusters=n_centre_observations
         )
         on_centre_dumps = [all_on_centre_dumps[d] for d in split_the_centre_dumps]
         split_centre_centres = np.asarray([pointing_centres[on_centre_cluster]] * 3)
         pointing_dumps = on_centre_dumps + [pointing_dumps[o] for o in off_centre_order]
-        pointing_centres = np.append(split_centre_centres, pointing_centres[off_centre_order], axis=0)
+        pointing_centres = np.append(
+            split_centre_centres, pointing_centres[off_centre_order], axis=0
+        )
 
         return pointing_dumps, pointing_centres
 
-    def iterative_outlier_indices(self, feature_vector: np.ndarray, distance_threshold: float) -> list[int]:
+    def iterative_outlier_indices(
+        self, feature_vector: np.ndarray, distance_threshold: float
+    ) -> list[int]:
         """
         Return the indices of outlier samples in `feature_vector` `(n_samples, n_features)`
         imposing that non-outliers should be contained within an separation of `distance_threshold`.
@@ -108,24 +126,26 @@ class Clustering:
         # Handle cases with insufficient data for clustering
         if feature_vector.shape[0] <= 1:
             return []  # No outliers possible with ≤1 antenna
-        
+
         metric = self._max_difference_to_mean_metric
         metric_result = metric(features=feature_vector)
         # Ensure metric_result is always an array for any() function
         metric_result = np.atleast_1d(metric_result)
         if any(metric_result > distance_threshold):
-            outlier_cluster = self._iterative_outlier_cluster(feature_vector=feature_vector,
-                                                              n_clusters=2,
-                                                              metric=metric,
-                                                              get_outlier=self._get_outlier_cluster_binary_majority,
-                                                              distance_threshold=distance_threshold,
-                                                              max_iter=5)
+            outlier_cluster = self._iterative_outlier_cluster(
+                feature_vector=feature_vector,
+                n_clusters=2,
+                metric=metric,
+                get_outlier=self._get_outlier_cluster_binary_majority,
+                distance_threshold=distance_threshold,
+                max_iter=5,
+            )
             return np.where(outlier_cluster)[0]
         return []
 
     @staticmethod
     def _atleast_2d(array: np.ndarray) -> np.ndarray:
-        """ Return the transpose of `np.atleast_2d(array)` if `array` is 1-dimensional, else `array` is returned. """
+        """Return the transpose of `np.atleast_2d(array)` if `array` is 1-dimensional, else `array` is returned."""
         if len(array.shape) == 1:
             feature = np.atleast_2d(array).T
         else:
@@ -134,7 +154,7 @@ class Clustering:
 
     @staticmethod
     def _ordered_and_unique(array_or_list: list[int] | np.ndarray[int]) -> list[int]:
-        """ Return unique integers in 1-D `np.ndarray` or `list` `array` in the order they first appear. """
+        """Return unique integers in 1-D `np.ndarray` or `list` `array` in the order they first appear."""
         ordered = []
         for i in array_or_list:
             if i not in ordered:
@@ -142,13 +162,13 @@ class Clustering:
         return ordered
 
     def _iterative_outlier_cluster(
-            self,
-            feature_vector: np.ndarray,
-            n_clusters: int,
-            metric: Callable,
-            get_outlier: Callable,
-            distance_threshold: float,
-            max_iter: int = 10
+        self,
+        feature_vector: np.ndarray,
+        n_clusters: int,
+        metric: Callable,
+        get_outlier: Callable,
+        distance_threshold: float,
+        max_iter: int = 10,
     ) -> np.ndarray:
         """
         Return a 1-D `array` with the same length as `feature_vector` which is `True` where outliers are identified
@@ -170,28 +190,35 @@ class Clustering:
         count = 0
         while count < max_iter:
             count += 1
-            outlier_cluster, is_done = get_outlier(feature_vector=feature_vector_without_outlier,
-                                                   n_clusters=n_clusters,
-                                                   metric=metric,
-                                                   distance_threshold=distance_threshold)
+            outlier_cluster, is_done = get_outlier(
+                feature_vector=feature_vector_without_outlier,
+                n_clusters=n_clusters,
+                metric=metric,
+                distance_threshold=distance_threshold,
+            )
             if outlier_cluster is None:
                 break
             if is_done:
                 count = max_iter
             outlier_cluster_list.append(outlier_cluster)
-            feature_vector_without_outlier = np.asarray([feature_vector_without_outlier[i]
-                                                         for i in range(len(feature_vector_without_outlier))
-                                                         if outlier_cluster[i] != 1])
+            feature_vector_without_outlier = np.asarray(
+                [
+                    feature_vector_without_outlier[i]
+                    for i in range(len(feature_vector_without_outlier))
+                    if outlier_cluster[i] != 1
+                ]
+            )
         if outlier_cluster_list:
             return self._condense_nested_cluster_list(cluster_list=outlier_cluster_list)
         return np.zeros(feature_vector.shape[0], dtype=bool)
 
     @staticmethod
-    def _get_outlier_cluster(feature_vector: np.ndarray,
-                             n_clusters: int,
-                             metric: Callable,
-                             distance_threshold: float) \
-            -> tuple[np.ndarray | None, bool]:
+    def _get_outlier_cluster(
+        feature_vector: np.ndarray,
+        n_clusters: int,
+        metric: Callable,
+        distance_threshold: float,
+    ) -> tuple[np.ndarray | None, bool]:
         """
         Return optional binary array of same length as `feature` vector which is 1 where samples belong to an outlier
         cluster and zero otherwise and `False`.
@@ -201,7 +228,9 @@ class Clustering:
         :param distance_threshold: threshold beyond which samples are labelled outliers
         :return: `tuple` of optional 1-D array and `False`
         """
-        model = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(feature_vector)
+        model = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(
+            feature_vector
+        )
         cluster_distances = metric(model.cluster_centers_)
         outlier_cluster_value = np.argmax(cluster_distances)
         if cluster_distances[outlier_cluster_value] <= distance_threshold:
@@ -214,11 +243,12 @@ class Clustering:
         return result, False
 
     @staticmethod
-    def _get_outlier_cluster_binary_majority(feature_vector: np.ndarray,
-                                             n_clusters: Any,
-                                             distance_threshold: float,
-                                             metric: Callable) \
-            -> tuple[np.ndarray | None, bool]:
+    def _get_outlier_cluster_binary_majority(
+        feature_vector: np.ndarray,
+        n_clusters: Any,
+        distance_threshold: float,
+        metric: Callable,
+    ) -> tuple[np.ndarray | None, bool]:
         """
         Return `tuple` of optional binary array of same length as `feature` vector which is 1 where samples belong
         to outliers and zero otherwise and a `boolean` which is `True` if `metric` returns values
@@ -231,7 +261,9 @@ class Clustering:
         :return: `tuple` of binary 1-D array and `boolean`
         """
         is_done = False
-        clusters = KMeans(n_clusters=2, random_state=0, n_init='auto').fit_predict(feature_vector)
+        clusters = KMeans(n_clusters=2, random_state=0, n_init="auto").fit_predict(
+            feature_vector
+        )
         if len(np.unique(clusters)) <= 1:
             return None, is_done
         outlier_cluster_value = 1
@@ -264,15 +296,17 @@ class Clustering:
         return result
 
     @staticmethod
-    def _separations_from_mean_metric(coordinates: np.ndarray[float]) -> np.ndarray[float]:
+    def _separations_from_mean_metric(
+        coordinates: np.ndarray[float],
+    ) -> np.ndarray[float]:
         """
         Return the separation of each element in `coordinates` from the mean of `coordinates`.
         :param coordinates: `numpy` array with two dimensions, first axis for samples,
                             second for coordinate one and two
         :return: 1-D `numpy` array with separations of each point from the mean of all
         """
-        mean = SkyCoord(*np.mean(coordinates, axis=0) * units.deg, frame='icrs')
-        coordinates = SkyCoord(coordinates * units.deg, frame='icrs')
+        mean = SkyCoord(*np.mean(coordinates, axis=0) * units.deg, frame="icrs")
+        coordinates = SkyCoord(coordinates * units.deg, frame="icrs")
         separations = coordinates.separation(mean)
         return separations.degree
 

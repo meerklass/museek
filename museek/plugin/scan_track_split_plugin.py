@@ -31,13 +31,23 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         self.do_store_context = do_store_context
 
     def set_requirements(self):
-        """ Only requirement is the data. """
-        self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
+        """Only requirement is the data."""
+        self.requirements = [
+            Requirement(location=ResultEnum.DATA, variable="data"),
+            Requirement(location=ResultEnum.OUTPUT_PATH, variable="output_path"),
+            Requirement(location=ResultEnum.BLOCK_NAME, variable="block_name"),
+            Requirement(
+                location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
+            ),
+        ]
 
-    def run(self, data: TimeOrderedData, block_name: str, output_path: str, flag_report_writer: ReportWriter):
+    def run(
+        self,
+        data: TimeOrderedData,
+        block_name: str,
+        output_path: str,
+        flag_report_writer: ReportWriter,
+    ):
         """
         Split `data` into scanning and tracking part and save.
         If `self.do_delete_unsplit_data` is `True`, `data` is deleted.
@@ -48,37 +58,65 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         scan_data = deepcopy(data)
         scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
 
-        scan_observation_start, scan_observation_end = self._observation_start_end(data=scan_data)
+        scan_observation_start, scan_observation_end = self._observation_start_end(
+            data=scan_data
+        )
 
         track_data = deepcopy(data)
         track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
 
         if self.do_delete_unsplit_data:
             data = None
-            self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
+            self.set_result(
+                result=Result(
+                    location=ResultEnum.DATA, result=data, allow_overwrite=True
+                )
+            )
 
-        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_START,
-                                      result=scan_observation_start,
-                                      allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.SCAN_OBSERVATION_END,
-                                      result=scan_observation_end,
-                                      allow_overwrite=False))
+        self.set_result(
+            result=Result(
+                location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.SCAN_OBSERVATION_START,
+                result=scan_observation_start,
+                allow_overwrite=False,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.SCAN_OBSERVATION_END,
+                result=scan_observation_end,
+                allow_overwrite=False,
+            )
+        )
 
-        
         receivers_list, flag_percent = flag_percent_recv(scan_data)
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running ScanTrackSplitPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = [
+            "...........................",
+            "Running ScanTrackSplitPlugin with "
+            + f"MuSEEK version: {branch} ({commit})",
+            "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "The flag fraction for each receiver: ",
+        ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
-            context_file_name = 'scan_track_split_plugin.pickle'
-            self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=output_path)
+            context_file_name = "scan_track_split_plugin.pickle"
+            self.store_context_to_disc(
+                context_file_name=context_file_name, context_directory=output_path
+            )
 
     @staticmethod
     def _observation_start_end(data: TimeOrderedData) -> tuple[float, float]:
-        """ Return first and last timestamp in `data` as a `tuple`. """
+        """Return first and last timestamp in `data` as a `tuple`."""
         return data.timestamps.get(time=0).squeeze, data.timestamps.get(time=-1).squeeze

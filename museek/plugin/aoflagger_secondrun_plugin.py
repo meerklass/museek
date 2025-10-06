@@ -24,20 +24,22 @@ import numpy as np
 
 
 class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
-    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them. """
+    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them."""
 
-    def __init__(self,
-                 mask_type: str,
-                 first_threshold: float,
-                 threshold_scales: list[float],
-                 smoothing_kernel: int,
-                 smoothing_sigma: float,
-                 struct_size: tuple[int, int] | None,
-                 channel_flag_threshold: float,
-                 time_dump_flag_threshold: float,
-                 flag_combination_threshold: int,
-                 do_store_context: bool,
-                 **kwargs):
+    def __init__(
+        self,
+        mask_type: str,
+        first_threshold: float,
+        threshold_scales: list[float],
+        smoothing_kernel: int,
+        smoothing_sigma: float,
+        struct_size: tuple[int, int] | None,
+        channel_flag_threshold: float,
+        time_dump_flag_threshold: float,
+        flag_combination_threshold: int,
+        do_store_context: bool,
+        **kwargs,
+    ):
         """
         Initialise the plugin
         :param mask_type: the data to which the flagger will be applied
@@ -62,25 +64,30 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
-        self.report_file_name = 'flag_report.md'
+        self.report_file_name = "flag_report.md"
 
     def set_requirements(self):
         """
         Set the requirements, the scanning data `scan_data`, a path to store results and the name of the data block.
         """
-        self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
+        self.requirements = [
+            Requirement(location=ResultEnum.SCAN_DATA, variable="scan_data"),
+            Requirement(location=ResultEnum.OUTPUT_PATH, variable="output_path"),
+            Requirement(location=ResultEnum.BLOCK_NAME, variable="block_name"),
+            Requirement(
+                location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
+            ),
+            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable="flag_name_list"),
+        ]
 
-    def map(self,
-            scan_data: TimeOrderedData,
-            flag_report_writer: ReportWriter,
-            output_path: str,
-            block_name: str, 
-            flag_name_list:list) \
-            -> Generator[tuple[str, DataElement, FlagElement], None, None]:
+    def map(
+        self,
+        scan_data: TimeOrderedData,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+        block_name: str,
+        flag_name_list: list,
+    ) -> Generator[tuple[str, DataElement, FlagElement], None, None]:
         """
         Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
         initial flags for one receiver.
@@ -90,12 +97,16 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the data block, not used here but for setting results
         :param flag_name_list: list of the name of existing flags
         """
-        scan_data.load_visibility_flags_weights(polars='auto')
-        initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
+        scan_data.load_visibility_flags_weights(polars="auto")
+        initial_flags = scan_data.flags.combine(
+            threshold=self.flag_combination_threshold
+        )
 
         for i_receiver, receiver in enumerate(scan_data.receivers):
-            if not os.path.isdir(receiver_path := os.path.join(output_path, receiver.name)):
-                #os.makedirs(receiver_path)
+            if not os.path.isdir(
+                receiver_path := os.path.join(output_path, receiver.name)
+            ):
+                # os.makedirs(receiver_path)
                 pass
             visibility = scan_data.visibility.get(recv=i_receiver)
             initial_flag = initial_flags.get(recv=i_receiver)
@@ -113,28 +124,37 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         input_data = np.mean(initial_flag.squeeze, axis=0)
         input_mask = input_data > self.time_dump_flag_threshold
 
-        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=input_data[:,np.newaxis,np.newaxis]),
-                                mask=FlagElement(array=input_mask[:,np.newaxis,np.newaxis]),
-                                mask_type=self.mask_type,
-                                first_threshold=self.first_threshold,
-                                threshold_scales=self.threshold_scales,
-                                output_path=receiver_path,
-                                smoothing_window_size=self.smoothing_kernel,
-                                smoothing_sigma=self.smoothing_sigma)
+        rfi_flag = get_rfi_mask_1d(
+            time_ordered=DataElement(array=input_data[:, np.newaxis, np.newaxis]),
+            mask=FlagElement(array=input_mask[:, np.newaxis, np.newaxis]),
+            mask_type=self.mask_type,
+            first_threshold=self.first_threshold,
+            threshold_scales=self.threshold_scales,
+            output_path=receiver_path,
+            smoothing_window_size=self.smoothing_kernel,
+            smoothing_sigma=self.smoothing_sigma,
+        )
 
         rfi_flag_tile = np.tile(rfi_flag.squeeze, (visibility.shape[0], 1))
         initial_flag_tile = np.tile(input_mask, (visibility.shape[0], 1))
-        initial_flag_post = self.post_process_flag(flag=FlagElement(array=rfi_flag_tile[:,:,np.newaxis]), initial_flag=FlagElement(array=initial_flag_tile[:,:,np.newaxis]))
+        initial_flag_post = self.post_process_flag(
+            flag=FlagElement(array=rfi_flag_tile[:, :, np.newaxis]),
+            initial_flag=FlagElement(array=initial_flag_tile[:, :, np.newaxis]),
+        )
 
-        return FlagElement(array=(initial_flag_post.squeeze + initial_flag.squeeze)[:,:,np.newaxis])
+        return FlagElement(
+            array=(initial_flag_post.squeeze + initial_flag.squeeze)[:, :, np.newaxis]
+        )
 
-    def gather_and_set_result(self,
-                              result_list: list[FlagElement],
-                              scan_data: TimeOrderedData,
-                              flag_report_writer: ReportWriter,
-                              output_path: str,
-                              block_name: str,
-                              flag_name_list:list):
+    def gather_and_set_result(
+        self,
+        result_list: list[FlagElement],
+        scan_data: TimeOrderedData,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+        block_name: str,
+        flag_name_list: list,
+    ):
         """
         Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
@@ -146,33 +166,53 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
         scan_data.flags.add_flag(flag=new_flag)
-        flag_name_list.append('aoflagger_secondrun')
+        flag_name_list.append("aoflagger_secondrun")
 
         receivers_list, flag_percent = flag_percent_recv(scan_data)
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
-        lines = ['...........................', 'Running AoflaggerSecondRunPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = [
+            "...........................",
+            "Running AoflaggerSecondRunPlugin with "
+            + f"MuSEEK version: {branch} ({commit})",
+            "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "The flag fraction for each receiver: ",
+        ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(scan_data.visibility.get(recv=0),
-                  scan_data.flags.get(recv=0),
-                  cmap='gist_ncar')
-        plt.xlabel('time stamps')
-        plt.ylabel('channels')
-        plt.savefig(os.path.join(output_path, 'rfi_mitigation_secondrun_result_receiver_0.png'), dpi=1000)
+        waterfall(
+            scan_data.visibility.get(recv=0),
+            scan_data.flags.get(recv=0),
+            cmap="gist_ncar",
+        )
+        plt.xlabel("time stamps")
+        plt.ylabel("channels")
+        plt.savefig(
+            os.path.join(output_path, "rfi_mitigation_secondrun_result_receiver_0.png"),
+            dpi=1000,
+        )
         plt.close()
 
-        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
+        self.set_result(
+            result=Result(
+                location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.FLAG_NAME_LIST,
+                result=flag_name_list,
+                allow_overwrite=True,
+            )
+        )
         if self.do_store_context:
-            context_file_name = 'aoflagger_plugin_secondrun.pickle'
-            self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=output_path)
+            context_file_name = "aoflagger_plugin_secondrun.pickle"
+            self.store_context_to_disc(
+                context_file_name=context_file_name, context_directory=output_path
+            )
 
     def post_process_flag(
-            self,
-            flag: FlagElement,
-            initial_flag: FlagElement
+        self, flag: FlagElement, initial_flag: FlagElement
     ) -> FlagElement:
         """
         Post process `flag` and return the result.
@@ -185,16 +225,24 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :return: the result of the post-processing, a binary mask
         """
         # operations on the RFI mask only
-        post_process = RfiPostProcess(new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size)
+        post_process = RfiPostProcess(
+            new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size
+        )
         post_process.binary_mask_dilation()
         post_process.binary_mask_closing()
         rfi_result = post_process.get_flag()
 
         # operations on the entire mask
-        post_process = RfiPostProcess(new_flag=rfi_result + initial_flag,
-                                      initial_flag=None,
-                                      struct_size=self.struct_size)
-        post_process.flag_all_channels(channel_flag_threshold=self.channel_flag_threshold)
-        post_process.flag_all_time_dumps(time_dump_flag_threshold=self.time_dump_flag_threshold)
+        post_process = RfiPostProcess(
+            new_flag=rfi_result + initial_flag,
+            initial_flag=None,
+            struct_size=self.struct_size,
+        )
+        post_process.flag_all_channels(
+            channel_flag_threshold=self.channel_flag_threshold
+        )
+        post_process.flag_all_time_dumps(
+            time_dump_flag_threshold=self.time_dump_flag_threshold
+        )
         overall_result = post_process.get_flag()
         return overall_result

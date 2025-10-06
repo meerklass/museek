@@ -6,9 +6,14 @@ from museek.flag_element import FlagElement
 
 
 class RfiPostProcess:
-    """ Class to post-process rfi masks. """
+    """Class to post-process rfi masks."""
 
-    def __init__(self, new_flag: FlagElement, initial_flag: FlagElement | None, struct_size: tuple[int, int]):
+    def __init__(
+        self,
+        new_flag: FlagElement,
+        initial_flag: FlagElement | None,
+        struct_size: tuple[int, int],
+    ):
         """
         Initialise the post-processing of RFI flags.
         :param new_flag: newly generated RFI flag
@@ -22,27 +27,29 @@ class RfiPostProcess:
         self._factory = FlagElementFactory()
 
     def get_flag(self):
-        """ Return the flag. """
+        """Return the flag."""
         return self._flag
 
     def binary_mask_dilation(self):
-        """ Dilate the mask. """
+        """Dilate the mask."""
         if self._initial_flag is not None:
             to_dilate = self._flag.squeeze ^ self._initial_flag.squeeze
         else:
             to_dilate = self._flag.squeeze
-        dilated = ndimage.binary_dilation(to_dilate,
-                                          structure=self._struct,
-                                          iterations=3)
+        dilated = ndimage.binary_dilation(
+            to_dilate, structure=self._struct, iterations=3
+        )
         self._flag = self._factory.create(array=dilated[:, :, np.newaxis])
 
     def binary_mask_closing(self):
-        """ Close the mask. """
-        closed = ndimage.binary_closing(self._flag.squeeze, structure=self._struct, iterations=3)
+        """Close the mask."""
+        closed = ndimage.binary_closing(
+            self._flag.squeeze, structure=self._struct, iterations=3
+        )
         self._flag = self._factory.create(array=closed[:, :, np.newaxis])
 
     def flag_all_channels(self, channel_flag_threshold: float):
-        """ If the fraction of flagged channels exceeds `channel_flag_threshold`, all channels are flagged. """
+        """If the fraction of flagged channels exceeds `channel_flag_threshold`, all channels are flagged."""
         flagged_fraction = self._flag.sum(axis=1).squeeze / self._flag.shape[1]
         timestamps_to_flag = np.where(flagged_fraction > channel_flag_threshold)[0]
         flag = self._flag.array
@@ -50,7 +57,7 @@ class RfiPostProcess:
         self._flag = self._factory.create(array=flag)
 
     def flag_all_time_dumps(self, time_dump_flag_threshold: float):
-        """ If the fraction of flagged time dumps exceeds `time_dump_flag_threshold`, all time dumps are flagged. """
+        """If the fraction of flagged time dumps exceeds `time_dump_flag_threshold`, all time dumps are flagged."""
         flagged_fraction = self._flag.sum(axis=0).squeeze / self._flag.shape[0]
         channels_to_flag = np.where(flagged_fraction > time_dump_flag_threshold)[0]
         flag = self._flag.array
