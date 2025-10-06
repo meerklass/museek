@@ -12,7 +12,7 @@ class TestTrackPointingIterator(unittest.TestCase):
     def test_init(self):
         mock_track_data = MagicMock()
         mock_receiver = Mock()
-        track_pointting_iterator = TrackPointingIterator(
+        track_pointing_iterator = TrackPointingIterator(
             track_data=mock_track_data,
             receiver=mock_receiver,
             n_pointings=0,
@@ -22,9 +22,9 @@ class TestTrackPointingIterator(unittest.TestCase):
             scan_start=0,
             scan_end=1,
         )
-        self.assertIsInstance(track_pointting_iterator._clustering, Clustering)
+        self.assertIsInstance(track_pointing_iterator._clustering, Clustering)
         self.assertEqual(
-            track_pointting_iterator._features, mock_track_data.timestamps.squeeze
+            track_pointing_iterator._features, mock_track_data.timestamps.squeeze
         )
         antenna_index = mock_receiver.antenna_index.return_value
         mock_track_data.right_ascension.get.assert_called_once_with(recv=antenna_index)
