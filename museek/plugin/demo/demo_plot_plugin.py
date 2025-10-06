@@ -36,13 +36,12 @@ class DemoPlotPlugin(AbstractPlugin):
             ),
         ]
 
-    def run(
-        self,
-        astronaut_image: Image.Image,
-        astronaut_image_flipped: Image.Image,
-        context_storage_directory: str,
-        context_file_name: str,
-    ):
+    def run(self, **kwargs):
+        astronaut_image: Image.Image = kwargs["astronaut_image"]
+        astronaut_image_flipped: Image.Image = kwargs["astronaut_image_flipped"]
+        context_storage_directory: str = kwargs["context_storage_directory"]
+        context_file_name: str = kwargs["context_file_name"]
+
         plot_counter = itertools.count()
         self._plot(
             image=astronaut_image,

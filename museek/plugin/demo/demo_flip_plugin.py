@@ -24,7 +24,8 @@ class DemoFlipPlugin(AbstractPlugin):
             )
         ]
 
-    def run(self, astronaut_image: Image):
+    def run(self, **kwargs):
+        astronaut_image: Image.Image = kwargs["astronaut_image"]
         if self.do_flip_right_left:
             print("Flipping right left...")
             astronaut_image = self._flip_right_left(image=astronaut_image)
@@ -39,9 +40,9 @@ class DemoFlipPlugin(AbstractPlugin):
         )
 
     @staticmethod
-    def _flip_right_left(image: Image) -> Image:
+    def _flip_right_left(image: Image.Image) -> Image.Image:
         return image.transpose(method=Transpose.FLIP_LEFT_RIGHT)
 
     @staticmethod
-    def _flip_top_bottom(image: Image) -> Image:
+    def _flip_top_bottom(image: Image.Image) -> Image.Image:
         return image.transpose(method=Transpose.FLIP_TOP_BOTTOM)
