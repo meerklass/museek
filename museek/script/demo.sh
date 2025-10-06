@@ -9,7 +9,7 @@
 #SBATCH --time=00:05:00
 
 source /path/to/virtualenv/museek/bin/activate
-echo "Using a Python virtual environment: $(which)"
+echo "Using a Python virtual environment: $(which python)"
 
 echo "Submitting Slurm job"
 python museek museek.config.demo
