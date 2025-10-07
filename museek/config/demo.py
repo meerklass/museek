@@ -12,6 +12,7 @@ Pipeline = ConfigSection(
 DemoLoadPlugin = ConfigSection(
     url="https://cdn.openai.com/dall-e-2/demos/text2im/astronaut/horse/photo/9.jpg",
     context_file_name="context.pickle",
+    context_folder="./"
 )
 
 DemoPlotPlugin = ConfigSection(do_show=False, do_save=True)

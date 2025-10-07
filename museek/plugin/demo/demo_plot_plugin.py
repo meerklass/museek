@@ -1,4 +1,5 @@
 import itertools
+from collections.abc import Iterator
 
 from PIL import Image
 from matplotlib import pyplot as plt
@@ -35,25 +36,32 @@ class DemoPlotPlugin(AbstractPlugin):
             ),
         ]
 
-    def run(
-        self,
-        astronaut_image: Image,
-        astronaut_image_flipped: Image,
-        context_storage_directory: str,
-        context_file_name: str,
-    ):
+    def run(self, **kwargs):
+        astronaut_image: Image.Image = kwargs["astronaut_image"]
+        astronaut_image_flipped: Image.Image = kwargs["astronaut_image_flipped"]
+        context_storage_directory: str = kwargs["context_storage_directory"]
+        context_file_name: str = kwargs["context_file_name"]
+
         plot_counter = itertools.count()
-        self._plot(image=astronaut_image, count=plot_counter)
-        self._plot(image=astronaut_image_flipped, count=plot_counter)
+        self._plot(
+            image=astronaut_image,
+            count=plot_counter,
+            context_directory=context_storage_directory,
+        )
+        self._plot(
+            image=astronaut_image_flipped,
+            count=plot_counter,
+            context_directory=context_storage_directory,
+        )
         self.store_context_to_disc(
             context_file_name=context_file_name,
             context_directory=context_storage_directory,
         )
 
-    def _plot(self, image: Image, count):
+    def _plot(self, image: Image.Image, count: Iterator[int], context_directory: str):
         plt.imshow(image)
         plt.axis("off")
         if self.do_show:
             plt.show()
         if self.do_save:
-            plt.savefig(f"demo_plot_plugin{next(count)}.png")
+            plt.savefig(f"{context_directory}/demo_plot_plugin{next(count)}.png")

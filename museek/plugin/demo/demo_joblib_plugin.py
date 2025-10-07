@@ -19,7 +19,7 @@ class DemoJoblibPlugin(AbstractParallelJoblibPlugin):
         result = sum(result_list)
         self.set_result(result=Result(location=DemoEnum.PARALLEL_RESULT, result=result))
 
-    def map(self) -> Generator[int, None, None]:
+    def map(self, **kwargs) -> Generator[int, None, None]:
         """Yield squared integers."""
         for i in range(self.n_iter):
             yield i**2

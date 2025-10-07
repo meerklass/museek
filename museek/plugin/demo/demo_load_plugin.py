@@ -4,7 +4,6 @@ from io import BytesIO
 import requests
 from PIL import Image
 
-from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from museek.enums.demo_enum import DemoEnum
@@ -13,12 +12,13 @@ from museek.enums.demo_enum import DemoEnum
 class DemoLoadPlugin(AbstractPlugin):
     """For demonstration. Loads an image from the web."""
 
-    def __init__(self, url: str, context_file_name: str):
+    def __init__(self, url: str, context_file_name: str, context_folder: str):
         super().__init__()
         self.url = url
         self.context_file_name = context_file_name
+        self.context_folder = context_folder
 
-    def run(self):
+    def run(self, **kwargs):
         response = requests.get(self.url)
         image = Image.open(BytesIO(response.content))
 
@@ -30,11 +30,7 @@ class DemoLoadPlugin(AbstractPlugin):
             )
         )
         # setting the paths and names for context to disc storage
-        context_storage_directory = os.path.join(ROOT_DIR, f"results/demo/")
-        if not os.path.exists(context_storage_directory):
-            raise ValueError(
-                f"The output folder does not exists: {context_storage_directory}"
-            )
+        context_storage_directory = os.path.abspath(self.context_folder)
         self.set_result(
             result=Result(
                 location=DemoEnum.CONTEXT_STORAGE_DIRECTORY,
