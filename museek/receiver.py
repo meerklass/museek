@@ -12,12 +12,13 @@ class Polarisation(Enum):
 class Receiver:
     """ Helper class to contain receiver related infos. """
 
-    def __init__(self, antenna_number: int, polarisation: Polarisation):
+    def __init__(self, antenna_number: int, polarisation: Polarisation, receiver_id: str | None = None):
         """ Initializes a `Receiver` with the `antenna_index` of the dish and `polarisation`. """
         self.antenna_number = antenna_number
         self.antenna_name = f'm{self.antenna_number:03d}'
         self._polarisation_enum = polarisation
         self.polarisation = self._polarisation_enum.name
+        self.receiver_id = receiver_id  # e.g., 'u.4001' from katdal data.receivers
 
     def __str__(self) -> str:
         """ Overload `str` """

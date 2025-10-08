@@ -33,7 +33,7 @@ import warnings
 import datetime
 
 class GainCalibrationPlugin(AbstractPlugin):
-    """ Plugin to calibrtion the gain using synchrotron produced from pysm3 """
+    """ Plugin to calibrate the gain using synchrotron produced from pysm3 """
 
     def __init__(self,
                  synch_model:[str],

@@ -118,6 +118,7 @@ class TimeOrderedData:
         self.temperature: DataElement | None = None
         self.humidity: DataElement | None = None
         self.pressure: DataElement | None = None
+        self.site_elevation_km: float | None = None
 
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
@@ -255,6 +256,9 @@ class TimeOrderedData:
         self.temperature = self._element_factory.create(array=data.temperature[:, np.newaxis, np.newaxis])
         self.humidity = self._element_factory.create(array=data.humidity[:, np.newaxis, np.newaxis])
         self.pressure = self._element_factory.create(array=data.pressure[:, np.newaxis, np.newaxis])
+
+        # Site elevation (km above sea level) - same for all antennas
+        self.site_elevation_km = data.ants[0].observer.elevation / 1000.0
 
     def _set_data_elements_from_self(self, scan_state: ScanStateEnum | None):
         """
@@ -547,11 +551,23 @@ class TimeOrderedData:
         """
         Returns a `list` of the `Receiver`s in `requested_receivers` that are available in `data`.
         If `requested_receivers` is `None`, all available receivers are returned.
+        Receiver IDs are populated from data.receivers when available.
         """
         all_receiver_names = np.unique(data.corr_products.flatten())
+
         if requested_receivers is not None:
-            return [receiver for receiver in requested_receivers if receiver.name in all_receiver_names]
-        return [Receiver.from_string(receiver_string=name) for name in all_receiver_names]
+            receivers = [receiver for receiver in requested_receivers if receiver.name in all_receiver_names]
+        else:
+            # Create receivers from all available names
+            receivers = [Receiver.from_string(receiver_string=name) for name in all_receiver_names]
+
+        # Populate receiver_id from katdal data.receivers for all receivers
+        if hasattr(data, 'receivers'):
+            for receiver in receivers:
+                if receiver.antenna_name in data.receivers:
+                    receiver.receiver_id = data.receivers[receiver.antenna_name]
+
+        return receivers
 
     @staticmethod
     def _get_scan_tuple_list(data: DataSet) -> list[ScanTuple]:
