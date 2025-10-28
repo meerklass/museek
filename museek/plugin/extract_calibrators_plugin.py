@@ -82,14 +82,24 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         
         # Store results for downstream plugins
         validated_dump_indices = {}
+        calibrator_names_for_periods = {}
+
         for period in validated_periods:
             dump_indices, scan_count, total_duration = calibrator_results[period]
             validated_dump_indices[period] = dump_indices
-        
-        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_VALIDATED_PERIODS, 
+
+            # Store calibrator name for this period
+            if period == 'before_scan':
+                calibrator_names_for_periods[period] = self.calibrator_names[0]
+            else:  # after_scan
+                calibrator_names_for_periods[period] = self.calibrator_names[-1]
+
+        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_VALIDATED_PERIODS,
                                     result=validated_periods, allow_overwrite=False))
-        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_DUMP_INDICES, 
+        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_DUMP_INDICES,
                                     result=validated_dump_indices, allow_overwrite=False))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_NAMES,
+                                    result=calibrator_names_for_periods, allow_overwrite=False))
         
         # Plot RA, Dec positions and elevation vs time
         self._plot_calibrator_positions(track_data, validated_periods, calibrator_results)

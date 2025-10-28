@@ -30,3 +30,4 @@ class ResultEnum(Enum):
     CALIBRATED_VIS_FLAG_NAME_LIST = auto()
     CALIBRATOR_VALIDATED_PERIODS = auto()
     CALIBRATOR_DUMP_INDICES = auto()
+    CALIBRATOR_NAMES = auto()

@@ -24,7 +24,7 @@ class NoiseDiodeData(TimeOrderedData):
 
     def _dumps(self) -> list[int]:
         """
-        Returns the dump indices which have zero noise doide contribution and belong to the `scan_sate` `SCAN`.
+        Returns the dump indices which have zero noise diode contribution and belong to the `scan_sate` `SCAN`.
         """
         dumps_of_scan_state = self._dumps_of_scan_state()
         if self.scan_state not in [ScanStateEnum.SCAN, ScanStateEnum.TRACK] or self.noise_diode is None:

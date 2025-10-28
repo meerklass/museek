@@ -199,13 +199,13 @@ class PrimaryBeam:
 
         # Calculate direction cosines (dimensionless)
         # l = cos(el_pointing) * sin(az_source - az_pointing)
-        l = np.cos(el_p_rad) * np.sin(az_s_rad - az_p_rad)
+        l = np.cos(el_s_rad) * np.sin(az_s_rad - az_p_rad)
 
         # m = cos(el_pointing) * sin(el_source) * cos(az_source - az_pointing)
         #     - sin(el_pointing) * cos(el_source)
         m = (
-            np.cos(el_p_rad) * np.sin(el_s_rad) * np.cos(az_s_rad - az_p_rad)
-            - np.sin(el_p_rad) * np.cos(el_s_rad)
+            np.sin(el_s_rad) * np.cos(el_p_rad) -
+            np.cos(el_s_rad) * np.sin(el_p_rad) * np.cos(az_s_rad - az_p_rad)
         )
 
         return l, m
