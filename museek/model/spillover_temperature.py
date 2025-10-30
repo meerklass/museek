@@ -6,7 +6,7 @@ of elevation and frequency for both L-band and UHF-band observations.
 """
 
 import numpy as np
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RegularGridInterpolator
 from pathlib import Path
 
 
@@ -70,15 +70,21 @@ class SpilloverTemperature:
             self.freq_range_MHz = (frequencies.min(), frequencies.max())
             self.elevation_range = (elevation.min(), elevation.max())
 
-            # Create 2D spline interpolators (elevation, frequency) -> T_spill
-            # Use cubic splines (kx=3, ky=3) for smooth interpolation
-            self.spill['HH'] = RectBivariateSpline(
-                elevation, frequencies, T_HH_data,
-                kx=3, ky=3, s=0  # s=0 for interpolation (not smoothing)
+            # Create 2D interpolators (elevation, frequency) -> T_spill
+            # Use cubic interpolation for smooth variation (important due to large frequency gaps)
+            self.spill['HH'] = RegularGridInterpolator(
+                (elevation, frequencies),
+                T_HH_data,
+                method='cubic',
+                bounds_error=False,
+                fill_value=None  # Extrapolate outside bounds
             )
-            self.spill['VV'] = RectBivariateSpline(
-                elevation, frequencies, T_VV_data,
-                kx=3, ky=3, s=0
+            self.spill['VV'] = RegularGridInterpolator(
+                (elevation, frequencies),
+                T_VV_data,
+                method='cubic',
+                bounds_error=False,
+                fill_value=None  # Extrapolate outside bounds
             )
 
         except (IOError, FileNotFoundError) as e:
@@ -130,9 +136,23 @@ class SpilloverTemperature:
         el_array = np.atleast_1d(elevation)
         freq_array = np.atleast_1d(frequency_MHz)
 
-        # Evaluate interpolator
-        # RectBivariateSpline returns shape (len(el), len(freq))
-        T_spill = self.spill[pol_key](el_array, freq_array)
+        # RegularGridInterpolator requires points with shape (n_points, n_dims)
+        # Create meshgrid for all (elevation, frequency) combinations
+        n_el = len(el_array)
+        n_freq = len(freq_array)
+
+        # Broadcast to create (n_el, n_freq) grids
+        el_grid, freq_grid = np.meshgrid(el_array, freq_array, indexing='ij')
+
+        # Stack into points array: (n_el × n_freq, 2)
+        # Column order must match interpolator axes: (elevation, frequency)
+        points = np.stack([el_grid.ravel(), freq_grid.ravel()], axis=1)
+
+        # Interpolate - returns flat array of shape (n_el × n_freq,)
+        T_spill_flat = self.spill[pol_key](points)
+
+        # Reshape to (n_el, n_freq)
+        T_spill = T_spill_flat.reshape((n_el, n_freq))
 
         # If inputs were scalars, return scalar
         if np.isscalar(elevation) and np.isscalar(frequency_MHz):

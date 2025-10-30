@@ -79,7 +79,7 @@ AntennaFlaggerPlugin = ConfigSection(
 )
 
 AoflaggerTrackingPlugin = ConfigSection(
-    n_jobs=2,
+    n_jobs=8,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.1,  # First threshold value
@@ -93,10 +93,12 @@ AoflaggerTrackingPlugin = ConfigSection(
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
-    do_store_context=False
+    do_store_context=True
 )
 
 PointSourceCalibrationPlugin = ConfigSection(
+    n_jobs=8,
+    verbose=0,
     flag_combination_threshold=1,
     beam_file_path='/idia/projects/meerklass/beams/uhf/MeerKAT_U_band_primary_beam_aa_highres.npz',
     receiver_models_dir=os.path.join(ROOT_DIR, 'data/receiver_models'),

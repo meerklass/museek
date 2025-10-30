@@ -85,12 +85,12 @@ class ReceiverTemperature:
 
             self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
 
-            # Create linear interpolator
+            # Create linear interpolator with constant extrapolation at edges
             self._interpolator = interp1d(
                 freq_MHz, T_rec,
                 kind='linear',
-                bounds_error=True,
-                fill_value=np.nan
+                bounds_error=False,  # Allow out-of-range queries
+                fill_value=(T_rec[0], T_rec[-1])  # Use edge values for extrapolation
             )
 
         except (ValueError, IndexError) as e:
@@ -113,15 +113,20 @@ class ReceiverTemperature:
         T_rec : np.ndarray or float
             Receiver temperature in Kelvin
 
-        Raises
-        ------
-        ValueError
-            If frequency is outside valid range
+        Notes
+        -----
+        Frequencies outside the measured range are extrapolated using constant
+        edge values (nearest neighbor extrapolation). This provides conservative
+        estimates for calibration at band edges. A warning is issued when
+        extrapolation occurs.
         """
         freq_array = np.atleast_1d(frequency_MHz)
         if freq_array.min() < self.freq_range_MHz[0] or freq_array.max() > self.freq_range_MHz[1]:
-            raise ValueError(
-                f"Frequency out of range: {freq_array.min():.1f}-{freq_array.max():.1f} MHz. "
-                f"Valid: {self.freq_range_MHz[0]:.1f}-{self.freq_range_MHz[1]:.1f} MHz"
+            import warnings
+            warnings.warn(
+                f"Frequency partially out of range: {freq_array.min():.1f}-{freq_array.max():.1f} MHz. "
+                f"Valid: {self.freq_range_MHz[0]:.1f}-{self.freq_range_MHz[1]:.1f} MHz. "
+                f"Using constant extrapolation at edges.",
+                UserWarning
             )
         return self._interpolator(frequency_MHz)

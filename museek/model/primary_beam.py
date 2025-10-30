@@ -459,13 +459,13 @@ class PrimaryBeam:
         original_shape = frequency_MHz.shape
         freq_flat = frequency_MHz.ravel()
 
-        # Linear interpolation, return 0 outside range
+        # Linear interpolation with constant extrapolation at edges
         solid_angle_interp = np.interp(
             freq_flat,
             self._freq_MHz,
             solid_angle,
-            left=0.0,
-            right=0.0
+            left=solid_angle[0],   # Use edge value for low frequencies
+            right=solid_angle[-1]  # Use edge value for high frequencies
         )
 
         return solid_angle_interp.reshape(original_shape)

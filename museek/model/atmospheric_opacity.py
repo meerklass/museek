@@ -210,22 +210,22 @@ class AtmosphericModel:
 
         # Extract and convert units
         # Temperature: DataElement (n_time, 1, 1) -> array (n_time,) in Celsius
-        temperature_C = track_data.temperature.squeeze[:, 0, 0]
+        temperature_C = track_data.temperature.squeeze
 
         # Humidity: DataElement (n_time, 1, 1) stored as % -> array (n_time,) as fraction
-        humidity_fraction = track_data.humidity.squeeze[:, 0, 0] / 100.0
+        humidity_fraction = track_data.humidity.squeeze / 100.0
 
         # Pressure: DataElement (n_time, 1, 1) -> array (n_time,) in hPa
-        pressure_hPa = track_data.pressure.squeeze[:, 0, 0]
+        pressure_hPa = track_data.pressure.squeeze
 
         # Site elevation: scalar in km
         site_elevation_km = track_data.site_elevation_km
 
-        # Frequency: DataElement (1, n_freq, 1) in MHz -> array (n_freq,) in GHz
-        frequency_GHz = track_data.frequencies.squeeze[0, :, 0] / 1e3
+        # Frequency: DataElement (1, n_freq, 1) in Hz -> array (n_freq,) in GHz
+        frequency_GHz = track_data.frequencies.squeeze / 1e9
 
         # Elevation: DataElement (n_time, 1, n_antennas) -> array (n_time, n_antennas) in degrees
-        elevation_deg = track_data.elevation.squeeze[:, 0, :]
+        elevation_deg = track_data.elevation.squeeze
 
         # Calculate zenith opacity using ITU-R P.676-9
         self._zenith_opacity = calc_zenith_opacity(

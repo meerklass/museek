@@ -144,7 +144,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
 
         # Convert timestamps to astropy Time
-        times = Time(track_data.timestamps, format='unix')
+        times = Time(track_data.timestamps.squeeze, format='unix')
 
         # Calculate atmospheric model once (before all loops)
         atmospheric_model = AtmosphericModel(track_data)
@@ -162,7 +162,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 flag_data[i_receiver] = initial_flags.get(recv=i_receiver)
 
             # Get antenna index and atmospheric emission for this receiver
-            antenna_idx = receiver.antenna_index(receivers=track_data.receivers)
+            antenna_idx = track_data.antenna_index_of_receiver(receiver=receiver)
             atm_emission_data[i_receiver] = atmospheric_model.emission_temperature[:, :, antenna_idx]
 
             # Calculate receiver temperature for this specific receiver
@@ -175,6 +175,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrator_name = calibrator_names[period]
 
             # Calculate point source flux and position for THIS period (once per period, not per receiver)
+            # There is also a catalogue in the data folder with all point sources above 1Jy. One could also use that 
+            # to check for other sources next to the pointing. Note also that the spectral index in the
+            # catalogue and the one used here is slightly different.
             point_source_flux, ra_deg, dec_deg = get_point_source_model(calibrator_name, freq)
             # point_source_flux shape: (n_freq,)
 
@@ -198,8 +201,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                     os.makedirs(receiver_path)
 
                 # Get pointing for this receiver's antenna
-                az_pointing_all = track_data.azimuth.get(recv=i_receiver).squeeze  # (n_time,)
-                el_pointing_all = track_data.elevation.get(recv=i_receiver).squeeze  # (n_time,)
+                antenna_idx = track_data.antenna_index_of_receiver(receiver=receiver)
+                az_pointing_all = track_data.azimuth.squeeze[:, antenna_idx]  # (n_time,)
+                el_pointing_all = track_data.elevation.squeeze[:, antenna_idx]  # (n_time,)
 
                 # Subset for this period
                 az_pointing_period = az_pointing_all[select]  # (n_dumps_period,)
@@ -272,20 +276,22 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
          spillover_temp_period, noise_diode_ratios_period, dump_indices_period) = anything
 
         # Verify all temperature components are available
+        # Find frequency channel closest to 750 MHz (avoids band edges)
+        freq_MHz = freq / 1e6  # Convert Hz to MHz
+        idx_750 = np.argmin(np.abs(freq_MHz - 750.0))
+
+        # Print values at 750 MHz and first time dump
         print(f"Period {period}, Calibrator {calibrator_name}: "
               f"vis shape = {vis_period.shape}, "
-              f"atm mean = {np.mean(atm_period):.2f} K, "
-              f"point_source_temp mean = {np.mean(point_source_temp_period):.2e} K, "
-              f"rec_temp mean = {np.mean(rec_temp_recv):.2f} K, "
-              f"spillover_temp mean = {np.mean(spillover_temp_period):.2f} K, "
-              f"noise_diode_ratios mean = {np.mean(noise_diode_ratios_period):.3f}")
+              f"Maximum values at 750 MHz: "
+              f"atm = {np.max(atm_period[:, idx_750]):.2f} K, "
+              f"point_source = {np.max(point_source_temp_period[:, idx_750]):.2e} K, "
+              f"rec_temp = {rec_temp_recv[idx_750]:.2f} K, "
+              f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K")
 
-        # TODO: Calculate gain = measured / (model + atm_period + point_source_temp_period + rec_temp_recv + spillover_temp_period + ...)
-        # Note: rec_temp_recv has shape (n_freq,), all others have (n_dumps_period, n_freq)
-        # Broadcasting handles rec_temp_recv automatically
-        # For now, return ones as placeholder
-        gain_solution_period = np.ones(vis_period.shape, dtype=complex)  # (n_dumps_period, n_freq)
-
+        # TODO: Calculate gain 
+        gain_solution_period = np.ones(vis_period.shape, dtype=float)  # (n_dumps_period, n_freq)
+         
         # Return dictionary with gain and metadata for reconstruction
         return {
             'period': period,
@@ -300,6 +306,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                               calibrator_validated_periods: list,
                               calibrator_dump_indices: dict,
                               calibrator_names: dict,
+                              flag_name_list: list,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
@@ -329,7 +336,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         n_receivers = len(track_data.receivers)
 
         # Initialize full gain solution array with ones
-        gain_solution_array = np.ones((n_time, n_freq, n_receivers), dtype=complex)
+        gain_solution_array = np.ones((n_time, n_freq, n_receivers), dtype=float)
 
         # Get absolute dump indices for track_data
         dumps = np.array(track_data._dumps())

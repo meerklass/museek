@@ -169,7 +169,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         """Plot RA, Dec positions for validated calibrator tracks (first receiver only)."""
         # Use first receiver only
         first_receiver = track_data.receivers[0]
-        antenna_index = first_receiver.antenna_index(receivers=track_data.receivers)
+        antenna_index = track_data.antenna_index_of_receiver(receiver=first_receiver)
         
         # Get RA, Dec data for first receiver
         ra_data = track_data.right_ascension.get(recv=antenna_index)
@@ -218,11 +218,11 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         """Plot elevation vs time for validated calibrator tracks (first receiver only)."""
         # Use first receiver only
         first_receiver = track_data.receivers[0]
-        antenna_index = first_receiver.antenna_index(receivers=track_data.receivers)
+        antenna_index = track_data.antenna_index_of_receiver(receiver=first_receiver)
         
         # Get elevation and timestamp data for first receiver
         elevation_data = track_data.elevation.get(recv=antenna_index)
-        timestamp_data = track_data.original_timestamps.get(recv=antenna_index)
+        timestamp_data = track_data.timestamps.get(recv=antenna_index)
 
         plt.figure(figsize=(12, 6))
 
