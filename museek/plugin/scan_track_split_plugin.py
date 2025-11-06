@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy
 
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result

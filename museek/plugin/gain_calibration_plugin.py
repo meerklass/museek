@@ -3,7 +3,7 @@ from typing import Generator
 
 from matplotlib import pyplot as plt
 
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement

@@ -1,5 +1,5 @@
 import os
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum

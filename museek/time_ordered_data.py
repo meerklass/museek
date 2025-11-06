@@ -9,7 +9,7 @@ from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Target, Antenna
 
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from museek.data_element import DataElement
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import AbstractDataElementFactory, DataElementFactory, FlagElementFactory

@@ -12,7 +12,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.antenna_sanity.from_log import FromLog
 
-from definitions import SECONDS_IN_ONE_DAY
+from museek.definitions import SECONDS_IN_ONE_DAY
 from datetime import datetime, timedelta
 import numpy as np
 from museek.util.time_analysis import TimeAnalysis

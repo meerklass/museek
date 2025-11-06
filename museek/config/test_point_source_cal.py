@@ -1,6 +1,6 @@
 import os
 
-from definitions import ROOT_DIR
+from museek.definitions import ROOT_DIR
 from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
@@ -13,9 +13,9 @@ Pipeline = ConfigSection(
         'museek.plugin.extract_calibrators_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
-        'museek.plugin.point_source_calibration_plugin',
+        'museek.plugin.point_source_calibration0_plugin',
     ],
-    #context=os.path.join('/idia/users/wkhu/calibration_results/noise_diode_2d/', '1675632179/gain_calibration_plugin.pickle')
+#    context=os.path.join('/home/mgrsantos/projects/data/', '1675021905/aoflagger_tracking_plugin.pickle')
 
 )
 
@@ -26,7 +26,6 @@ InPlugin = ConfigSection(
     #receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
     data_folder='/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
-    #data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_auto_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     force_load_cross_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     do_save_visibility_to_disc=True, # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access (stored in museek local cache folder)
@@ -43,7 +42,7 @@ KnownRfiPlugin = ConfigSection(
     #extra_rfi=[(1524, 1630)],
     gps=None,
     extra_rfi=[
-    (765, 775),  # Vodacom
+    (765, 778),  # Vodacom
     (801, 811),  # MTN
     (811, 821)   # Telkom
     ]
@@ -96,12 +95,12 @@ AoflaggerTrackingPlugin = ConfigSection(
     do_store_context=True
 )
 
-PointSourceCalibrationPlugin = ConfigSection(
+PointSourceCalibration0Plugin = ConfigSection(
     n_jobs=8,
     verbose=0,
     flag_combination_threshold=1,
     beam_file_path='/idia/projects/meerklass/beams/uhf/MeerKAT_U_band_primary_beam_aa_highres.npz',
-    receiver_models_dir=os.path.join(ROOT_DIR, 'data/receiver_models'),
-    spillover_model_file=os.path.join(ROOT_DIR, 'data/MK_U_Tspill_AsBuilt_atm_mask.dat'),
+    receiver_models_dir=os.path.join(ROOT_DIR, 'model/receiver_models'),
+    spillover_model_file=os.path.join(ROOT_DIR, 'model/MK_U_Tspill_AsBuilt_atm_mask.dat'),
     do_store_context=True
 )

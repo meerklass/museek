@@ -31,3 +31,4 @@ class ResultEnum(Enum):
     CALIBRATOR_VALIDATED_PERIODS = auto()
     CALIBRATOR_DUMP_INDICES = auto()
     CALIBRATOR_NAMES = auto()
+    MODEL_COMPONENTS = auto()

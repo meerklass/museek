@@ -1,0 +1,10 @@
+# antenna = default
+# diode = pin
+# pol = V
+# date = 2010-11-29
+# interp = PiecewisePolynomial1DFit(max_degree=1)
+# notes = Default noise diode model
+#
+#freq [Hz], T_nd [K]
+1000000000, 40.0
+2000000000, 40.0
