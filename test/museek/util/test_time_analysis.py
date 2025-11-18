@@ -8,8 +8,11 @@ class TestTimeAnalysis(unittest.TestCase):
         time_analysis = TimeAnalysis(latitude=0, longitude=0)
         obs_start = datetime.fromtimestamp(0)
         obs_end = datetime.fromtimestamp(3600)  # 1 hour later
-        start, end, end_diff, start_diff = time_analysis.time_difference_to_sunset_sunrise(obs_start=obs_start, 
-                                                                                           obs_end=obs_end)
+        start, end, end_diff, start_diff = (
+            time_analysis.time_difference_to_sunset_sunrise(
+                obs_start=obs_start, obs_end=obs_end
+            )
+        )
 
         self.assertEqual(datetime(1969, 12, 31, 18, 7, 1, 543037), start)
         self.assertEqual(datetime(1970, 1, 1, 5, 59, 31, 249269), end)
@@ -17,5 +20,5 @@ class TestTimeAnalysis(unittest.TestCase):
         self.assertAlmostEqual(28378, start_diff, 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -34,13 +34,19 @@ class TestFlagList(unittest.TestCase):
 
     def test_from_array(self):
         flag_array = np.zeros((3, 3, 3, 3))
-        self.assertEqual(self.flag_list, FlagList.from_array(flag_array, element_factory=FlagElementFactory()))
+        self.assertEqual(
+            self.flag_list,
+            FlagList.from_array(flag_array, element_factory=FlagElementFactory()),
+        )
 
     def test_from_array_when_3_dimensional(self):
         flag_array = np.zeros((3, 3, 3))
         flags = [FlagElement(array=np.zeros((3, 3, 3))) for _ in range(1)]
         flag_list = FlagList(flags=flags)
-        self.assertEqual(flag_list, FlagList.from_array(flag_array, element_factory=FlagElementFactory()))
+        self.assertEqual(
+            flag_list,
+            FlagList.from_array(flag_array, element_factory=FlagElementFactory()),
+        )
 
     def test_shape(self):
         self.assertTupleEqual((3, 3, 3), self.flag_list.shape)
@@ -54,40 +60,60 @@ class TestFlagList(unittest.TestCase):
     def test_add_flag_when_flag_element(self):
         mock_flags = FlagList(flags=[FlagElement(array=np.zeros((3, 3, 3)))])
         self.flag_list.add_flag(flag=mock_flags)
-        np.testing.assert_array_equal(mock_flags._flags[0].array, self.flag_list._flags[0].array)
+        np.testing.assert_array_equal(
+            mock_flags._flags[0].array, self.flag_list._flags[0].array
+        )
 
     def test_remove_flag(self):
-        flag_list = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in range(3)])
+        flag_list = FlagList(
+            flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in range(3)]
+        )
         flag_list.remove_flag(index=1)
-        expect = FlagList(flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in [0, 2]])
+        expect = FlagList(
+            flags=[FlagElement(array=np.ones((3, 3, 3), dtype=bool)) for _ in [0, 2]]
+        )
         self.assertEqual(expect, flag_list)
 
     def test_combine_when_empty(self):
-        self.assertEqual(FlagElement(array=np.zeros((3, 3, 3))), self.flag_list.combine())
+        self.assertEqual(
+            FlagElement(array=np.zeros((3, 3, 3))), self.flag_list.combine()
+        )
 
     def test_combine_when_ones_and_threshold_small(self):
         flags = [FlagElement(array=np.ones((3, 3, 3))) for _ in range(3)]
         flag_list = FlagList(flags=flags)
-        self.assertEqual(FlagElement(array=np.ones((3, 3, 3))), flag_list.combine(threshold=1))
+        self.assertEqual(
+            FlagElement(array=np.ones((3, 3, 3))), flag_list.combine(threshold=1)
+        )
 
     def test_combine_when_ones_and_threshold_large(self):
         flags = [FlagElement(array=np.ones((3, 3, 3))) for _ in range(3)]
         flag_list = FlagList(flags=flags)
-        self.assertEqual(FlagElement(array=np.zeros((3, 3, 3))), flag_list.combine(threshold=4))
+        self.assertEqual(
+            FlagElement(array=np.zeros((3, 3, 3))), flag_list.combine(threshold=4)
+        )
 
     def test_combine_when_different_flags_and_threshold_small(self):
-        flags = [FlagElement(array=np.ones((3, 3, 3))),
-                 FlagElement(array=np.zeros((3, 3, 3))),
-                 FlagElement(array=np.ones((3, 3, 3)))]
+        flags = [
+            FlagElement(array=np.ones((3, 3, 3))),
+            FlagElement(array=np.zeros((3, 3, 3))),
+            FlagElement(array=np.ones((3, 3, 3))),
+        ]
         flag_list = FlagList(flags=flags)
-        self.assertEqual(FlagElement(array=np.ones((3, 3, 3))), flag_list.combine(threshold=1))
+        self.assertEqual(
+            FlagElement(array=np.ones((3, 3, 3))), flag_list.combine(threshold=1)
+        )
 
     def test_combine_when_different_flags_and_threshold_large(self):
-        flags = [FlagElement(array=np.ones((3, 3, 3))),
-                 FlagElement(array=np.zeros((3, 3, 3))),
-                 FlagElement(array=np.ones((3, 3, 3)))]
+        flags = [
+            FlagElement(array=np.ones((3, 3, 3))),
+            FlagElement(array=np.zeros((3, 3, 3))),
+            FlagElement(array=np.ones((3, 3, 3))),
+        ]
         flag_list = FlagList(flags=flags)
-        self.assertEqual(FlagElement(array=np.zeros((3, 3, 3))), flag_list.combine(threshold=3))
+        self.assertEqual(
+            FlagElement(array=np.zeros((3, 3, 3))), flag_list.combine(threshold=3)
+        )
 
     def test_combine_when_one_dump_flagged(self):
         flag_1 = FlagElement(array=np.zeros((3, 3, 3)))
@@ -98,23 +124,25 @@ class TestFlagList(unittest.TestCase):
         flag_list = FlagList(flags=[flag_1, flag_2])
         self.assertEqual(flag_2, flag_list.combine(threshold=1))
 
-    @patch.object(FlagList, '_check_flags')
+    @patch.object(FlagList, "_check_flags")
     def test_get(self, mock_check_flags):
         mock_flag = MagicMock(shape=1)
         mock_flag.get.return_value = mock_flag
         flag_list = FlagList(flags=[mock_flag])
-        kwargs = {'mock': 'mock'}
+        kwargs = {"mock": "mock"}
         self.assertEqual(flag_list._flags[0], flag_list.get(**kwargs)._flags[0])
-        mock_flag.get.assert_called_once_with(mock='mock')
+        mock_flag.get.assert_called_once_with(mock="mock")
         self.assertEqual(2, mock_check_flags.call_count)
 
     def test_insert_receiver_flag_when_flag_shape_incorrect_expect_value_error(self):
         mock_flag = FlagElement(array=np.ones((3, 3, 2)))
-        self.assertRaises(ValueError,
-                          self.flag_list.insert_receiver_flag,
-                          flag=mock_flag,
-                          i_receiver=1,
-                          index=2)
+        self.assertRaises(
+            ValueError,
+            self.flag_list.insert_receiver_flag,
+            flag=mock_flag,
+            i_receiver=1,
+            index=2,
+        )
 
     def test_insert_receiver_flag(self):
         mock_flag = FlagElement(array=np.ones((3, 3, 1), dtype=bool))
@@ -139,8 +167,8 @@ class TestFlagList(unittest.TestCase):
         expect = np.zeros((3, 3, 3, 3))
         np.testing.assert_array_equal(expect, self.flag_list.array)
 
-    @patch.object(FlagList, '_check_flag_types')
-    @patch.object(FlagList, '_check_flag_shapes')
+    @patch.object(FlagList, "_check_flag_types")
+    @patch.object(FlagList, "_check_flag_shapes")
     def test_check_flags(self, mock_check_flag_shapes, mock_check_flag_types):
         self.flag_list._check_flags()
         mock_check_flag_shapes.assert_called_once()
@@ -150,7 +178,10 @@ class TestFlagList(unittest.TestCase):
         self.assertIsNone(self.flag_list._check_flag_shapes())
 
     def test_check_flag_shapes_expect_raise(self):
-        flags = [FlagElement(array=np.zeros((3, 3, 3))), FlagElement(array=np.zeros((1, 1, 1)))]
+        flags = [
+            FlagElement(array=np.zeros((3, 3, 3))),
+            FlagElement(array=np.zeros((1, 1, 1))),
+        ]
         self.assertRaises(ValueError, FlagList, flags=flags)
 
     def test_check_flag_types(self):
