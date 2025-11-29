@@ -69,35 +69,53 @@ class ReceiverTemperature:
         filename = f'Rx{band}_SN{serial_number:04d}_calculated_noise_{pol_char}_chan.dat'
         filepath = Path(data_dir) / filename
 
-        if not filepath.exists():
-            raise FileNotFoundError(
-                f"Receiver model not found: {filepath}\n"
-                f"receiver={receiver.name}, receiver_id={receiver.receiver_id}"
-            )
-
+        # Try to load the file, fall back to default if not found
         try:
             # Load file: frequency (Hz), gain (dB), temperature (K)
             data = np.loadtxt(filepath, delimiter=',', comments='%')
 
-            # Extract frequency (Hz -> MHz) and temperature (K)
-            freq_MHz = data[:, 0] / 1e6
-            T_rec = data[:, 2]
+        except FileNotFoundError:
+            # Determine default serial number based on band and serial number range
+            if serial_number >= 4000:
+                default_serial = 4001
+            else:
+                default_serial = 4 if band == 'L' else 2
 
-            self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
+            # Construct fallback filename and path
+            fallback_filename = f'Rx{band}_SN{default_serial:04d}_calculated_noise_{pol_char}_chan.dat'
+            fallback_filepath = Path(data_dir) / fallback_filename
 
-            # Create linear interpolator with constant extrapolation at edges
-            self._interpolator = interp1d(
-                freq_MHz, T_rec,
-                kind='linear',
-                bounds_error=False,  # Allow out-of-range queries
-                fill_value=(T_rec[0], T_rec[-1])  # Use edge values for extrapolation
+            # Issue warning about using fallback
+            import warnings
+            warnings.warn(
+                f"Receiver model not found: {filepath}\n"
+                f"Using default model for Rx{band}_SN{default_serial:04d} instead.\n"
+                f"receiver={receiver.name}, receiver_id={receiver.receiver_id}",
+                UserWarning
             )
 
+            # Try to load fallback (let it raise FileNotFoundError if default also doesn't exist)
+            data = np.loadtxt(fallback_filepath, delimiter=',', comments='%')
+
+        # Extract frequency (Hz -> MHz) and temperature (K)
+        try:
+            freq_MHz = data[:, 0] / 1e6
+            T_rec = data[:, 2]
         except (ValueError, IndexError) as e:
             raise ValueError(
                 f'Invalid receiver model file format: {filepath}\n'
                 f'Expected CSV: frequency (Hz), gain (dB), temperature (K)'
             ) from e
+
+        self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
+
+        # Create linear interpolator with constant extrapolation at edges
+        self._interpolator = interp1d(
+            freq_MHz, T_rec,
+            kind='linear',
+            bounds_error=False,  # Allow out-of-range queries
+            fill_value=(T_rec[0], T_rec[-1])  # Use edge values for extrapolation
+        )
 
     def __call__(self, frequency_MHz: np.ndarray | float) -> np.ndarray | float:
         """
