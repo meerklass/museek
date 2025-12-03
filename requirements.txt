@@ -15,4 +15,5 @@ jupyterlab
 ipykernel
 pysm3
 sphinx
+papermill
 git+https://github.com/meerklass/ivory.git
