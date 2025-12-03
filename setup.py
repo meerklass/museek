@@ -13,6 +13,10 @@ setup(
             "museek = ivory.cli.main:run",
         ]
     },
+    scripts=[
+        "scripts/process_uhf_band.sh",
+        "scripts/run_notebook.sh",
+    ],
     install_requires=[
         "numpy~=1.23.3",
         "scipy",
