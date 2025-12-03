@@ -9,7 +9,7 @@
 #   This script is designed for processing MEERKLASS observations.
 #
 # USAGE:
-#   ./process_uhf_band.sh --block-name <block_name> --box <box_number> 
+#   museek_process_uhf_band.sh --block-name <block_name> --box <box_number> 
 #                             [--base-context-folder <path>] [--data-folder <path>]
 #                             [--slurm-options <options>] [--dry-run]
 #
@@ -45,23 +45,23 @@
 #
 # EXAMPLES:
 #   # Basic usage with box number
-#   ./process_uhf_band.sh --block-name 1675632179 --box 6
+#   museek_process_uhf_band.sh --block-name 1675632179 --box 6
 #
 #   # Custom base context folder
-#   ./process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/path/pipeline
+#   museek_process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/path/pipeline
 #
 #   # Custom base context and data folders
-#   ./process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline --data-folder /custom/data
+#   museek_process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline --data-folder /custom/data
 #
 #   # With SLURM email notifications
-#   ./process_uhf_band.sh --block-name 1675632179 --box 6 \
+#   museek_process_uhf_band.sh --block-name 1675632179 --box 6 \
 #       --slurm-options --mail-user=user@uni.edu --mail-type=ALL
 #
 #   # Dry-run to preview the script
-#   ./process_uhf_band.sh --block-name 1675632179 --box 6 --dry-run
+#   museek_process_uhf_band.sh --block-name 1675632179 --box 6 --dry-run
 #
 #   # Display help
-#   ./process_uhf_band.sh --help
+#   museek_process_uhf_band.sh --help
 # 
 # DEFAULT SLURM PARAMETERS:
 #   Job name:       MuSEEK-<block_name>
@@ -122,7 +122,7 @@ This script generates and submits a Slurm job to process UHF band data using
 the MuSEEK pipeline.
 
 USAGE:
-  ./process_uhf_band.sh --block-name <block_name> --box <box_number> 
+  museek_process_uhf_band.sh --block-name <block_name> --box <box_number> 
                             [--base-context-folder <path>] [--data-folder <path>]
                             [--slurm-options <options>] [--dry-run]
 
@@ -157,10 +157,10 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  ./process_uhf_band.sh --block-name 1675632179 --box 6
-  ./process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
-  ./process_uhf_band.sh --block-name 1675632179 --box 6 --dry-run
-  ./process_uhf_band.sh --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
+  museek_process_uhf_band.sh --block-name 1675632179 --box 6
+  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
+  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --dry-run
+  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
 EOF
             exit 0
             ;;

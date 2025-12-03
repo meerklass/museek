@@ -14,8 +14,8 @@ setup(
         ]
     },
     scripts=[
-        "scripts/process_uhf_band.sh",
-        "scripts/run_notebook.sh",
+        "scripts/museek_process_uhf_band.sh",
+        "scripts/museek_run_notebook.sh",
     ],
     install_requires=[
         "numpy~=1.23.3",

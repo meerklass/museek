@@ -9,7 +9,7 @@
 #   it to Slurm. Kernel validation is performed before submission.
 #
 # USAGE:
-#   ./run_notebook.sh --notebook <notebook_name> --block-name <block_name> --box <box_number>
+#   museek_run_notebook.sh --notebook <notebook_name> --block-name <block_name> --box <box_number>
 #                     [--output-path <path>] [--kernel <kernel_name>]
 #                     [-p <param_name> <param_value>] ... [-p <param_name> <param_value>]
 #                     [--slurm-options <options>] ... [--slurm-options <options>]
@@ -56,21 +56,21 @@
 #
 # EXAMPLES:
 #   # Basic usage
-#   ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
+#   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
 #
 #   # With custom parameters
-#   ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
+#   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
 #       -p data_path /custom/path/ -p data_name custom.pickle
 #
 #   # With SLURM options
-#   ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
+#   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
 #       --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
 #
 #   # Dry-run to preview the script
-#   ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
+#   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
 #
 #   # Display help
-#   ./run_notebook.sh --help
+#   museek_run_notebook.sh --help
 #
 # DEFAULT SLURM PARAMETERS:
 #   Job name:       MuSEEK-Notebook
@@ -146,7 +146,7 @@ This script generates and submits a Slurm job to execute a MuSEEK Jupyter
 notebook using papermill.
 
 USAGE:
-  ./run_notebook.sh --notebook <notebook_name> --block-name <block_name> --box <box_number>
+  museek_run_notebook.sh --notebook <notebook_name> --block-name <block_name> --box <box_number>
                     [--output-path <path>] [--kernel <kernel_name>]
                     [-p <param_name> <param_value>] ... [-p <param_name> <param_value>]
                     [--slurm-options <options>] ... [--slurm-options <options>] 
@@ -191,10 +191,10 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
-  ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
-  ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
-  ./run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
+  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
+  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
+  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
 EOF
             exit 0
             ;;
