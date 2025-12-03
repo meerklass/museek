@@ -28,6 +28,17 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
 
 ## Installation
 
+### Pre-configued Python Virtual Environment
+
+If you only need to run MuSEEK pipeline or notebooks, and you are on ilifu, you can simply use the shared `meerklass` Python virtual environment that has been pre-configed with MuSEEK (and most other Python modules that you might need).
+
+Simply source the activation file as below.
+```source /idia/projects/meerklass/virtualenv/meerklass/bin/activate```
+
+If you need any module installed into this shared environment, please contact Boom (@piyanatk).
+
+If you need to develop new code for MuSEEK, you will have to setup your own virtual environment as follow.
+
 ### Setup Python Virtual Environment
 
 It is recommended to create a Python Virtual Environment to install MuSEEK. The Python interpreter should be >=3.10 (older versions are not tested).
@@ -255,6 +266,44 @@ More information on these are included in their class documentations.
 14. `AoflaggerPostCalibrationPlugin`
 15. `SanityCheckObservationPlugin`
 16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+
+
+## Notebooks
+
+MuSEEK now come with a few Jupyter notebook templates for data inspection, which are now run after `process_uhf_band` pipeline has been run on the data. 
+
+Since version `0.3.0` We have adopted `papermill` as an engine for executing the notebook templates through a command-line interface while modifying the required parameters dynamically. The `papermill` command should be installed when you install MuSEEK as it is one of the requirements.
+
+To execute the notebook, first make sure that you have [install a Jupyter kernel](#Install-Jupyter-Kernel). For example, if you are using the shared `meerklass` environment on Ilifu, running the two command below will install a Jupyter kernel named `meerklass` for using with `papermill` (and jupyter.ilifu.ac.za)
+
+```
+source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
+python -m ipykernel install --user --name meerklass
+```
+
+Then to execute a notebook, simply do, for example,
+
+```papermill -k meerklass -p block_name 12345678 notebooks/calibrated_data_check-postcali.ipynb output_notebook.ipynb```
+
+Here, we tell `papermill` to run the `calibrated_data_check-postcali.ipynb` notebook using the `meerklass` kernel that we just installed, overidding the default `block_name` parameter in the notebook with `12345678` and saved the output notebook as `output_notebook.ipynb`
+
+To figure out which parameters in the notebook can be passed thorugh `papermill`, use the `--help-notebook` tag. For example,
+
+```bash
+$ papermill --help-notebook notebooks/calibrated_data_check-postcali.ipynb 
+Usage: papermill [OPTIONS] NOTEBOOK_PATH [OUTPUT_PATH]
+
+Parameters inferred for notebook 'notebooks/calibrated_data_check-postcali.ipynb':
+  block_name: str (default "1708972386")
+  data_name: str (default "aoflagger_plugin_postcalibration.pickle")
+  data_path: str (default "/idia/projects/hi_im/uhf_2024/pipeline/")
+```
+
+Check out `papermill` [documentation](https://papermill.readthedocs.io/en/latest/index.html) and its CLI help text for more information.
+
+```
+papermill --help
+```
 
 ## Maintainers
 The current maintainers of MuSEEK are:
