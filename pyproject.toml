@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools-scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "museek"
+dynamic = ["version"]
+description = "A flexible and easy-to-extend data processing pipeline for multi-instrument autocorrelation radio experiments"
+requires-python = ">=3.10,<4"
+dependencies = [
+    "numpy~=1.23.3",
+    "scipy",
+    "Cython",
+    "h5py",
+    "mock",
+    "numba",
+    "pyephem",
+    "six",
+    "healpy",
+    "astropy",
+    "scikit-learn",
+    "katdal",
+    "sphinx",
+    "matplotlib",
+    "papermill",
+    "ivory @ git+https://github.com/meerklass/ivory.git",
+]
+classifiers = [
+    "GPLv3",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.scripts]
+museek = "ivory.cli.main:run"
+
+[tool.setuptools]
+packages = ["museek", "cli"]
+
+[tool.setuptools.data-files]
+"bin" = [
+    "scripts/museek_process_uhf_band.sh",
+    "scripts/museek_run_notebook.sh",
+]
+
+[tool.setuptools-scm]
+write_to = "museek/_version.py"
+write_to_template = '__version__ = "{version}"'
