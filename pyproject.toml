@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=80", "wheel", "setuptools-scm[simple]>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "museek"
+authors = [
+    {name = "Mario Santos", email = "mgrsantos@uwc.ac.za"},
+    {name = "Wenkai Hu", email = "astrowkhu@gmail.com"},
+    {name = "Piyanat Kittiwisit", email = "piyanat.kittiwisit@gmail.com"},
+    {name = "Amadeus Wild", email = "amadeus.wild@outlook.com"},
+]
+maintainers = [
+    {name = "Mario Santos", email = "mgrsantos@uwc.ac.za"},
+    {name = "Wenkai Hu", email = "astrowkhu@gmail.com"},
+    {name = "Piyanat Kittiwisit", email = "piyanat.kittiwisit@gmail.com"},
+]
+license = "GPL-3.0-or-later"
+description = "A flexible and easy-to-extend data processing pipeline for multi-instrument autocorrelation radio experiments"
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">=3.10,<4"
+dependencies = [
+    "numpy~=1.23.3",
+    "scipy",
+    "Cython",
+    "h5py",
+    "mock",
+    "numba",
+    "pyephem",
+    "six",
+    "healpy",
+    "astropy",
+    "scikit-learn",
+    "katdal",
+    "sphinx",
+    "matplotlib",
+    "papermill",
+    "ivory @ git+https://github.com/meerklass/ivory.git",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.urls]
+Repository = "https://github.com/meerklass/museek"
+
+[project.scripts]
+museek = "cli.main:main"
+
+[tool.setuptools]
+packages = ["museek"]
+
+[tool.setuptools.data-files]
+"bin" = [
+    "scripts/museek_process_uhf_band.sh",
+    "scripts/museek_run_notebook.sh",
+]
