@@ -16,4 +16,3 @@ echo "Submitting Slurm job"
 echo "Repository directory: $MUSEEK_REPO_DIR"
 
 /users/yourname/environment/museek/bin/python $MUSEEK_REPO_DIR/cli/main.py museek.config.process_uhf_band
-
