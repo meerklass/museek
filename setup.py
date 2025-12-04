@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="museek",
-    version="0.2.1",
+    version="0.3.0",
     description="A flexible and easy-to-extend data processing pipeline for multi-instrument autocorrelation radio experiments",
     author="",
     author_email="",
@@ -32,6 +32,7 @@ setup(
         "katdal",
         "sphinx",
         "matplotlib",
+        "papermill",
         "ivory @ git+https://github.com/meerklass/ivory.git",
     ],
     classifiers=[
