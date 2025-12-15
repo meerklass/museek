@@ -1,4 +1,4 @@
-numpy
+numpy>=2.0.0
 scipy
 Cython
 h5py
@@ -16,4 +16,4 @@ ipykernel
 pysm3
 sphinx
 papermill
-git+https://github.com/meerklass/ivory.git@v1.0.0
+git+https://github.com/meerklass/ivory.git@>=2.0.0
