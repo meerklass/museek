@@ -50,7 +50,7 @@ classifiers = [
 Repository = "https://github.com/meerklass/museek"
 
 [project.scripts]
-museek = "cli.main:main"
+museek = "museek.cli.main:main"
 
 [tool.setuptools]
 packages = ["museek"]
