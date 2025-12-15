@@ -16,4 +16,4 @@ ipykernel
 pysm3
 sphinx
 papermill
-git+https://github.com/meerklass/ivory.git
+git+https://github.com/meerklass/ivory.git@1.0.0
