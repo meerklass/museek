@@ -83,12 +83,12 @@ class TestFlagElement(unittest.TestCase):
 
     def test_make_boolean_when_true(self):
         result = FlagElement._make_boolean(array=np.array([1]))
-        self.assertTrue(isinstance(result[0], bool | np.bool_))
+        self.assertTrue(isinstance(result[0], bool | np.bool))
         np.testing.assert_array_equal(np.array([True]), result)
 
     def test_make_boolean_when_false(self):
         result = FlagElement._make_boolean(array=np.array([0]))
-        self.assertTrue(isinstance(result[0], bool | np.bool_))
+        self.assertTrue(isinstance(result[0], bool | np.bool))
         np.testing.assert_array_equal(
             np.array([False]), FlagElement._make_boolean(array=np.array([0]))
         )
