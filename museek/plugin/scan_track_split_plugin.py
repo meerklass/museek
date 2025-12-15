@@ -98,17 +98,19 @@ class ScanTrackSplitPlugin(AbstractPlugin):
             )
         )
 
-        receivers_list, flag_percent = flag_percent_recv(scan_data)
-        branch, commit = git_version_info()
-        current_datetime = datetime.datetime.now()
-        lines = [
-            "...........................",
-            "Running ScanTrackSplitPlugin with "
-            + f"MuSEEK version: {branch} ({commit})",
-            "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-            "The flag fraction for each receiver: ",
-        ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
-        flag_report_writer.write_to_report(lines)
+        # Make flagging report if the data has been flagged
+        if scan_data.flags is not None:
+            receivers_list, flag_percent = flag_percent_recv(scan_data)
+            branch, commit = git_version_info()
+            current_datetime = datetime.datetime.now()
+            lines = [
+                "...........................",
+                "Running ScanTrackSplitPlugin with "
+                + f"MuSEEK version: {branch} ({commit})",
+                "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                "The flag fraction for each receiver: ",
+            ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
+            flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
             context_file_name = "scan_track_split_plugin.pickle"
