@@ -261,7 +261,7 @@ def plot_mdata(
         zi[
             y_nan_list[i] - y_mask : y_nan_list[i] + y_mask + 1,
             x_nan_list[i] - x_mask : x_nan_list[i] + x_mask + 1,
-        ] = np.NaN  # imshow, (y,x) is confirmed by plot#
+        ] = np.nan  # imshow, (y,x) is confirmed by plot#
     # contour the gridded data, plotting dots at the randomly spaced data points.
     IM = plt.imshow(
         zi[::-1, :],
