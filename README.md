@@ -122,6 +122,31 @@ python -m ipykernel install --name "museek_kernel" --user
 
 After relaunching the Jupyter node, `museek_kernel` should now be selectable.
 
+### Development Setup
+
+If you are developing new features or making modifications to MuSEEK, it is recommended to install the development dependencies and set up pre-commit hooks for automatic code formatting and linting.
+
+Install development dependencies:
+
+```bash
+pip install --editable .[dev]
+```
+
+This installs `pre-commit` and `ruff` in addition to the base MuSEEK dependencies.
+
+Set up pre-commit hooks (recommended):
+
+```bash
+pre-commit install
+```
+
+Now, before each commit, `ruff` will automatically:
+- Format your code to comply with project standards
+- Fix auto-fixable linting issues
+- Block commits that have unfixable issues until they are resolved
+
+This ensures code quality and consistency across the project. For more details, see [CONTRIBUTING.rst](CONTRIBUTING.rst).
+
 ## Running A Pipeline
 
 A MuSEEK pipeline usually consits of several plugins defined in the [museek/plugin](museek/plugin/).
