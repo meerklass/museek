@@ -19,6 +19,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
         - [1. Setup a Python Virtual Environment](#1-setup-a-python-virtual-environment)
         - [2. Manually install MuSEEK in editable mode](#2-manually-install-museek-in-editable-mode)
     - [Using MuSEEK in a Jupyter Notebook](#using-museek-in-a-jupyter-notebook)
+- [Available Commands](#available-commands)
 - [Running A Pipeline](#running-a-pipeline)
     - [Running Locally](#running-locally)
     - [Changing Pipeline Parameters](#changing-pipeline-parameters)
@@ -136,7 +137,7 @@ python -m ipykernel install --name "museek_kernel" --user
 
  `museek_kernel` should now be selectable from Jupyter (may need refreshing).
 
- ### Available Commands
+ ## Available Commands
 
  Installing MuSEEK will install the `museek` command, and `museek_process_uhf_band.sh` and `museek_run_notebook.sh` scripts
 
