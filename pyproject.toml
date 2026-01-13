@@ -37,7 +37,7 @@ dependencies = [
     "pysm3",
     "matplotlib",
     "papermill",
-    "ivory @ git+https://github.com/meerklass/ivory.git",
+    "ivory @ git+https://github.com/meerklass/ivory.git@v1.0.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
