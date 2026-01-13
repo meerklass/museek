@@ -49,7 +49,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.1.3",
-    "black>=24.0.0",
+    "ruff>=0.6.9",
 ]
 
 [project.urls]
@@ -73,3 +73,45 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = [
+    "build",
+    "dist",
+    "cache",
+    ".eggs",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",        # PyCodeStyle errors
+    "F",        # Pyflakes rules
+    "B",        # flake8-bugbear
+    "I",        # Sort imports properly
+    "W",        # PyCodeStyle warnings
+    "UP",       # Warn if certain things can changed due to newer Python versions
+    "PTH",      # Encorage pathlib over os.path
+]
+ignore = [
+    # Conflicting rules with Ruff formatter
+    # Taken from https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
