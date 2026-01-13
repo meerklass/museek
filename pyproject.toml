@@ -49,6 +49,7 @@ classifiers = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.1.3",
+    "black>=24.0.0",
 ]
 
 [project.urls]
@@ -65,3 +66,10 @@ packages = ["museek"]
     "scripts/museek_process_uhf_band.sh",
     "scripts/museek_run_notebook.sh",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
