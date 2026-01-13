@@ -93,11 +93,10 @@ extend-exclude = [
 select = [
     "E",        # PyCodeStyle errors
     "F",        # Pyflakes rules
-    "B",        # flake8-bugbear
     "I",        # Sort imports properly
     "W",        # PyCodeStyle warnings
     "UP",       # Warn if certain things can changed due to newer Python versions
-    "PTH",      # Encorage pathlib over os.path
+    "NPY",      # Numpy-specific rules
 ]
 ignore = [
     # Conflicting rules with Ruff formatter
@@ -114,8 +113,14 @@ ignore = [
     "Q003",
     "COM812",
     "COM819",
+    # E501 (line-too-long) is ignored because docstrings and comments
+    # cannot be automatically formatted without breaking their semantics
+    # Plus, we run ruff-check in CI, and we probably should not expect our
+    # team members to comply with this ...
+    "E501",
 ]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+docstring-code-format = true
