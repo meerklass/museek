@@ -34,12 +34,14 @@ jobs:
         pip install -e .[test]
         museek --help
     
-    - name: Lint and format with Ruff
+    - name: Lint with Ruff
       run: |
-        pip install ruff
-        ruff format --check .
         ruff check --output-format=github .
     
     - name: Test with pytest
       run: |
         pytest test/ -v --tb=short
+    
+    - name: Generate coverage report
+      run: |
+        pytest test/ --cov=museek --cov-report=term --cov-report=html
