@@ -8,8 +8,11 @@ class ConstantElevationScans:
     """
     Class for antenna sanity checks in a scanning strategy with constant elevation pointings but motion in azimuth.
     """
+
     @staticmethod
-    def get_antennas_with_non_constant_elevation(data: TimeOrderedData, threshold: float) -> list[Antenna]:
+    def get_antennas_with_non_constant_elevation(
+        data: TimeOrderedData, threshold: float
+    ) -> list[Antenna]:
         """
         Return a `list` of `Antenna`s which do not have constant elevation individually`.
         :param data: time ordered data
@@ -23,4 +26,3 @@ class ConstantElevationScans:
             if standard_deviation > threshold:
                 result.append(antenna)
         return result
-

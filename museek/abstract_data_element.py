@@ -4,7 +4,7 @@ import numpy as np
 
 
 class AbstractDataElement(ABC):
-    """ Abstract base class for `DataElement`s and `FlagElement`s. Their shared methods are found here. """
+    """Abstract base class for `DataElement`s and `FlagElement`s. Their shared methods are found here."""
 
     def __init__(self, array: np.ndarray):
         """
@@ -12,18 +12,20 @@ class AbstractDataElement(ABC):
         :raise ValueError: if `array is not 3-dimensional
         """
         if len(array.shape) != 3:
-            raise ValueError(f'Input `array` needs to be 3-dimensional, got shape {array.shape}')
+            raise ValueError(
+                f"Input `array` needs to be 3-dimensional, got shape {array.shape}"
+            )
         self.array = array
 
     def __getitem__(self, index: int | list[int]) -> np.ndarray:
-        """ Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`. """
+        """Returns `numpy`s getitem evaluated at `index` coupled with a `squeeze`."""
         return np.squeeze(self.array[index])
 
     def __str__(self):
-        """ Return the string of the underlying array. """
+        """Return the string of the underlying array."""
         return str(self.array)
 
-    def __eq__(self, other: 'AbstractDataElement'):
+    def __eq__(self, other: "AbstractDataElement"):
         """
         Return `True` if the underlying arrays are equal.
         This means their `shape` and content must be equal.
@@ -34,7 +36,7 @@ class AbstractDataElement(ABC):
 
     @property
     def squeeze(self) -> np.ndarray:
-        """ Returns a `numpy` `array` containing the all dumps of `self` without redundant dimensions. """
+        """Returns a `numpy` `array` containing the all dumps of `self` without redundant dimensions."""
         array = self.get_array()
         if array.shape == (1, 1, 1):  # squeeze behaves weirdly in this case
             return array[0, 0, 0]
@@ -42,15 +44,16 @@ class AbstractDataElement(ABC):
 
     @property
     def shape(self) -> tuple[int, int, int]:
-        """ Returns the shape of the underlying numpy array. """
+        """Returns the shape of the underlying numpy array."""
         return self.array.shape
 
-    def get(self,
-            *,  # force named parameters
-            time: int | list[int] | slice | range | None = None,
-            freq: int | list[int] | slice | range | None = None,
-            recv: int | list[int] | slice | range | None = None,
-            ):
+    def get(
+        self,
+        *,  # force named parameters
+        time: int | list[int] | slice | range | None = None,
+        freq: int | list[int] | slice | range | None = None,
+        recv: int | list[int] | slice | range | None = None,
+    ):
         """
         Simplified indexing
         :param time: indices or slice along the zeroth (dump) axis
@@ -86,7 +89,7 @@ class AbstractDataElement(ABC):
         return self.get(**kwargs).array
 
     @classmethod
-    def channel_iterator(cls, data_element: 'AbstractDataElement'):
+    def channel_iterator(cls, data_element: "AbstractDataElement"):
         """
         Iterate through the frequency channels of `data_element` and yield a `tuple` of the channel visibilities
         and the `np.arange` of the number of timestamps in the channel.
@@ -95,14 +98,15 @@ class AbstractDataElement(ABC):
             yield cls(array=channel[:, np.newaxis, :]), np.arange(len(channel))
 
     @classmethod
-    def flagged_channel_iterator(cls,
-                                 data_element: 'AbstractDataElement',
-                                 flag_element: 'AbstractDataElement'):
+    def flagged_channel_iterator(
+        cls, data_element: "AbstractDataElement", flag_element: "AbstractDataElement"
+    ):
         """
         Simultaneously iterate through the frequency channels of `data_element` and `flag_element` and yield
         the channel visibilities as well as the unmasked indices
         """
-        for visibility_channel, flag_channel in zip(np.moveaxis(data_element.array, 1, 0),
-                                                    np.moveaxis(flag_element.array, 1, 0)):
+        for visibility_channel, flag_channel in zip(
+            np.moveaxis(data_element.array, 1, 0), np.moveaxis(flag_element.array, 1, 0)
+        ):
             unmasked = np.where(flag_channel == False)[0]
             yield cls(array=visibility_channel[:, np.newaxis, :]), unmasked
