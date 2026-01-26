@@ -45,7 +45,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
 
 If you only need to run pre-existing MuSEEK pipeline or notebooks with no need for additional codes or pipelines development, there are two simple installation options.
 
-#### 1. Pre-configued Python virtual Environment on Ilifu
+#### 1. Pre-configured Python virtual Environment on Ilifu
 
 If you are on Ilifu, you can use the shared `meerklass` Python virtual environment that has been pre-configed with most MeerKLASS-related Python modules, including MuSEEK, as well as other modules that you might ever need. Simply source the activation file as below.
 
@@ -128,7 +128,7 @@ The `[test,dev]` option tells `pip` to install all optional dependencies, includ
 
 ### Using MuSEEK in a Jupyter Notebook
 
-If you want to use MuSEEK on one of the Jupyter nodes on Ilifu (or local Jupyter installlation) or run the data inspection notebooks with the `museek_run_notebook.sh` script, you will have to additionally install MuSEEK as Jupyter kernel. After completing the standard installation above, do:
+If you want to use MuSEEK on one of the Jupyter nodes on Ilifu (or local Jupyter installation) or run the data inspection notebooks with the `museek_run_notebook.sh` script, you will have to additionally install MuSEEK as Jupyter kernel. After completing the standard installation above, do:
 
 ```bash
 python -m pip install ipykernel
@@ -483,7 +483,7 @@ You can contribute in many ways:
     * Your operating system name and version.
     * Any details about your local setup that might be helpful in troubleshooting.
     * Detailed steps to reproduce the bug.
-* __Fix Bugs, Implement Features, or Write Documentation__: Fork the repository (or ask to be added as a colalborator) and contribute a Pull Request.
+* __Fix Bugs, Implement Features, or Write Documentation__: Fork the repository (or ask to be added as a collaborator) and contribute a Pull Request.
 * __Submit Feedback__: If you are proposing a feature:
     * Explain in detail how it should work.
     * Keep the scope as narrow as possible, to make it easier to implement.
@@ -491,7 +491,7 @@ You can contribute in many ways:
 
 ### Code Formatting Guidelines
 
-Please try to follow standard Python code formatting (PEP8). The easiest way to achive that is to use `ruff`, which should be available when installing MuSEEK in development mode.
+Please try to follow standard Python code formatting (PEP8). The easiest way to achieve that is to use `ruff`, which should be available when installing MuSEEK in development mode.
 
 `ruff` can check and automatically format code to align with the recommended Python style. Simple run these two commands in the root directory of the repository.
 
@@ -500,7 +500,7 @@ ruff check --statistics .
 ruff format .
 ```
 
-The first will print a summary of violation from the style guide. The second will auto-format the code. Note that the auto-formatting will not work on lines with long string or docstrings. You will have to mannually format that.
+The first will print a summary of violation from the style guide. The second will auto-format the code. Note that the auto-formatting will not work on lines with long string or docstrings. You will have to manually format that.
 
 A pre-commit hook, which is basically a little automated script that is run when `git` makes a new commit, is also provided in the repository to automatically run `ruff` upon making a new commit. To use it, simply install pre-commit hooks:
 
@@ -514,7 +514,7 @@ Then everytime you do `git commit`, `ruff` will automatically format and lint yo
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. The docs should be updated or extended accordingly. Add any new plugins to the list in README.rst.
+2. The docs should be updated or extended accordingly. Add any new plugins to the list in README.md.
 3. The pull request should work for Python 3.10.
 4. Make sure that the tests pass.
 5. Code must be formatted with ``ruff format`` and pass ``ruff check``.
