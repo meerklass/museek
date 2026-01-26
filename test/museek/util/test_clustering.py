@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -45,7 +45,8 @@ class TestClustering(unittest.TestCase):
         mock_timestamps = np.append(
             self.mock_before_timestamps, self.mock_after_timestamps
         )
-        np.random.shuffle(mock_timestamps)
+        rng = np.random.default_rng(0)
+        rng.shuffle(mock_timestamps)
         dumps_list, _ = Clustering().split_clusters(
             feature_vector=mock_timestamps, n_clusters=2
         )
@@ -344,6 +345,7 @@ class TestClustering(unittest.TestCase):
     ):
         mock_max_difference_to_mean_metric.return_value = np.array([2])
         mock_feature_vector = MagicMock()
+        type(mock_feature_vector).shape = PropertyMock(return_value=(10,))
         mock_distance_threshold = 1
         outlier_indices = Clustering().iterative_outlier_indices(
             feature_vector=mock_feature_vector,
@@ -367,6 +369,7 @@ class TestClustering(unittest.TestCase):
     ):
         mock_max_difference_to_mean_metric.return_value = np.array([0.1])
         mock_feature_vector = MagicMock()
+        type(mock_feature_vector).shape = PropertyMock(return_value=(10,))
         mock_distance_threshold = 1
         outlier_indices = Clustering().iterative_outlier_indices(
             feature_vector=mock_feature_vector,
@@ -397,9 +400,9 @@ class TestClustering(unittest.TestCase):
         self.assertListEqual([1], ordered)
 
     def test_iterative_outlier_cluster_wityh_get_outlier_cluster(self):
-        np.random.seed(0)
-        random_1 = np.random.normal(0, scale=0.1, size=10)
-        random_2 = np.random.normal(0, scale=0.1, size=10)
+        rng = np.random.default_rng(0)
+        random_1 = rng.normal(0, scale=0.1, size=10)
+        random_2 = rng.normal(0, scale=0.1, size=10)
         centre = [[a, b] for a, b in zip(random_1, random_2)]
         up = [[a, b + 1] for a, b in zip(random_1, random_2)]
         right = [[a + 1, b] for a, b in zip(random_1, random_2)]
@@ -427,8 +430,9 @@ class TestClustering(unittest.TestCase):
             self.assertEqual(0, label)
 
     def test_iterative_outlier_cluster_with_get_outlier_cluster_binary_majority(self):
-        non_outliers_list = [np.random.normal(i, scale=0.1, size=10) for i in range(6)]
-        outliers_list = [np.random.normal(i + 10, scale=0.1, size=9) for i in range(6)]
+        rng = np.random.default_rng(0)
+        non_outliers_list = [rng.normal(i, scale=0.1, size=10) for i in range(6)]
+        outliers_list = [rng.normal(i + 10, scale=0.1, size=9) for i in range(6)]
 
         non_outliers = np.asarray(non_outliers_list).T
         outliers = np.asarray(outliers_list).T

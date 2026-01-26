@@ -1,8 +1,8 @@
 from ivory.plugin.abstract_plugin import AbstractPlugin
 
 
-class TestPlugin(AbstractPlugin):
-    """Test Plugin. Prints some text."""
+class DummyPlugin(AbstractPlugin):
+    """Dummy Plugin. Prints some text."""
 
     def __init__(self, testvar: int):
         super().__init__()

@@ -37,7 +37,7 @@ class TestRfiPostProcess(unittest.TestCase):
         mock_binary_dilation.assert_called_once_with(
             self.mock_new_flag.squeeze.__xor__.return_value,
             structure=self.rfi_post_process._struct,
-            iterations=5,
+            iterations=3,
         )
 
     @patch.object(scipy.ndimage, "binary_closing")
@@ -53,7 +53,7 @@ class TestRfiPostProcess(unittest.TestCase):
         mock_binary_closing.assert_called_once_with(
             self.mock_new_flag.squeeze,
             structure=self.rfi_post_process._struct,
-            iterations=5,
+            iterations=3,
         )
 
     def test_flag_all_channels(self):
