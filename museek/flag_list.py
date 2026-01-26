@@ -1,9 +1,11 @@
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
-from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
+
+if TYPE_CHECKING:
+    from museek.factory.data_element_factory import FlagElementFactory
 
 
 class FlagList:
@@ -11,6 +13,8 @@ class FlagList:
 
     def __init__(self, flags: list[FlagElement]):
         """Initialise with `flags`, a `list of `FlagElement`s."""
+        from museek.factory.data_element_factory import FlagElementFactory
+
         self._flags = flags
         self._check_flags()
         self._flag_element_factory = FlagElementFactory()
@@ -32,7 +36,7 @@ class FlagList:
 
     @classmethod
     def from_array(
-        cls, array: np.ndarray, element_factory: FlagElementFactory
+        cls, array: np.ndarray, element_factory: "FlagElementFactory"
     ) -> "FlagList":
         """
         Alternative constructor from a 3 or 4-dimensional `array` using the factory `element_factory`.
