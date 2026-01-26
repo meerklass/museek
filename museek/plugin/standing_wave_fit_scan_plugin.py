@@ -1,14 +1,13 @@
 import json
 import os
-from typing import Callable
 
 import numpy as np
-from matplotlib import pyplot as plt
-
-from museek.definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from matplotlib import pyplot as plt
+
+from museek.definitions import MEGA
 from museek.enums.result_enum import ResultEnum
 from museek.model.bandpass_model import BandpassModel
 from museek.time_ordered_data import TimeOrderedData
@@ -117,15 +116,15 @@ class StandingWaveFitScanPlugin(AbstractPlugin):
                 receiver_path=receiver_path,
                 calibrator_label=self.calibrator_label,
             )
-            epsilon_function_dict[receiver.name][
-                self.calibrator_label
-            ] = bandpass_model.epsilon_function
-            legendre_function_dict[receiver.name][
-                self.calibrator_label
-            ] = bandpass_model.legendre_function
-            parameters_dict[receiver.name][
-                self.calibrator_label
-            ] = bandpass_model.parameters_dictionary
+            epsilon_function_dict[receiver.name][self.calibrator_label] = (
+                bandpass_model.epsilon_function
+            )
+            legendre_function_dict[receiver.name][self.calibrator_label] = (
+                bandpass_model.legendre_function
+            )
+            parameters_dict[receiver.name][self.calibrator_label] = (
+                bandpass_model.parameters_dictionary
+            )
 
         if self.do_store_parameters:
             with open(os.path.join(output_path, parameters_dict_name), "w") as f:

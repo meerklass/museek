@@ -1,7 +1,8 @@
 import os
 
-from museek.definitions import ROOT_DIR
 from ivory.utils.config_section import ConfigSection
+
+from museek.definitions import ROOT_DIR
 
 Pipeline = ConfigSection(
     plugins=[

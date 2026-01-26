@@ -1,40 +1,24 @@
-import os
-from typing import Generator
+import datetime
+import gc
+import warnings
 
-from matplotlib import pyplot as plt
-
-from museek.definitions import ROOT_DIR
+import numpy as np
+import scipy
 from ivory.plugin.abstract_plugin import AbstractPlugin
-from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.data_element import DataElement
+
 from museek.enums.result_enum import ResultEnum
-from museek.flag_element import FlagElement
-from museek.flag_factory import FlagFactory
-from museek.rfi_mitigation.aoflagger import get_rfi_mask
-from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
-from museek.rfi_mitigation.aoflagger_1d import gaussian_filter_1d
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import Synch_model_sm, git_version_info
-from museek.util.tools import remove_outliers_zscore_mad, polynomial_flag_outlier
 from museek.util.tools import (
-    moving_median_masked,
-    gaussian_filter_masked,
+    Synch_model_sm,
+    git_version_info,
     interpolate_1d_masked_array,
+    moving_median_masked,
+    polynomial_flag_outlier,
+    remove_outliers_zscore_mad,
 )
-from museek.visualiser import waterfall
-import pysm3
-import pysm3.units as u
-import healpy as hp
-import numpy as np
-from astropy.coordinates import SkyCoord
-import pickle
-import gc
-import scipy
-import warnings
-import datetime
 
 
 class GainCalibrationPlugin(AbstractPlugin):
@@ -156,7 +140,6 @@ class GainCalibrationPlugin(AbstractPlugin):
 
         #######  loop for each receiver   ########
         for i_receiver, receiver in enumerate(scan_data.receivers):
-
             visibility_recv = scan_data.visibility.get(recv=i_receiver).squeeze
             initial_flag = initial_flags.get(recv=i_receiver).squeeze
 
@@ -258,8 +241,8 @@ class GainCalibrationPlugin(AbstractPlugin):
                 synchrms_in_time = np.ma.std(synch_recv, axis=0)
                 gain = visrms_in_time / synchrms_in_time
 
-                temperature[:, :, i_receiver] = visibility_recv_norm.data / (
-                    gain[np.newaxis, :]
+                temperature[:, :, i_receiver] = (
+                    visibility_recv_norm.data / (gain[np.newaxis, :])
                 )
 
                 del visibility_recv_norm
@@ -279,8 +262,8 @@ class GainCalibrationPlugin(AbstractPlugin):
                 )
                 gain = vis_synch_sum / synch_synch_sum
 
-                temperature[:, :, i_receiver] = visibility_recv.data / (
-                    gain[np.newaxis, :]
+                temperature[:, :, i_receiver] = (
+                    visibility_recv.data / (gain[np.newaxis, :])
                 )
 
         #########  select the frequency region we want to use  #######

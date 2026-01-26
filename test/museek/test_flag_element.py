@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 
@@ -7,7 +7,6 @@ from museek.flag_element import FlagElement
 
 
 class TestFlagElement(unittest.TestCase):
-
     def setUp(self):
         self.shape = (3, 3, 3)
         self.mock_parent = MagicMock()
@@ -61,7 +60,7 @@ class TestFlagElement(unittest.TestCase):
         )
         self.assertEqual(flag_1 + flag_2, expect)
 
-    @patch("museek.flag_element.DataElement")
+    @patch("museek.data_element.DataElement")
     @patch("museek.flag_element.np")
     def test_sum(self, mock_np, mock_data_element):
         mock_axis = MagicMock()
@@ -83,12 +82,12 @@ class TestFlagElement(unittest.TestCase):
 
     def test_make_boolean_when_true(self):
         result = FlagElement._make_boolean(array=np.array([1]))
-        self.assertTrue(isinstance(result[0], bool))
+        self.assertTrue(isinstance(result[0], (bool, np.bool_)))
         np.testing.assert_array_equal(np.array([True]), result)
 
     def test_make_boolean_when_false(self):
         result = FlagElement._make_boolean(array=np.array([0]))
-        self.assertTrue(isinstance(result[0], bool))
+        self.assertTrue(isinstance(result[0], (bool, np.bool_)))
         np.testing.assert_array_equal(
             np.array([False]), FlagElement._make_boolean(array=np.array([0]))
         )

@@ -1,3 +1,6 @@
+import sys
+
+import matplotlib.pyplot as plt
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
@@ -5,9 +8,6 @@ from ivory.utils.result import Result
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.calibrator_finder import find_calibrators
-import matplotlib.pyplot as plt
-import numpy as np
-import sys
 
 
 class ExtractCalibratorsPlugin(AbstractPlugin):
@@ -88,7 +88,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
 
         # Exit if validation failed
         if not validation_success:
-            print(f"Calibration validation failed. Terminating pipeline.")
+            print("Calibration validation failed. Terminating pipeline.")
             sys.exit(1)
 
         # Store results for downstream plugins
@@ -155,10 +155,10 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         validation_success = False
         if self.n_calibrator_observations == 1:
             if len(validated_periods) == 0:
-                print(f"ERROR: No valid calibrator periods found")
+                print("ERROR: No valid calibrator periods found")
             elif len(validated_periods) == 2:
                 print(
-                    f'ERROR: Found valid calibrators in both periods ({", ".join(validated_periods)}), expected exactly one'
+                    f"ERROR: Found valid calibrators in both periods ({', '.join(validated_periods)}), expected exactly one"
                 )
             elif len(validated_periods) == 1:
                 period = validated_periods[0]
@@ -242,7 +242,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
             # Different calibrators
             calibrator_list = "_".join([name.lower() for name in self.calibrator_names])
             plt.title(
-                f'Calibrator Track Positions - {" & ".join(self.calibrator_names)}'
+                f"Calibrator Track Positions - {' & '.join(self.calibrator_names)}"
             )
             plot_filename = f"calibrator_positions_{calibrator_list}.png"
 
@@ -306,7 +306,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
             # Different calibrators
             calibrator_list = "_".join([name.lower() for name in self.calibrator_names])
             plt.title(
-                f'Calibrator Elevation vs Time - {" & ".join(self.calibrator_names)}'
+                f"Calibrator Elevation vs Time - {' & '.join(self.calibrator_names)}"
             )
             plot_filename = f"calibrator_elevation_{calibrator_list}.png"
 

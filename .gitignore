@@ -64,3 +64,4 @@ CLAUDE.md
 # SLURM logs
 *.log
 _*.sbatch
+context.pickle

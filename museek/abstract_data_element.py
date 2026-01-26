@@ -108,5 +108,5 @@ class AbstractDataElement(ABC):
         for visibility_channel, flag_channel in zip(
             np.moveaxis(data_element.array, 1, 0), np.moveaxis(flag_element.array, 1, 0)
         ):
-            unmasked = np.where(flag_channel == False)[0]
+            unmasked = np.where(np.logical_not(flag_channel))[0]
             yield cls(array=visibility_channel[:, np.newaxis, :]), unmasked

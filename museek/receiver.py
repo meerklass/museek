@@ -42,7 +42,7 @@ class Receiver:
         if (
             not receiver_string.startswith("m")
             or not len(receiver_string) == 5
-            or not receiver_string[-1] in ["h", "v"]
+            or receiver_string[-1] not in ["h", "v"]
         ):
             raise ValueError(
                 f'Input `receiver_string` needs to be like e.g. "m063v", got {receiver_string}.'

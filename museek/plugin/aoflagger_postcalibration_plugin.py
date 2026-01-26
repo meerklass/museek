@@ -1,36 +1,25 @@
-import os
-from typing import Generator
+import datetime
+from collections.abc import Generator
 
-from matplotlib import pyplot as plt
-
-from museek.definitions import ROOT_DIR
+import healpy as hp
+import numpy as np
+import pysm3
+import pysm3.units as u
+import scipy
+from astropy.coordinates import SkyCoord
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from scipy.stats import spearmanr
+
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
-from museek.flag_factory import FlagFactory
-from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import Synch_model_sm
-from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv, git_version_info
-from museek.util.tools import point_sources_coordinate, point_source_flagger
-from museek.util.tools import remove_outliers_zscore_mad
-import pickle
-import numpy as np
-import scipy
-import datetime
-from scipy.stats import spearmanr
-import pysm3
-import pysm3.units as u
-import healpy as hp
-from astropy.coordinates import SkyCoord
-from scipy import ndimage
+from museek.util.tools import git_version_info, remove_outliers_zscore_mad
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
@@ -259,11 +248,16 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield receiver_path, calibrated_data.data[
-                :, :, i_antenna
-            ], calibrated_data.mask[:, :, i_antenna], point_source_flag[
-                :, :, i_antenna
-            ], right_ascension, declination, freq_select, antenna.name
+            yield (
+                receiver_path,
+                calibrated_data.data[:, :, i_antenna],
+                calibrated_data.mask[:, :, i_antenna],
+                point_source_flag[:, :, i_antenna],
+                right_ascension,
+                declination,
+                freq_select,
+                antenna.name,
+            )
 
     def run_job(
         self,
@@ -582,11 +576,14 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 True  # mask time points where the mask fraction is greater than the threshold
             )
             ########  calculate the frequency corrsponding to the frequency median of calibrated data   ########
-            mask_freq = np.median(mask_update[~time_points_to_mask, :], axis=0) == 1.0
-            assert (
-                mask_freq.all() == False
-            ), f"antenna {antenna}, too much data is masked, please check data, maybe increase the threshold for mask_fraction"
-            freq_median = np.median(freq[~mask_freq])
+            mask_freq = (
+                np.median(mask_update[np.logical_not(time_points_to_mask), :], axis=0)
+                == 1.0
+            )
+            assert not mask_freq.all(), (
+                f"antenna {antenna}, too much data is masked, please check data, maybe increase the threshold for mask_fraction"
+            )
+            freq_median = np.median(freq[np.logical_not(mask_freq)])
 
             #########   produce synch model at freq_median and smooth   #########
             sky = pysm3.Sky(nside=self.nside, preset_strings=self.synch_model)

@@ -1,9 +1,12 @@
-import numpy as np
-from katpoint import Antenna
+import datetime
 
+import numpy as np
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from katpoint import Antenna
+from scipy import ndimage
+
 from museek.antenna_sanity.constant_elevation_scans import ConstantElevationScans
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
@@ -12,11 +15,8 @@ from museek.flag_factory import FlagFactory
 from museek.flag_list import FlagList
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.clustering import Clustering
-from museek.util.tools import flag_percent_recv, git_version_info
 from museek.util.report_writer import ReportWriter
-import pickle
-from scipy import ndimage
-import datetime
+from museek.util.tools import flag_percent_recv, git_version_info
 
 
 class AntennaFlaggerPlugin(AbstractPlugin):
@@ -135,7 +135,6 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         new_flag_array = np.zeros((shape[0], len(data.antennas)))
         ######  flag outlier antennas at each time stamp #####
         for i_timestamps, timestamps in enumerate(data.timestamps):
-
             antenna_elevation = data.elevation.get(time=i_timestamps).squeeze
             antenna_azimuth = data.azimuth.get(time=i_timestamps).squeeze
 
@@ -153,7 +152,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])
         for i_antenna, antenna in enumerate(data.antennas):
             if np.mean(new_flag_array[:, i_antenna]) > self.outlier_flag_threshold:
-                outlier_antenna_flag = np.ones((shape[0]))
+                outlier_antenna_flag = np.ones(shape[0])
                 print(
                     f"flag fraction of outlier antenna flagging exceeds outlier_flag_threshold: flagged antenna {antenna.name}."
                 )
@@ -243,7 +242,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             standard_deviation = np.std(antenna_elevation[~bad_elevation_flag])
 
             if np.mean(bad_elevation_flag) > self.elevation_flag_threshold:
-                bad_elevation_flag = np.ones((shape[0]))
+                bad_elevation_flag = np.ones(shape[0])
                 print(
                     f"fraction of flagged elevation exceeds elevation_flag_threshold: flagged antenna {antenna.name}."
                 )

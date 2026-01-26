@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import scipy
@@ -9,7 +9,6 @@ from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 
 
 class TestRfiPostProcess(unittest.TestCase):
-
     @patch("museek.rfi_mitigation.rfi_post_process.FlagElementFactory")
     def setUp(self, mock_flag_element_factory):
         self.mock_struct_size = MagicMock()
@@ -38,7 +37,7 @@ class TestRfiPostProcess(unittest.TestCase):
         mock_binary_dilation.assert_called_once_with(
             self.mock_new_flag.squeeze.__xor__.return_value,
             structure=self.rfi_post_process._struct,
-            iterations=5,
+            iterations=3,
         )
 
     @patch.object(scipy.ndimage, "binary_closing")
@@ -54,7 +53,7 @@ class TestRfiPostProcess(unittest.TestCase):
         mock_binary_closing.assert_called_once_with(
             self.mock_new_flag.squeeze,
             structure=self.rfi_post_process._struct,
-            iterations=5,
+            iterations=3,
         )
 
     def test_flag_all_channels(self):

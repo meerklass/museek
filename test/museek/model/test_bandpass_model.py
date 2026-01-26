@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import scipy
@@ -9,7 +9,6 @@ from museek.model.bandpass_model import BandpassModel
 
 
 class TestBandpassModel(unittest.TestCase):
-
     def setUp(self):
         self.bandpass_model = BandpassModel(
             standing_wave_displacements=[1.0, 2.0], legendre_degree=2, plot_name=None

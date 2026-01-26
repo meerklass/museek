@@ -1,29 +1,25 @@
-from typing import Generator
+import datetime
+import warnings
+from collections.abc import Generator
+
+import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.enums.result_enum import ResultEnum
-from museek.noise_diode import NoiseDiode
-from museek.flag_factory import FlagFactory
-from museek.flag_element import FlagElement
-from museek.flag_list import FlagList
+
 from museek.data_element import DataElement
-from museek.receiver import Receiver
+from museek.enums.result_enum import ResultEnum
+from museek.flag_factory import FlagFactory
+from museek.flag_list import FlagList
+from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import flag_percent_recv, git_version_info
-from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
-from museek.util.tools import remove_outliers_zscore_mad, polynomial_flag_outlier
-import pysm3.units as u
-from astropy.coordinates import SkyCoord
-import numpy as np
-import scipy
-import h5py
-import pickle
-import csv
-from scipy.interpolate import splrep, BSpline
-import warnings
-import datetime
+from museek.util.tools import (
+    flag_percent_recv,
+    git_version_info,
+    polynomial_flag_outlier,
+    remove_outliers_zscore_mad,
+)
 
 
 class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
@@ -106,7 +102,13 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         for i_receiver, receiver in enumerate(scan_data.receivers):
             visibility = scan_data.visibility.get(recv=i_receiver).squeeze
             initial_flag = initial_flags.get(recv=i_receiver).squeeze
-            yield visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios, scan_data.timestamps.array.squeeze()
+            yield (
+                visibility,
+                initial_flag,
+                noise_diode_off_dumps,
+                noise_diode_ratios,
+                scan_data.timestamps.array.squeeze(),
+            )
 
     def run_job(
         self,
@@ -268,7 +270,7 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
                 or np.ma.median(noise_diode_excess[:, :, i_receiver])
                 <= self.noise_diode_excess_lowlim
             ):
-                outlier_antenna_flag = np.ones((shape[0]))
+                outlier_antenna_flag = np.ones(shape[0])
             else:
                 outlier_antenna_flag = new_flag_array[:, i_receiver]
 

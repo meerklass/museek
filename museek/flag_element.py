@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from museek.abstract_data_element import AbstractDataElement
-from museek.data_element import DataElement
+
+if TYPE_CHECKING:
+    from museek.data_element import DataElement
 
 
 class FlagElement(AbstractDataElement):
@@ -25,8 +29,10 @@ class FlagElement(AbstractDataElement):
             return FlagElement(array=result)
         raise ValueError(f"Cannot add class {type(other)} to `FlagElement`.")
 
-    def sum(self, axis: int | list[int, int] | tuple[int, int]) -> DataElement:
+    def sum(self, axis: int | list[int, int] | tuple[int, int]) -> "DataElement":
         """Return the sum of `self` along `axis` as a `DataElement`, i.e. the dimensions are kept."""
+        from museek.data_element import DataElement
+
         return DataElement(array=np.sum(self.array, axis=axis, keepdims=True))
 
     def insert_receiver_flag(self, flag: "FlagElement", i_receiver: int):

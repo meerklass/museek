@@ -12,10 +12,14 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
 ## Table of Contents
 
 - [Installation](#installation)
-    - [Pre-configued Python virtual Environment on Ilifu](#pre-configued-python-virtual-environment-on-ilifu)
-    - [Setup Python Virtual Environment](#setup-python-virtual-environment)
-    - [Install MuSEEK](#install-museek)
-    - [Install Jupyter Kernel](#install-jupyter-kernel)
+    - [General Use](#general-use)
+        - [1. Pre-configued Python virtual Environment on Ilifu](#1-pre-configued-python-virtual-environment-on-ilifu)
+        - [2. Manual installation directly from GitHub](#2-manual-installation-directly-from-github)
+    - [Development Setup](#development-setup)
+        - [1. Setup a Python Virtual Environment](#1-setup-a-python-virtual-environment)
+        - [2. Manually install MuSEEK in editable mode](#2-manually-install-museek-in-editable-mode)
+    - [Using MuSEEK in a Jupyter Notebook](#using-museek-in-a-jupyter-notebook)
+- [Available Commands](#available-commands)
 - [Running A Pipeline](#running-a-pipeline)
     - [Running Locally](#running-locally)
     - [Changing Pipeline Parameters](#changing-pipeline-parameters)
@@ -27,27 +31,49 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
     - [Plugins](#plugins)
     - [Available Plugins](#available-plugins)
 - [Notebooks](#notebooks)
-    - [Running the notebook with Jupyter](#running-the-notebook-with-jupyter)
-    - [Running the notebook with papermill](#running-the-notebook-with-papermill)
-    - [Running the notebook with `museek_run_notebook.sh` script](#running-the-notebook-with-museek_run_notebooksh-script)
+    - [Running the Notebook with Jupyter](#running-the-notebook-with-jupyter)
+    - [Running the Notebook with Papermill](#running-the-notebook-with-papermill)
+    - [Running the Notebook with `museek_run_notebook.sh` Script](#running-the-notebook-with-museek_run_notebooksh-script)
+- [Contributing](#contributing)
+    - [Code Formatting Guidelines](#code-formatting-guidelines)
+    - [Pull Request Guidelines](#pull-request-guidelines)
 - [Maintainers](#maintainers)
 
 ## Installation
 
-### Pre-configued Python virtual Environment on Ilifu
+### General Use
 
-If you only need to run MuSEEK pipeline or notebooks on ilifu, you can use the shared "meerklass" Python virtual environment that has been pre-configed with MuSEEK (and most other Python modules that you might need). Simply source the activation file as below.
+If you only need to run pre-existing MuSEEK pipeline or notebooks with no need for additional codes or pipelines development, there are two simple installation options.
+
+#### 1. Pre-configured Python virtual Environment on Ilifu
+
+If you are on Ilifu, you can use the shared `meerklass` Python virtual environment that has been pre-configed with most MeerKLASS-related Python modules, including MuSEEK, as well as other modules that you might ever need. Simply source the activation file as below.
+
 ```
 source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
 ```
 
 If you need any other modules installed in this shared environment, please contact Boom (@piyanatk).
 
-### Setup Python Virtual Environment
+#### 2. Manual installation directly from GitHub
 
-If you are not on Ilifu, or you need to develop new feature or make modification to MuSEEK, you will have to setup your own virtual environment to install MuSEEK.
+You will need `python>=3.10` and `pip` for this.
 
-The Python interpreter should be >=3.10 (older versions are not tested).
+Then you can simply do
+
+```
+pip install git+https://github.com/meerklass/museek.git
+```
+
+This will install the latest version of MuSEEK that has been released on the GitHub repository.
+
+You will probably want to do this inside a Python virtual environment. Read the next section for details.
+
+### Development Setup
+
+If you need to develop new features, plugins or pipelines, or make modification to MuSEEK, you will have to setup your own Python virtual environment and manually install MuSEEK, preferably in editing mode. Please follow the guide below and also check [Contributing](#contributing) section.
+
+#### 1. Setup a Python Virtual Environment
 
 On Ilifu, the `virtualenv` command can be used although you may also use other tools (e.g. `conda` or `venv`).
 
@@ -83,7 +109,7 @@ python -m pip install --upgrade pip
 
 You are now ready to install MuSEEK.
 
-### Install MuSEEK
+#### 2. Manually install MuSEEK in editable mode
 
 First, clone the package,
 
@@ -91,36 +117,42 @@ First, clone the package,
 git clone git+https://github.com/meerklass/museek.git
 ```
 
-MuSEEK can then be installed via `pip`. If you are developing new feature, it is recommended that that package is installed with --editable flag, so that all changes will be reflected without having to re-install the package.
+MuSEEK can then be installed with `pip`. It is recommended that that package is installed with `--editable` (or short-handed as `-e`) flag when developing new features as all changes will be reflected without having to re-install the package.
 
 ```bash
 cd museek
-python -m pip install --editable .
+python -m pip install -e .[test,dev]
 ```
 
-This will also install the `museek` command, and `museek_process_uhf_band.sh` and `museek_run_notebook.sh` scripts
+The `[test,dev]` option tells `pip` to install all optional dependencies, including for unit testing (`test`) and development tools (`dev`). This will also install `pre-commit` and `ruff` to help with code formatting.
 
-```bash
-which museek
-# return /path/to/virtualenv/museek/bin/museek
+### Using MuSEEK in a Jupyter Notebook
 
-which museek_process_uhf_band.sh
-# return /path/to/virtualenv/museek/bin/museek_process_uhf_band.sh
-
-which museek_run_notebook.sh
-# return /path/to/virtualenv/museek/bin/museek_run_notebook.sh
-```
-
-### Install Jupyter Kernel
-
-If you want to run the data inspection notebooks with the `museek_run_notebook.sh` script or on one of the Jupyter nodes on Ilifu, install the virtual environment Python executable as a Jupyer kernel.
+If you want to use MuSEEK on one of the Jupyter nodes on Ilifu (or local Jupyter installation) or run the data inspection notebooks with the `museek_run_notebook.sh` script, you will have to additionally install MuSEEK as Jupyter kernel. After completing the standard installation above, do:
 
 ```bash
 python -m pip install ipykernel
 python -m ipykernel install --name "museek_kernel" --user
 ```
 
-After relaunching the Jupyter node, `museek_kernel` should now be selectable.
+ `museek_kernel` should now be selectable from Jupyter (may need refreshing).
+
+ ## Available Commands
+
+ Installing MuSEEK will install the `museek` command, and `museek_process_uhf_band.sh` and `museek_run_notebook.sh` scripts
+
+```bash
+which museek
+# should return return /path/to/virtualenv/museek/bin/museek
+
+which museek_process_uhf_band.sh
+# should return /path/to/virtualenv/museek/bin/museek_process_uhf_band.sh
+
+which museek_run_notebook.sh
+# should return /path/to/virtualenv/museek/bin/museek_run_notebook.sh
+```
+
+The following sections describe how they work.
 
 ## Running A Pipeline
 
@@ -344,7 +376,7 @@ The notebooks can be copy and run on Jupyter, with the Jupyter Hub on Ilifu (jup
 
 Since version `0.3.0`, we have adopted [papermill](https://papermill.readthedocs.io/en/latest/) as an engine for executing the notebook templates through a command-line interface. This allow the notebook to be run outside Jupyter while modifying the required parameters dynamically, which is more suitable for running the post-calibration notebooks on hundreads of data blocks, for example. The `papermill` command should be automatically installed when you install MuSEEK as it is one of the requirements.
 
-To execute the notebook, first make sure that you have [install a Jupyter kernel](#install-jupyter-kernel). For example, if you are using the shared `meerklass` environment on Ilifu, running the two command below will install a Jupyter kernel named `meerklass` for using with `papermill` (and jupyter.ilifu.ac.za)
+To execute the notebook, first make sure that you have [installed a Jupyter kernel](#using-museek-in-a-jupyter-notebook). For example, if you are using the shared `meerklass` environment on Ilifu, running the two command below will install a Jupyter kernel named `meerklass` for using with `papermill` (and jupyter.ilifu.ac.za)
 
 ```
 source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
@@ -439,6 +471,53 @@ EXAMPLES:
   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
   museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
 ```
+
+## Contributing
+
+Contributions are welcome, and they are greatly appreciated! Every
+little bit helps, and credit will always be given. 
+
+You can contribute in many ways:
+
+* __Report Bugs__: Please report potential bugs by [opening an issue](https://github.com/meerklass/museek/issues/new) on MuSEEK GitHub repository, and include:
+    * Your operating system name and version.
+    * Any details about your local setup that might be helpful in troubleshooting.
+    * Detailed steps to reproduce the bug.
+* __Fix Bugs, Implement Features, or Write Documentation__: Fork the repository (or ask to be added as a collaborator) and contribute a Pull Request.
+* __Submit Feedback__: If you are proposing a feature:
+    * Explain in detail how it should work.
+    * Keep the scope as narrow as possible, to make it easier to implement.
+    * Remember that this is a volunteer-driven project
+
+### Code Formatting Guidelines
+
+Please try to follow standard Python code formatting (PEP8). The easiest way to achieve that is to use `ruff`, which should be available when installing MuSEEK in development mode.
+
+`ruff` can check and automatically format code to align with the recommended Python style. Simple run these two commands in the root directory of the repository.
+
+```
+ruff check --statistics .
+ruff format .
+```
+
+The first will print a summary of violation from the style guide. The second will auto-format the code. Note that the auto-formatting will not work on lines with long string or docstrings. You will have to manually format that.
+
+A pre-commit hook, which is basically a little automated script that is run when `git` makes a new commit, is also provided in the repository to automatically run `ruff` upon making a new commit. To use it, simply install pre-commit hooks:
+
+```
+pre-commit install
+```
+
+Then everytime you do `git commit`, `ruff` will automatically format and lint your code before each commit.
+
+### Pull Request Guidelines
+Before you submit a pull request, check that it meets these guidelines:
+
+1. The pull request should include tests.
+2. The docs should be updated or extended accordingly. Add any new plugins to the list in README.md.
+3. The pull request should work for Python 3.10.
+4. Make sure that the tests pass.
+5. Code must be formatted with ``ruff format`` and pass ``ruff check``.
 
 
 ## Maintainers

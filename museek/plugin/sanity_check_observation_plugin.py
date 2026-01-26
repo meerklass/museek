@@ -1,10 +1,9 @@
 import itertools
 import re
 from datetime import datetime
-from typing import List
 
-import numpy as np
 import matplotlib.pylab as plt
+import numpy as np
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 
@@ -14,7 +13,6 @@ from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.time_analysis import TimeAnalysis
-import re
 
 
 class SanityCheckObservationPlugin(AbstractPlugin):
@@ -153,7 +151,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             description=description, plot_name=plot_name
         )
 
-    def remove_consecutive_duplicates(self, lst: List[str]):
+    def remove_consecutive_duplicates(self, lst: list[str]):
         """remove consecutive duplicate entries from the list while preserving the original order."""
         if not lst:
             return []
@@ -277,7 +275,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.plot(data.azimuth.squeeze, data.elevation.squeeze, ".-")
         plt.xlabel("az")
         plt.ylabel("el")
-        self.savefig(description=f"Entire scanning route. " f"All antennas.")
+        self.savefig(description="Entire scanning route. All antennas.")
 
         plt.figure(figsize=(8, 4))
         plt.plot(
@@ -288,7 +286,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         plt.legend(self.straggler_list)
         plt.xlabel("az")
         plt.ylabel("el")
-        self.savefig(description=f"Entire scanning route. " f"Straggler(s)")
+        self.savefig(description="Entire scanning route. Straggler(s)")
 
         plt.figure(figsize=(8, 4))
         plt.plot(
@@ -298,9 +296,7 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         )
         plt.xlabel("az")
         plt.ylabel("el")
-        self.savefig(
-            description=f"Entire scanning route. " f"Antennas without straggler(s)"
-        )
+        self.savefig(description="Entire scanning route. Antennas without straggler(s)")
 
         plt.figure(figsize=(8, 4))
         plt.subplots_adjust(hspace=0.2)
@@ -386,8 +382,8 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             lines=[
                 "## check closeness to sunset/sunrise",
                 f"performed with closeness to sunset/sunrise threshold {self.closeness_to_sunset_sunrise_threshold} minutes\n",
-                f'Sunset time: {sunset_start.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC',
-                f'Sunrise time: {sunrise_end.strftime("%Y-%m-%d %H:%M:%S %Z")}UTC',
+                f"Sunset time: {sunset_start.strftime('%Y-%m-%d %H:%M:%S %Z')}UTC",
+                f"Sunrise time: {sunrise_end.strftime('%Y-%m-%d %H:%M:%S %Z')}UTC",
             ]
         )
 
@@ -395,20 +391,19 @@ class SanityCheckObservationPlugin(AbstractPlugin):
             start_sunset_diff / 60.0 > self.closeness_to_sunset_sunrise_threshold
             and sunrise_end_diff / 60.0 > self.closeness_to_sunset_sunrise_threshold
         ):
-
             report_writer.print_to_report(
                 [
-                    f"check closeness to sunset/sunrise: ",
-                    f"Good, the time difference between start/sunrise time and sunset/end is ",
-                    f"{start_sunset_diff/60.:.4f}/{sunrise_end_diff/60.:.4f} minutes.",
+                    "check closeness to sunset/sunrise: ",
+                    "Good, the time difference between start/sunrise time and sunset/end is ",
+                    f"{start_sunset_diff / 60.0:.4f}/{sunrise_end_diff / 60.0:.4f} minutes.",
                 ]
             )
         else:
             report_writer.print_to_report(
                 [
-                    f"check closeness to sunset/sunrise: ",
-                    f"No Good, the time difference between start/sunrise time and sunset/end is ",
-                    f"{start_sunset_diff/60.:.4f}/{sunrise_end_diff/60.:.4f} minutes.",
+                    "check closeness to sunset/sunrise: ",
+                    "No Good, the time difference between start/sunrise time and sunset/end is ",
+                    f"{start_sunset_diff / 60.0:.4f}/{sunrise_end_diff / 60.0:.4f} minutes.",
                 ]
             )
 
@@ -496,9 +491,9 @@ class SanityCheckObservationPlugin(AbstractPlugin):
         )
 
         formatted_output = (
-            f"{block_num} | {description} | {observation_start} | {observation_duration/60.:.4f} | "
-            f"{scan_start} | {scan_duration/60.:.4f} | {(start_sunset_diff/60.):.4f} | "
-            f"{(sunrise_end_diff/60.):.4f} | {num_dish} | {num_strangger} | {num_bad_el} | {elevation_mean:.4f} | "
+            f"{block_num} | {description} | {observation_start} | {observation_duration / 60.0:.4f} | "
+            f"{scan_start} | {scan_duration / 60.0:.4f} | {(start_sunset_diff / 60.0):.4f} | "
+            f"{(sunrise_end_diff / 60.0):.4f} | {num_dish} | {num_strangger} | {num_bad_el} | {elevation_mean:.4f} | "
             f"{azimuth_min:.4f} | {azimuth_max:.4f} | {dec_min:.4f} | {dec_max:.4f} | {ra_min:.4f} | "
             f"{ra_max:.4f} | {ra_mean:.4f} | {dec_mean:.4f} | {cleaned_targets}"
         )

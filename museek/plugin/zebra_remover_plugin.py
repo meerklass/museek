@@ -1,9 +1,9 @@
 import numpy as np
+from ivory.plugin.abstract_plugin import AbstractPlugin
+from ivory.utils.requirement import Requirement
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
-from ivory.plugin.abstract_plugin import AbstractPlugin
-from ivory.utils.requirement import Requirement
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import plot_time_ordered_data_map
@@ -13,8 +13,10 @@ class ZebraRemoverPlugin(AbstractPlugin):
     def __init__(self, reference_channel: int, zebra_channels: range | list[int]):
         """
         Initialise
-        :param reference_channel: the index of the reference channel, should be mostly rfi free before flagging
-        :param zebra_channels: `list` or `range` of channel indices affected by the emission from the vanwyksvlei tower
+        :param reference_channel: the index of the reference channel,
+            should be mostly rfi free before flagging
+        :param zebra_channels: `list` or `range` of channel indices
+            affected by the emission from the vanwyksvlei tower
         """
         super().__init__()
         self.reference_channel = reference_channel
@@ -28,7 +30,7 @@ class ZebraRemoverPlugin(AbstractPlugin):
         ]
 
     def run(self, scan_data: TimeOrderedData, output_path: str):
-        scan_data.load_visibility_flags_weights()
+        scan_data.load_visibility_flags_weights(polars=["HH", "VV"])
         timestamp_dates = scan_data.timestamp_dates.squeeze
 
         # set rfi free channels
@@ -51,7 +53,9 @@ class ZebraRemoverPlugin(AbstractPlugin):
         zebra_visibility = scan_data.visibility.get(
             freq=self.zebra_channels, time=times
         )
-        zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
+        zebra_power = np.trapezoid(
+            zebra_visibility.squeeze, x=zebra_frequencies, axis=1
+        )
         zebra_power_max = np.max(zebra_power)
 
         rfi_free_visibility = scan_data.visibility.get(
@@ -109,11 +113,12 @@ class ZebraRemoverPlugin(AbstractPlugin):
             label="excess power removed",
         )
         plt.xlabel(
-            f"Power integrated from {zebra_frequencies[0] / 1e6:.0f} to {zebra_frequencies[-1] / 1e6:.0f} MHz"
+            f"Power integrated from {zebra_frequencies[0] / 1e6:.0f} to "
+            f"{zebra_frequencies[-1] / 1e6:.0f} MHz"
         )
         plt.ylabel(
-            f"Raw signal from {rfi_free_frequencies[0] / 1e6:.0f} to {rfi_free_frequencies[1] / 1e6:.0f}"
-            f" MHz, mostly RFI free"
+            f"Raw signal from {rfi_free_frequencies[0] / 1e6:.0f} to "
+            f"{rfi_free_frequencies[1] / 1e6:.0f} MHz, mostly RFI free"
         )
         plt.legend()
         plt.show()

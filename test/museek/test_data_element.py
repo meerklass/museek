@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 
@@ -351,7 +351,6 @@ class TestDataElement(unittest.TestCase):
     @patch("museek.data_element.np")
     def test_kurtosis(self, mock_np):
         mock_np.kurtosis.return_value.shape = (1, 1, 1)
-        mock_axis = Mock()
         self.assertIsInstance(self.element._kurtosis(axis=1), DataElement)
 
     @patch("museek.data_element.np")

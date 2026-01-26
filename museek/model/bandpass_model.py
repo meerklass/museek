@@ -1,13 +1,12 @@
 import os
-from typing import Callable, Optional
 
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
 from numpy.polynomial import legendre
 
-from museek.definitions import MEGA, SPEED_OF_LIGHT
 from museek.data_element import DataElement
+from museek.definitions import MEGA, SPEED_OF_LIGHT
 
 
 class BandpassModel:
@@ -204,7 +203,8 @@ class BandpassModel:
             parameters=parameters, n_legendre_coefficients=n_legendre_coefficients
         )
         parameter_dict = {
-            f"l_{i}": l for i, l in enumerate(parameters[:n_legendre_coefficients])
+            f"l_{i}": leg_coeff
+            for i, leg_coeff in enumerate(parameters[:n_legendre_coefficients])
         }
         for i, w in enumerate(self.wavelengths):
             parameter_dict[f"wavelength_{w}_phase"] = parameters[

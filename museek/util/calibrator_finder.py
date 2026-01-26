@@ -1,9 +1,5 @@
-from typing import Dict
-
-import numpy as np
-
-from museek.time_ordered_data import TimeOrderedData
 from museek.enums.scan_state_enum import ScanStateEnum
+from museek.time_ordered_data import TimeOrderedData
 
 
 def _matches_calibrator_name(target_name: str, expected_calibrator: str) -> bool:
@@ -105,7 +101,7 @@ def find_calibrators(
     calibrator_names: list[str],
     min_duration_seconds: float = 10.0,
     max_gap_seconds: float = 30.0,
-) -> Dict[str, tuple[range, int, float] | None]:
+) -> dict[str, tuple[range, int, float] | None]:
     """
     Find calibrator scans in before_scan and after_scan periods.
 

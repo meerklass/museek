@@ -1,14 +1,14 @@
 import os
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import scipy
-from matplotlib import pyplot as plt
-
-from museek.definitions import MEGA
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
+from matplotlib import pyplot as plt
+
 from museek.data_element import DataElement
+from museek.definitions import MEGA
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 

@@ -1,9 +1,9 @@
-from PIL import Image
-from PIL.Image import Transpose
-
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from PIL import Image
+from PIL.Image import Transpose
+
 from museek.enums.demo_enum import DemoEnum
 
 

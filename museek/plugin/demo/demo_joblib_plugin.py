@@ -1,8 +1,9 @@
+from collections.abc import Generator
 from math import sqrt
-from typing import Generator
 
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.result import Result
+
 from museek.enums.demo_enum import DemoEnum
 
 

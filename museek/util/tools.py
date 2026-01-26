@@ -1,18 +1,18 @@
+import os
+import subprocess
+import warnings
+
+import healpy as hp
+import matplotlib.pyplot as plt
 import numpy as np
-from museek.time_ordered_data import TimeOrderedData
 import pysm3
 import pysm3.units as u
-import healpy as hp
+import scipy
 from astropy.coordinates import SkyCoord
-import matplotlib.colors as colors
-import numpy as np
 from scipy import interpolate
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
-import warnings
-import scipy
-import subprocess
-import os
+
+from museek.time_ordered_data import TimeOrderedData
 
 
 def git_version_info(directory=None):
@@ -42,8 +42,7 @@ def git_version_info(directory=None):
         # Check if we're in a git repository first
         result = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=False,
         )
 
@@ -113,7 +112,6 @@ def Synch_model_sm(data: TimeOrderedData, synch_model, nside, beamsize, beam_fre
     synch_model = np.zeros(data.visibility.array.shape)
 
     for i_freq in np.arange(synch_model.shape[1]):
-
         map_reference = sky.get_emission(freq[i_freq]).value
         map_reference_smoothed = pysm3.apply_smoothing_and_coord_transform(
             map_reference,
@@ -169,7 +167,7 @@ def plot_data(
     param vmin, vmax: define the data range that the colormap covers
     """
 
-    if type(z) == np.ma.core.MaskedArray:
+    if isinstance(z, np.ma.core.MaskedArray):
         m = ~z.mask
         x = x[m]
         y = y[m]
@@ -178,7 +176,6 @@ def plot_data(
         print("type error, z should be masked array")
 
     # define grid.
-    npts = z.shape[0]
     xi = np.linspace(x.min(), x.max(), gsize)
     yi = np.linspace(y.min(), y.max(), gsize)
     # grid the data.
@@ -191,7 +188,7 @@ def plot_data(
         cmap=plt.get_cmap(cmap, 255),
         aspect="auto",
     )
-    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
+    plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
 
     if scatter:
         plt.scatter(x, y)
@@ -230,7 +227,7 @@ def plot_mdata(
     param vmax:
     """
 
-    if type(z) == np.ma.core.MaskedArray:
+    if isinstance(z, np.ma.core.MaskedArray):
         if np.ndim(z) == 1:
             m = ~z.mask
             # masked area
@@ -271,7 +268,7 @@ def plot_mdata(
         cmap=cmap,
         aspect="auto",
     )
-    CT = plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
+    plt.contour(xi, yi, zi, levels, linewidths=0.5, colors="k")
 
     if scatter:
         plt.scatter(xx, yy)

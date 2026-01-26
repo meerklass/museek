@@ -19,7 +19,7 @@ license = "GPL-3.0-or-later"
 description = "A flexible and easy-to-extend data processing pipeline for multi-instrument autocorrelation radio experiments"
 readme = "README.md"
 dynamic = ["version"]
-requires-python = ">=3.10,<4"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "numpy>=2.0.0",
     "scipy",
@@ -37,13 +37,26 @@ dependencies = [
     "pysm3",
     "matplotlib",
     "papermill",
-    "ivory @ git+https://github.com/meerklass/ivory.git@v2.0.0",
+    "ivory @ git+https://github.com/meerklass/ivory.git",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.1.3",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.6.9",
+]
+dev = [
+    "pre-commit>=3.0",
+    "ruff>=0.6.9",
 ]
 
 [project.urls]
@@ -60,3 +73,57 @@ packages = ["museek"]
     "scripts/museek_process_uhf_band.sh",
     "scripts/museek_run_notebook.sh",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = [
+    "build",
+    "dist",
+    "cache",
+    ".eggs",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",        # PyCodeStyle errors
+    "F",        # Pyflakes rules
+    "I",        # Sort imports properly
+    "W",        # PyCodeStyle warnings
+    "UP",       # Warn if certain things can changed due to newer Python versions
+    "NPY",      # Numpy-specific rules
+]
+ignore = [
+    # Conflicting rules with Ruff formatter
+    # Taken from https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+    # E501 (line-too-long) is ignored because docstrings and comments
+    # cannot be automatically formatted without breaking their semantics
+    # Plus, we run ruff-check in CI, and we probably should not expect our
+    # team members to comply with this ...
+    "E501",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true

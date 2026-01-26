@@ -1,14 +1,13 @@
 import unittest
-from unittest.mock import Mock, patch, call
+from unittest.mock import MagicMock, Mock, call, patch
+
 import numpy as np
-from mock import MagicMock
 
 from museek.util.clustering import Clustering
 from museek.util.track_pointing_iterator import TrackPointingIterator
 
 
 class TestTrackPointingIterator(unittest.TestCase):
-
     def test_init(self):
         mock_track_data = MagicMock()
         mock_receiver = Mock()
@@ -280,7 +279,7 @@ class TestTrackPointingIterator(unittest.TestCase):
         )
         self.assertTrue(track_pointing_iterator._two_calibrator_observations())
 
-    def test_two_calibrator_observations_when_true(self):
+    def test_two_calibrator_observations_when_false_too_close(self):
         mock_track_data = MagicMock()
         mock_track_data.timestamps.squeeze = np.asarray([0, 0.1, 0.4, 0.5])
         mock_receiver = Mock()

@@ -1,12 +1,12 @@
-from typing import Iterator
+import os
+from collections.abc import Iterator
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.clustering import Clustering
-from matplotlib import pyplot as plt
-import os
 
 
 class TrackPointingIterator:

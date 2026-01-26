@@ -1,4 +1,5 @@
 import os
+import warnings
 from copy import copy
 
 import numpy as np
@@ -7,7 +8,6 @@ from matplotlib import pyplot as plt
 from museek.data_element import DataElement
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
-import warnings
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -92,7 +92,7 @@ def get_rfi_mask_cross(
         data = np.tile(data_std.data, (time_ordered.shape[0], 1))
 
     else:
-        raise ValueError("Unknown mask_type {}".format(mask_type))
+        raise ValueError(f"Unknown mask_type {mask_type}")
 
     # if output_path is not None:
     #    plot_moments(data, output_path)
@@ -194,15 +194,13 @@ def _apply_kernel(
                 tmp_array[i, j] = 0
             else:
                 value = np.sum(
-                    (
-                        mask_larger[
-                            i - window_size_half[0] : i + window_size_half[0] + 1, j
-                        ]
-                        * array_larger[
-                            i - window_size_half[0] : i + window_size_half[0] + 1, j
-                        ]
-                        * kernel[0]
-                    )
+                    mask_larger[
+                        i - window_size_half[0] : i + window_size_half[0] + 1, j
+                    ]
+                    * array_larger[
+                        i - window_size_half[0] : i + window_size_half[0] + 1, j
+                    ]
+                    * kernel[0]
                 )
                 tmp_array[i, j] = value / np.sum(
                     mask_larger[
@@ -217,15 +215,13 @@ def _apply_kernel(
                 result[i2, j2] = 0
             else:
                 value = np.sum(
-                    (
-                        mask_larger[
-                            i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
-                        ]
-                        * tmp_array[
-                            i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
-                        ]
-                        * kernel[1]
-                    )
+                    mask_larger[
+                        i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
+                    ]
+                    * tmp_array[
+                        i2, j2 - window_size_half[1] : j2 + window_size_half[1] + 1
+                    ]
+                    * kernel[1]
                 )
                 result[i2, j2] = value / np.sum(
                     mask_larger[
