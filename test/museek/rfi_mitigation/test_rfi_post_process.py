@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import scipy
@@ -9,7 +9,6 @@ from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 
 
 class TestRfiPostProcess(unittest.TestCase):
-
     @patch("museek.rfi_mitigation.rfi_post_process.FlagElementFactory")
     def setUp(self, mock_flag_element_factory):
         self.mock_struct_size = MagicMock()

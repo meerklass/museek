@@ -1,9 +1,9 @@
 import numpy as np
+from ivory.plugin.abstract_plugin import AbstractPlugin
+from ivory.utils.requirement import Requirement
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
-from ivory.plugin.abstract_plugin import AbstractPlugin
-from ivory.utils.requirement import Requirement
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.visualiser import plot_time_ordered_data_map
@@ -51,7 +51,9 @@ class ZebraRemoverPlugin(AbstractPlugin):
         zebra_visibility = scan_data.visibility.get(
             freq=self.zebra_channels, time=times
         )
-        zebra_power = np.trapz(zebra_visibility.squeeze, x=zebra_frequencies, axis=1)
+        zebra_power = np.trapezoid(
+            zebra_visibility.squeeze, x=zebra_frequencies, axis=1
+        )
         zebra_power_max = np.max(zebra_power)
 
         rfi_free_visibility = scan_data.visibility.get(

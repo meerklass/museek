@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 from museek.factory.data_element_factory import (
     DataElementFactory,
-    ScanElementFactory,
     FlagElementFactory,
+    ScanElementFactory,
 )
 
 

@@ -1,5 +1,4 @@
 from ivory.plugin.abstract_plugin import AbstractPlugin
-from ivory.utils.requirement import Requirement
 
 
 class TestPlugin(AbstractPlugin):

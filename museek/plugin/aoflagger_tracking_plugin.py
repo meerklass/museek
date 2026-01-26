@@ -1,30 +1,23 @@
+import datetime
 import os
-from typing import Generator
+from collections.abc import Generator
 
-from matplotlib import pyplot as plt
-
-from museek.definitions import ROOT_DIR
+import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
+from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
-from museek.flag_factory import FlagFactory
+from museek.flag_list import FlagList
 from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.visualiser import waterfall
-from museek.util.tools import flag_percent_recv, git_version_info, consecutive_subsets
-import datetime
-import numpy as np
-from museek.noise_diode import NoiseDiode
-from museek.util.track_pointing_iterator import TrackPointingIterator
-import pickle
-from museek.factory.data_element_factory import FlagElementFactory
-from museek.flag_list import FlagList
+from museek.util.tools import consecutive_subsets, flag_percent_recv, git_version_info
 
 
 class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
@@ -138,7 +131,15 @@ class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
             visibility_recv = track_data.visibility.get(recv=i_receiver)
             initial_flag_recv = initial_flags.get(recv=i_receiver)
 
-            yield receiver_path, calibrator_validated_periods, calibrator_dump_indices, visibility_recv, initial_flag_recv, freq, dumps
+            yield (
+                receiver_path,
+                calibrator_validated_periods,
+                calibrator_dump_indices,
+                visibility_recv,
+                initial_flag_recv,
+                freq,
+                dumps,
+            )
 
     def run_job(
         self, anything: tuple[str, DataElement, np.ndarray, np.ndarray]

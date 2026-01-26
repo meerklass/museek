@@ -1,11 +1,10 @@
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from museek.util.context_loader import ContextLoader
 
 
 class TestContextLoader(unittest.TestCase):
-
     @patch("museek.util.context_loader.open")
     @patch("museek.util.context_loader.pickle")
     def test_ini(self, mock_pickle, mock_open):

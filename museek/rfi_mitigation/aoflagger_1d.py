@@ -1,13 +1,10 @@
-import os
 from copy import copy
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 from museek.data_element import DataElement
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.flag_element import FlagElement
-import warnings
 
 """
 A collection of functions for RFI flagging using the AOflagger algorithm.
@@ -44,7 +41,7 @@ def get_rfi_mask_1d(
         data = (1.0 / np.ma.masked_array(time_ordered.squeeze, mask=mask.squeeze)).data
 
     else:
-        raise ValueError("Unknown mask_type {}".format(mask_type))
+        raise ValueError(f"Unknown mask_type {mask_type}")
 
     max_pixels = 8  # Maximum neighbourhood size
     pixel_arange = np.arange(1, max_pixels)
@@ -107,7 +104,7 @@ def _apply_kernel_1d(
     :param even_window_size: smoothing window size, must be divisible by 2
     :return: smoothed array
     """
-    array_larger = np.zeros((array.shape[0] + even_window_size))
+    array_larger = np.zeros(array.shape[0] + even_window_size)
     array_larger[even_window_size // 2 : -even_window_size // 2] = array[:]
 
     mask_larger = np.zeros_like(array_larger)
@@ -122,11 +119,9 @@ def _apply_kernel_1d(
             tmp_array[i] = 0
         else:
             value = np.sum(
-                (
-                    mask_larger[i - window_size_half : i + window_size_half + 1]
-                    * array_larger[i - window_size_half : i + window_size_half + 1]
-                    * kernel
-                )
+                mask_larger[i - window_size_half : i + window_size_half + 1]
+                * array_larger[i - window_size_half : i + window_size_half + 1]
+                * kernel
             )
             tmp_array[i] = value / np.sum(
                 mask_larger[i - window_size_half : i + window_size_half + 1] * kernel

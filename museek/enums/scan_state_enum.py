@@ -1,8 +1,8 @@
 from enum import Enum
 
 from museek.factory.data_element_factory import (
-    ScanElementFactory,
     AbstractDataElementFactory,
+    ScanElementFactory,
 )
 
 

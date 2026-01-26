@@ -2,10 +2,10 @@ import os
 from io import BytesIO
 
 import requests
-from PIL import Image
-
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
+from PIL import Image
+
 from museek.enums.demo_enum import DemoEnum
 
 

@@ -1,11 +1,10 @@
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
-from museek.receiver import Receiver, Polarisation
+from museek.receiver import Polarisation, Receiver
 
 
 class TestReceiver(unittest.TestCase):
-
     def test_str(self):
         receiver = Receiver(antenna_number=0, polarisation=Polarisation.v)
         self.assertEqual(str(receiver), "m000v")

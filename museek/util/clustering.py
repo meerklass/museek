@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from copy import copy
-from typing import Callable, Any
+from typing import Any
 
 import numpy as np
 from astropy import units

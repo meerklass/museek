@@ -1,13 +1,13 @@
 import unittest
-from unittest.mock import patch, Mock, call
+from unittest.mock import Mock, call, patch
 
 import numpy as np
 
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.rfi_mitigation.aoflagger import (
-    _sum_threshold_mask,
-    _run_sumthreshold,
     _apply_kernel,
+    _run_sumthreshold,
+    _sum_threshold_mask,
     gaussian_filter,
     get_rfi_mask,
 )

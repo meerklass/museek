@@ -4,7 +4,6 @@ from museek.antenna_sanity.from_log import FromLog
 
 
 class TestFromLog(unittest.TestCase):
-
     def test_straggler_list(self):
         straggler_mock_list = ["m006", "m031", "m056", "m060"]
         obs_mock_log = [

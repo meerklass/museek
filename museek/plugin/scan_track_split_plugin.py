@@ -1,16 +1,15 @@
-import os
+import datetime
 from copy import deepcopy
 
-from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.enums.result_enum import ResultEnum
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.tools import flag_percent_recv, git_version_info
-import datetime
 
 
 class ScanTrackSplitPlugin(AbstractPlugin):

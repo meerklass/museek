@@ -1,11 +1,11 @@
 import itertools
 from collections.abc import Iterator
 
-from PIL import Image
-from matplotlib import pyplot as plt
-
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
+from matplotlib import pyplot as plt
+from PIL import Image
+
 from museek.enums.demo_enum import DemoEnum
 
 

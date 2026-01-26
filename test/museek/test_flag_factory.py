@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 
@@ -7,7 +7,6 @@ from museek.flag_factory import FlagFactory
 
 
 class TestFlagFactory(unittest.TestCase):
-
     @patch("museek.flag_factory.np")
     @patch("museek.flag_factory.FlagElementFactory")
     def test_empty_flag(self, mock_flag_element_factory, mock_np):

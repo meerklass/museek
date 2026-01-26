@@ -1,24 +1,19 @@
-from typing import Generator
+import datetime
+from collections.abc import Generator
+
+import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.enums.result_enum import ResultEnum
-from museek.flag_factory import FlagFactory
-from museek.flag_element import FlagElement
-from museek.data_element import DataElement
-from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
-from museek.util.tools import point_sources_coordinate, point_source_flagger
-from museek.util.tools import flag_percent_recv, git_version_info
-import pysm3.units as u
-from astropy.coordinates import SkyCoord
-import numpy as np
-import h5py
-import pickle
-import csv
-import datetime
+from museek.util.tools import (
+    git_version_info,
+    point_source_flagger,
+    point_sources_coordinate,
+)
 
 
 class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
@@ -92,7 +87,13 @@ class PointSourceFlaggerPlugin(AbstractParallelJoblibPlugin):
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield right_ascension, declination, frequency, ra_point_source, dec_point_source
+            yield (
+                right_ascension,
+                declination,
+                frequency,
+                ra_point_source,
+                dec_point_source,
+            )
 
     def run_job(
         self,

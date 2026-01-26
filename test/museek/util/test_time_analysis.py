@@ -1,6 +1,7 @@
 import unittest
-from museek.util.time_analysis import TimeAnalysis
 from datetime import datetime
+
+from museek.util.time_analysis import TimeAnalysis
 
 
 class TestTimeAnalysis(unittest.TestCase):

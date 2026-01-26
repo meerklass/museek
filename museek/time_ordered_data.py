@@ -1,16 +1,16 @@
 import os
 from copy import copy
 from datetime import datetime
-from typing import Optional, NamedTuple, Any
+from typing import Any, NamedTuple
 
 import katdal
 import numpy as np
 from katdal import DataSet
 from katdal.lazy_indexer import DaskLazyIndexer
-from katpoint import Target, Antenna
+from katpoint import Antenna, Target
 
-from museek.definitions import ROOT_DIR
 from museek.data_element import DataElement
+from museek.definitions import ROOT_DIR
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import (
     AbstractDataElementFactory,
@@ -44,8 +44,8 @@ class TimeOrderedData:
         self,
         block_name: str,
         receivers: list[Receiver],
-        token: Optional[str],
-        data_folder: Optional[str],
+        token: str | None,
+        data_folder: str | None,
         scan_state: ScanStateEnum | None = None,
         force_load_auto_from_correlator_data: bool = False,
         force_load_cross_from_correlator_data: bool = False,
@@ -82,7 +82,7 @@ class TimeOrderedData:
             )
 
         # to be able to load the katdal data again if needed
-        self._katdal_open_argument: Optional[str] = None
+        self._katdal_open_argument: str | None = None
 
         self._force_load_auto_from_correlator_data = (
             force_load_auto_from_correlator_data
@@ -627,7 +627,7 @@ class TimeOrderedData:
             or result.shape[1] == 0
         ):
             raise ValueError(
-                f"Input `all_correlator_products` must contain all receivers."
+                "Input `all_correlator_products` must contain all receivers."
             )
         result = np.atleast_1d(np.squeeze(result)).tolist()
         return result
@@ -653,7 +653,7 @@ class TimeOrderedData:
         result = np.asarray(result, dtype=object)
         if any(len(arr) == 0 for arr in result):
             raise ValueError(
-                f"Empty indice is produced, Cross-correlation must only involve signals from the same antenna."
+                "Empty indice is produced, Cross-correlation must only involve signals from the same antenna."
             )
         if (
             len(result) != len(self.cross_correlator_products)
@@ -661,7 +661,7 @@ class TimeOrderedData:
             or result.shape[1] == 0
         ):
             raise ValueError(
-                f"Input `all_correlator_products` must contain all receivers."
+                "Input `all_correlator_products` must contain all receivers."
             )
         result = np.atleast_1d(np.squeeze(result)).tolist()
         return result

@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 
 from museek.abstract_data_element import AbstractDataElement
+from museek.flag_list import FlagList
 
 
 class DataElement(AbstractDataElement):
@@ -89,7 +90,7 @@ class DataElement(AbstractDataElement):
     def mean(
         self,
         axis: int | list[int, int] | tuple[int, int],
-        flags: Union["FlagList", None] = None,
+        flags: FlagList | None = None,
     ) -> "DataElement":
         """
         Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -105,7 +106,7 @@ class DataElement(AbstractDataElement):
     def median(
         self,
         axis: int | list[int, int] | tuple[int, int],
-        flags: Union["FlagList", None] = None,
+        flags: FlagList | None = None,
     ) -> "DataElement":
         """
         Return the median of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -121,7 +122,7 @@ class DataElement(AbstractDataElement):
     def standard_deviation(
         self,
         axis: int | list[int, int] | tuple[int, int],
-        flags: Union["FlagList", None] = None,
+        flags: FlagList | None = None,
     ) -> "DataElement":
         """
         Return the standard deviation of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -137,7 +138,7 @@ class DataElement(AbstractDataElement):
     def kurtosis(
         self,
         axis: int | list[int, int] | tuple[int, int],
-        flags: Union["FlagList", None] = None,
+        flags: FlagList | None = None,
     ) -> "DataElement":
         """
         Return the kurtosis of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -180,7 +181,7 @@ class DataElement(AbstractDataElement):
         )
 
     def _flagged_mean(
-        self, axis: int | list[int, int] | tuple[int, int], flags: "FlagList"
+        self, axis: int | list[int, int] | tuple[int, int], flags: FlagList
     ) -> "DataElement":
         """
         Return the mean of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -194,7 +195,7 @@ class DataElement(AbstractDataElement):
         return DataElement(array=masked.mean(axis=axis, keepdims=True))
 
     def _flagged_median(
-        self, axis: int | list[int, int] | tuple[int, int], flags: "FlagList"
+        self, axis: int | list[int, int] | tuple[int, int], flags: FlagList
     ) -> "DataElement":
         """
         Return the median of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -208,7 +209,7 @@ class DataElement(AbstractDataElement):
         return DataElement(array=np.ma.median(masked, axis=axis, keepdims=True))
 
     def _flagged_std(
-        self, axis: int | list[int, int] | tuple[int, int], flags: "FlagList"
+        self, axis: int | list[int, int] | tuple[int, int], flags: FlagList
     ) -> "DataElement":
         """
         Return the standard deviation of the unflagged entries in `self` along `axis` as a `DataElement`,
@@ -222,7 +223,7 @@ class DataElement(AbstractDataElement):
         return DataElement(array=masked.std(axis=axis, keepdims=True))
 
     def _flagged_kurtosis(
-        self, axis: int | list[int, int] | tuple[int, int], flags: "FlagList"
+        self, axis: int | list[int, int] | tuple[int, int], flags: FlagList
     ) -> "DataElement":
         """
         Return the kurtosis of the unflagged entries in `self` along `axis` as a `DataElement`,

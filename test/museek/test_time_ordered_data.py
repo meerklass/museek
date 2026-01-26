@@ -1,16 +1,15 @@
 import itertools
 import unittest
-from unittest.mock import patch, Mock, MagicMock, call, PropertyMock
+from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 
 import numpy as np
 
 from museek.flag_list import FlagList
-from museek.receiver import Receiver, Polarisation
-from museek.time_ordered_data import TimeOrderedData, ScanStateEnum, ScanTuple
+from museek.receiver import Polarisation, Receiver
+from museek.time_ordered_data import ScanStateEnum, ScanTuple, TimeOrderedData
 
 
 class TestTimeOrderedData(unittest.TestCase):
-
     @patch.object(TimeOrderedData, "_get_flag_element_factory")
     @patch.object(TimeOrderedData, "_get_data_element_factory")
     @patch.object(TimeOrderedData, "_correlator_products_indices")

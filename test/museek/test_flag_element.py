@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 
@@ -7,7 +7,6 @@ from museek.flag_element import FlagElement
 
 
 class TestFlagElement(unittest.TestCase):
-
     def setUp(self):
         self.shape = (3, 3, 3)
         self.mock_parent = MagicMock()

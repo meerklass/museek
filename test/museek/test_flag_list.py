@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 
@@ -147,9 +147,13 @@ class TestFlagList(unittest.TestCase):
     def test_insert_receiver_flag(self):
         mock_flag = FlagElement(array=np.ones((3, 3, 1), dtype=bool))
         self.flag_list.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
-        self.assertTrue((self.flag_list._flags[0].array == False).all())
-        self.assertTrue((self.flag_list._flags[2].get(recv=0).squeeze == False).all())
-        self.assertTrue((self.flag_list._flags[2].get(recv=2).squeeze == False).all())
+        self.assertTrue((np.logical_not(self.flag_list._flags[0].array)).all())
+        self.assertTrue(
+            (np.logical_not(self.flag_list._flags[2].get(recv=0).squeeze)).all()
+        )
+        self.assertTrue(
+            (np.logical_not(self.flag_list._flags[2].get(recv=2).squeeze)).all()
+        )
         self.assertTrue(self.flag_list._flags[2].get(recv=1).squeeze.all())
 
     def test_insert_receiver_flag_when_one_channel(self):
@@ -158,9 +162,9 @@ class TestFlagList(unittest.TestCase):
 
         mock_flag = FlagElement(array=np.ones((3, 1, 1), dtype=bool))
         flag_list.insert_receiver_flag(flag=mock_flag, i_receiver=1, index=2)
-        self.assertTrue((flag_list._flags[0].array == False).all())
-        self.assertTrue((flag_list._flags[2].get(recv=0).squeeze == False).all())
-        self.assertTrue((flag_list._flags[2].get(recv=2).squeeze == False).all())
+        self.assertTrue((np.logical_not(flag_list._flags[0].array)).all())
+        self.assertTrue((np.logical_not(flag_list._flags[2].get(recv=0).squeeze)).all())
+        self.assertTrue((np.logical_not(flag_list._flags[2].get(recv=2).squeeze)).all())
         self.assertTrue(flag_list._flags[2].get(recv=1).squeeze.all())
 
     def test_array(self):

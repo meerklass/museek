@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -8,7 +8,6 @@ from museek.util.clustering import Clustering
 
 
 class TestClustering(unittest.TestCase):
-
     def setUp(self):
         self.step = 1.999
         # define two mock sets of timestamps with a wide gap in between

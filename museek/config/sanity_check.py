@@ -10,9 +10,9 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1721666164',  # "Capture Block ID" of the observation
+    block_name="1721666164",  # "Capture Block ID" of the observation
     receiver_list=None,
-    token='eyJ0e...',
+    token="eyJ0e...",
     data_folder=None,  # only relevant if `token` is `None`
     force_load_auto_from_correlator_data=False,
     force_load_cross_from_correlator_data=False,
@@ -24,8 +24,7 @@ InPlugin = ConfigSection(
 OutPlugin = ConfigSection()
 
 ScanTrackSplitPlugin = ConfigSection(
-    do_delete_unsplit_data=False,
-    do_store_context=False
+    do_delete_unsplit_data=False, do_store_context=False
 )
 
 SanityCheckObservationPlugin = ConfigSection(

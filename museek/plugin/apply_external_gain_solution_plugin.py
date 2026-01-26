@@ -2,10 +2,10 @@ import os
 import pickle
 
 import numpy as np
-
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 

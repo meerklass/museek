@@ -1,19 +1,19 @@
+import datetime
 import os
 
 import numpy as np
-from matplotlib import pyplot as plt
-
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from matplotlib import pyplot as plt
+
 from museek.enums.result_enum import ResultEnum
 from museek.factory.data_element_factory import FlagElementFactory
 from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv, git_version_info
-import datetime
+from museek.visualiser import waterfall
 
 
 class NoiseDiodeFlaggerPlugin(AbstractPlugin):

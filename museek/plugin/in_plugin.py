@@ -1,14 +1,15 @@
 import os
 from datetime import datetime
 
-from museek.definitions import ROOT_DIR
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.result import Result
+
+from museek.definitions import ROOT_DIR
 from museek.enums.result_enum import ResultEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import flag_percent_recv, git_version_info
+from museek.util.tools import git_version_info
 
 
 class InPlugin(AbstractPlugin):
@@ -107,7 +108,6 @@ class InPlugin(AbstractPlugin):
         flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
-
             # to create cache file
             data.load_visibility_flags_weights(polars="auto")
             data.delete_visibility_flags_weights(polars="auto")

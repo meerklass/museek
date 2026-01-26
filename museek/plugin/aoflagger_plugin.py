@@ -1,12 +1,13 @@
+import datetime
 import os
-from typing import Generator
+from collections.abc import Generator
 
-from matplotlib import pyplot as plt
-
-from museek.definitions import ROOT_DIR
+import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from matplotlib import pyplot as plt
+
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
@@ -15,10 +16,8 @@ from museek.rfi_mitigation.aoflagger import get_rfi_mask
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.visualiser import waterfall
 from museek.util.tools import flag_percent_recv, git_version_info
-import datetime
-import numpy as np
+from museek.visualiser import waterfall
 
 
 class AoflaggerPlugin(AbstractParallelJoblibPlugin):
@@ -116,9 +115,12 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
             visibility = scan_data.visibility.get(recv=i_receiver)
             i_antenna = scan_data.antenna_index_of_receiver(receiver=receiver)
             initial_flag = initial_flags.get(recv=i_receiver).squeeze
-            yield receiver_path, visibility, initial_flag, point_source_flag[
-                :, :, i_antenna
-            ]
+            yield (
+                receiver_path,
+                visibility,
+                initial_flag,
+                point_source_flag[:, :, i_antenna],
+            )
 
     def run_job(
         self, anything: tuple[str, DataElement, np.ndarray, np.ndarray]
