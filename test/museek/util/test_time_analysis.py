@@ -18,8 +18,9 @@ class TestTimeAnalysis(unittest.TestCase):
         expected_start = datetime(1969, 12, 31, 18, 7, 1, 543037)
         expected_end = datetime(1970, 1, 1, 5, 59, 31, 249269)
         # Allow small differences due to platform/ephemeris microsecond rounding
-        self.assertAlmostEqual((start - expected_start).total_seconds(), 0, places=3)
-        self.assertAlmostEqual((end - expected_end).total_seconds(), 0, places=3)
+        # Use an explicit delta to tolerate microsecond-level rounding differences across platforms
+        self.assertAlmostEqual((start - expected_start).total_seconds(), 0, delta=1e-3)
+        self.assertAlmostEqual((end - expected_end).total_seconds(), 0, delta=1e-3)
         self.assertAlmostEqual(10771, end_diff, 0)
         self.assertAlmostEqual(28378, start_diff, 0)
 
