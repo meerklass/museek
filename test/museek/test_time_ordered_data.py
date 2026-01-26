@@ -411,7 +411,7 @@ class TestTimeOrderedData(unittest.TestCase):
     def test_visibility_flags_weights_when_force_load_from_correlator_data(
         self, mock_load_visibility, mock_katdal, mock_auto_select, mock_split
     ):
-        self.time_ordered_data._force_load_from_correlator_data = True
+        self.time_ordered_data._force_load_auto_from_correlator_data = True
         # Mock the return values with proper shapes
         mock_vis = np.array([[[1.0 + 2.0j, 3.0 + 4.0j]]])
         mock_flags = np.array([[[[True, False]]]])
