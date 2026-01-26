@@ -50,21 +50,6 @@ class TimeAnalysis:
             obs_end_utc = obs_end.replace(tzinfo=timezone.utc)
         else:
             obs_end_utc = obs_end.astimezone(timezone.utc)
-        """
-        Calculate the closeness between start/end time and sunset/sunrise time
-        :param obs_start: the start time of whole observation
-        :param obs_end: the end time of whole observation
-        :return: `tuple` of
-                - sunset_start.datetime(), sunrise_end.datetime() : datetime object
-                - the nearest sunset/sunrise time before/after observation started/ended
-                - sunrise_end_diff, start_sunset_diff : float [seconds]
-                - the time difference between sunrise/start and end/sunset in float [seconds]
-
-        Notes
-        -----
-        When observations start before sunset or end after sunrise,
-        previous_setting() or next_rising() would give you the last or next day's sunset or sunrise date
-        """
 
         observer = ephem.Observer()
         observer.lat = self.latitude
