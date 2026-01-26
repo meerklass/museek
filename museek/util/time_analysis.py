@@ -17,7 +17,7 @@ class TimeAnalysis:
 
     def time_difference_to_sunset_sunrise(
         self, obs_start: datetime, obs_end: datetime
-    ) -> tuple[datetime, datetime, float]:
+    ) -> tuple[datetime, datetime, float, float]:
         """
         Calculate the closeness between start/end time and sunset/sunrise time
         :param obs_start: the start time of whole observation

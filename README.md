@@ -121,10 +121,10 @@ MuSEEK can then be installed with `pip`. It is recommended that that package is 
 
 ```bash
 cd museek
-python -m pip install -e .[all]
+python -m pip install -e .[test,dev]
 ```
 
-The `[all]` option tells `pip` to install all optional dependencies, including for unit testing and building documentation. This will also install `pre-commit` and `ruff` to help with codes formatting.
+The `[test,dev]` option tells `pip` to install all optional dependencies, including for unit testing (`test`) and development tools (`dev`). This will also install `pre-commit` and `ruff` to help with code formatting.
 
 ### Using MuSEEK in a Jupyter Notebook
 

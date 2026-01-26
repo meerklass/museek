@@ -87,10 +87,15 @@ class TestTimeOrderedData(unittest.TestCase):
     def test_load_visibility_flag_weights(
         self, mock_visibility_flags_weights, mock_from_array
     ):
-        mock_visibility_flags_weights.return_value = (Mock(), Mock(), Mock())
+        mock_visibility, mock_flags, mock_weights = Mock(), Mock(), Mock()
+        mock_visibility_flags_weights.return_value = (
+            mock_visibility,
+            mock_flags,
+            mock_weights,
+        )
         self.time_ordered_data.load_visibility_flags_weights(polars="auto")
         mock_from_array.assert_called_once_with(
-            array=mock_visibility_flags_weights.return_value[1],
+            array=mock_flags,
             element_factory=self.mock_get_flag_element_factory.return_value,
         )
         self.assertEqual(
