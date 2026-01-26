@@ -29,10 +29,6 @@ jobs:
         pip install -e .[test]
         museek --help
     
-    - name: Test with pytest
+    - name: Test with pytest and generate coverage
       run: |
-        pytest test/ -v --tb=short
-    
-    - name: Generate coverage report
-      run: |
-        pytest test/ --cov=museek --cov-report=term --cov-report=html
+        pytest test/ -v --tb=short --cov=museek --cov-report=term --cov-report=html
