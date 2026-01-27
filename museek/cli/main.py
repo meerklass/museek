@@ -57,10 +57,13 @@ def main(ctx, args):
     
     For more information, see the MuSEEK documentation.
     """
-    # If no arguments provided, show help
+    # If no arguments provided, show short usage and exit with error
     if not args:
-        click.echo(ctx.get_help())
-        ctx.exit(0)
+        prog_name = ctx.find_root().info_name or 'museek'
+        click.echo(f"Usage: {prog_name} [OPTIONS] CONFIG_MODULE")
+        click.echo(f"Try '{prog_name} -h' for help.")
+        click.echo("\nError: Missing required argument 'CONFIG_MODULE'.", err=True)
+        ctx.exit(1)
     
     # Pass all arguments through to ivory's run function
     import sys

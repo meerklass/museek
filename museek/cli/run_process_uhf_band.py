@@ -76,7 +76,11 @@ def generate_sbatch_script(
     return "\n".join(script_lines) + "\n"
 
 
-@click.command()
+@click.command(
+    context_settings=dict(
+        help_option_names=['-h', '--help'],
+    )
+)
 @click.option(
     "--block-name",
     required=True,
@@ -121,10 +125,10 @@ def main(
     
     \b
     EXAMPLES:
-      museek_process_uhf_band --block-name 1675632179 --box 6
-      museek_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
-      museek_process_uhf_band --block-name 1675632179 --box 6 --dry-run
-      museek_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+      museek_run_process_uhf_band --block-name 1675632179 --box 6
+      museek_run_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
+      museek_run_process_uhf_band --block-name 1675632179 --box 6 --dry-run
+      museek_run_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
     
     \b
     DEFAULT SLURM PARAMETERS:
