@@ -2,7 +2,7 @@
 
 MuSEEK [muˈziːk] is a flexible and easy-to-extend data processing pipeline for multi-instrument autocorrelation radio telescopes currently under development by the MeerKLASS collaboration. It takes the observed (or simulated) TOD in the time-frequency domain as an input and processes it into HEALPix maps while applying calibration and automatically masking RFI. Several Jupyter notebook templates are also provided for data inspection and verification.
 
-If you want to simply run the UHF pipeline and post-calibration notebooks on Ilifu, you can skip to [Processing UHF data on Ilifu with `museek_process_uhf_band.sh` Script](#processing-uhf-data-on-ilifu-with-museek_process_uhf_bandsh-script) and [Running the Notebook with `museek_run_notebook.sh` Script](#running-the-notebook-with-museek_run_notebooksh-script)
+If you want to simply run the UHF pipeline and post-calibration notebooks on Ilifu, you can skip to [Processing UHF data on Ilifu with `museek_run_process_uhf_band` Script](#processing-uhf-data-on-ilifu-with-museek_run_process_uhf_band-script) and [Running the Notebook with `museek_run_notebook` Script](#running-the-notebook-with-museek_run_notebook-script)
 
 The MuSEEK package has been developed at the [Centre for Radio Cosmology](https://sites.google.com/uwc.ac.za/uwcastrophysics/research/crc?authuser=0) at the University of the Western Cape and at the Jodrell Bank Centre for Astrophysics at UoM.
 It is inspired by SEEK, developed by the [Software Lab of the Cosmology Research Group](http://www.cosmology.ethz.ch/research/software-lab.html) of the [ETH Institute of Astronomy](http://www.astro.ethz.ch).
@@ -24,7 +24,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
     - [Running Locally](#running-locally)
     - [Changing Pipeline Parameters](#changing-pipeline-parameters)
     - [Running as a SLURM Job](#running-as-a-slurm-job)
-    - [Processing UHF data on Ilifu with `museek_process_uhf_band.sh` Script](#processing-uhf-data-on-ilifu-with-museek_process_uhf_bandsh-script)
+    - [Processing UHF data on Ilifu with `museek_run_process_uhf_band` Script](#processing-uhf-data-on-ilifu-with-museek_run_process_uhf_band-script)
     - [Examining Results](#examining-results)
 - [Anatomy of Pipeline and Plugins](#anatomy-of-pipeline-and-plugins)
     - [Configuration File](#configuration-file)
@@ -33,7 +33,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
 - [Notebooks](#notebooks)
     - [Running the Notebook with Jupyter](#running-the-notebook-with-jupyter)
     - [Running the Notebook with Papermill](#running-the-notebook-with-papermill)
-    - [Running the Notebook with `museek_run_notebook.sh` Script](#running-the-notebook-with-museek_run_notebooksh-script)
+    - [Running the Notebook with `museek_run_notebook` Script](#running-the-notebook-with-museek_run_notebook-script)
 - [Contributing](#contributing)
     - [Code Formatting Guidelines](#code-formatting-guidelines)
     - [Pull Request Guidelines](#pull-request-guidelines)
@@ -128,7 +128,7 @@ The `[test,dev]` option tells `pip` to install all optional dependencies, includ
 
 ### Using MuSEEK in a Jupyter Notebook
 
-If you want to use MuSEEK on one of the Jupyter nodes on Ilifu (or local Jupyter installation) or run the data inspection notebooks with the `museek_run_notebook.sh` script, you will have to additionally install MuSEEK as Jupyter kernel. After completing the standard installation above, do:
+If you want to use MuSEEK on one of the Jupyter nodes on Ilifu (or local Jupyter installation) or run the data inspection notebooks with the `museek_run_notebook` script, you will have to additionally install MuSEEK as Jupyter kernel. After completing the standard installation above, do:
 
 ```bash
 python -m pip install ipykernel
@@ -139,17 +139,17 @@ python -m ipykernel install --name "museek_kernel" --user
 
  ## Available Commands
 
- Installing MuSEEK will install the `museek` command and console scripts `museek_process_uhf_band.sh` and `museek_run_notebook.sh`.
+ Installing MuSEEK will install the `museek` command and console scripts `museek_run_process_uhf_band` and `museek_run_notebook`.
 
 ```bash
 which museek
 # should return /path/to/virtualenv/museek/bin/museek
 
-which museek_process_uhf_band.sh
-# should return /path/to/virtualenv/museek/bin/museek_process_uhf_band.sh
+which museek_run_process_uhf_band
+# should return /path/to/virtualenv/museek/bin/museek_run_process_uhf_band
 
-which museek_run_notebook.sh
-# should return /path/to/virtualenv/museek/bin/museek_run_notebook.sh
+which museek_run_notebook
+# should return /path/to/virtualenv/museek/bin/museek_run_notebook
 ```
 
 The following sections describe how they work.
@@ -226,19 +226,19 @@ Once the job is finished, you can check the results of the demo pipeline in your
 
 To adopt this script to the real pipeline, you will need to change `museek.config.demo` to the config you want to use, e.g. `museek.config.process_l_band`. You also need to adjust the ressources in the `sbatch` script depending on the config. As a rough estimate, processing an entire MeerKAT observation block may be done with `--cpus-per-task=32`, `--mem=128GB` and `--time=03:00:00`.
 
-### Processing UHF data on Ilifu with `museek_process_uhf_band.sh`
+### Processing UHF data on Ilifu with `museek_run_process_uhf_band` Script
 
-The `museek_process_uhf_band.sh` script provides a streamlined command-line interface for running the process UHF pipeline on Ilifu. It automatically creates and submits SLURM jobs for you.
+The `museek_run_process_uhf_band` script provides a streamlined command-line interface for running the process UHF pipeline on Ilifu. It automatically creates and submits SLURM jobs for you.
 
 ```
-$ museek_process_uhf_band.sh --help
+$ museek_run_process_uhf_band --help
 MuSEEK UHF Band Processing Script
 
 This script generates and submits a Slurm job to process UHF band data using 
 the MuSEEK pipeline.
 
 USAGE:
-  museek_process_uhf_band.sh --block-name <block_name> --box <box_number> 
+  museek_run_process_uhf_band --block-name <block_name> --box <box_number> 
                             [--base-context-folder <path>] [--data-folder <path>]
                             [--slurm-options <options>] [--dry-run]
 
@@ -273,10 +273,10 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  museek_process_uhf_band.sh --block-name 1675632179 --box 6
-  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
-  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --dry-run
-  museek_process_uhf_band.sh --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
+  museek_run_process_uhf_band --block-name 1675632179 --box 6
+  museek_run_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
+  museek_run_process_uhf_band --block-name 1675632179 --box 6 --dry-run
+  museek_run_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
 ```
 
 
@@ -409,19 +409,19 @@ Check out [papermill documentation](https://papermill.readthedocs.io/en/latest/i
 papermill --help
 ```
 
-### Running the Notebook with `museek_run_notebook.sh`
+### Running the Notebook with `museek_run_notebook` Script
 
-The `museek_run_notebook.sh` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option.
+The `museek_run_notebook` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option.
 
 ```
-$ museek_run_notebook.sh --help
+$ museek_run_notebook --help
 MuSEEK Notebook Execution Script
 
 This script generates and submits a Slurm job to execute a MuSEEK Jupyter 
 notebook using papermill.
 
 USAGE:
-  museek_run_notebook.sh --notebook <notebook_name> --block-name <block_name> --box <box_number>
+  museek_run_notebook --notebook <notebook_name> --block-name <block_name> --box <box_number>
                     [--output-path <path>] [--kernel <kernel_name>]
                     [-p <param_name> <param_value>] ... [-p <param_name> <param_value>]
                     [--slurm-options <options>] ... [--slurm-options <options>] 
@@ -466,10 +466,10 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
-  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
-  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
-  museek_run_notebook.sh --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
+  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
+  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
+  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
 ```
 
 ## Contributing
