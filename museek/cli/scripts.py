@@ -19,23 +19,41 @@ SCRIPT_NAMES = {
 def _find_script(script_name: str) -> Path | None:
     """Return a path to the script.
 
-    1. If a program with `script_name` is on PATH (shutil.which), return the
-       resolved path as a Path object.
-    2. Otherwise, assume we're in a development checkout and look for
-       `<project_root>/scripts/<script_name>` and return that path if it exists.
-    3. If nothing found, return None.
+    Resolution policy (robust to editable installs and installed console wrappers):
+    1. If a project-local script exists at `<project_root>/scripts/<script_name>`, prefer it.
+    2. Otherwise, check PATH (shutil.which). If found and it appears to be a shell
+       script (shebang mentions sh or bash) return that path.
+    3. If PATH entry is a Python console wrapper (shebang references python) we avoid
+       using it (to prevent invoking this same wrapper again recursively) and fall
+       back to the project-local script if present. If no project-local script exists,
+       return the PATH entry as a last resort.
+    4. If nothing found, return None.
     """
-    # 1) check PATH
-    which_path = shutil.which(script_name)
-    if which_path:
-        return Path(which_path)
-
-    # 2) look relative to this file: .../museek/cli/scripts.py -> project root
+    # 1) look relative to this file: .../museek/cli/scripts.py -> project root
     here = Path(__file__).resolve()
     project_root = here.parents[2]
     candidate = project_root / "scripts" / script_name
     if candidate.exists():
         return candidate
+
+    # 2) check PATH
+    which_path = shutil.which(script_name)
+    if which_path:
+        # Try to inspect the shebang to distinguish shell scripts from Python wrappers
+        try:
+            with open(which_path, "rb") as fh:
+                first_bytes = fh.read(2048)
+            first_line = first_bytes.splitlines()[0].decode("utf-8", errors="ignore") if first_bytes else ""
+        except Exception:
+            first_line = ""
+
+        # If shebang contains sh or bash, treat as a shell script
+        if "sh" in first_line or "bash" in first_line:
+            return Path(which_path)
+
+        # If this looks like a Python wrapper, prefer the project-local script if available
+        # (we already checked candidate above). Otherwise fall back to the PATH entry.
+        return Path(which_path)
 
     return None
 
