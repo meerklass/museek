@@ -139,7 +139,7 @@ python -m ipykernel install --name "museek_kernel" --user
 
  ## Available Commands
 
- Installing MuSEEK will install the `museek` command and console scripts `museek_process_uhf_band.sh` and `museek_run_notebook.sh`. These wrappers forward to the repository shell scripts (or use the `.sh` files directly) and are available in editable installs.
+ Installing MuSEEK will install the `museek` command and console scripts `museek_process_uhf_band.sh` and `museek_run_notebook.sh`.
 
 ```bash
 which museek
@@ -226,9 +226,9 @@ Once the job is finished, you can check the results of the demo pipeline in your
 
 To adopt this script to the real pipeline, you will need to change `museek.config.demo` to the config you want to use, e.g. `museek.config.process_l_band`. You also need to adjust the ressources in the `sbatch` script depending on the config. As a rough estimate, processing an entire MeerKAT observation block may be done with `--cpus-per-task=32`, `--mem=128GB` and `--time=03:00:00`.
 
-### Processing UHF data on Ilifu with `museek_process_uhf_band` entry point (or script)
+### Processing UHF data on Ilifu with `museek_process_uhf_band.sh`
 
-The `museek_process_uhf_band.sh` entry point (or the `museek_process_uhf_band.sh` script) provides a streamlined command-line interface for running the process UHF pipeline on Ilifu. It automatically creates and submits SLURM jobs for you.
+The `museek_process_uhf_band.sh` script provides a streamlined command-line interface for running the process UHF pipeline on Ilifu. It automatically creates and submits SLURM jobs for you.
 
 ```
 $ museek_process_uhf_band.sh --help
@@ -409,9 +409,9 @@ Check out [papermill documentation](https://papermill.readthedocs.io/en/latest/i
 papermill --help
 ```
 
-### Running the Notebook with `museek_run_notebook` entry point (or script)
+### Running the Notebook with `museek_run_notebook.sh`
 
-The `museek_run_notebook.sh` entry point (or the `museek_run_notebook.sh` script) further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option.
+The `museek_run_notebook.sh` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option.
 
 ```
 $ museek_run_notebook.sh --help
