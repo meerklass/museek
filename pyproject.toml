@@ -64,15 +64,12 @@ Repository = "https://github.com/meerklass/museek"
 
 [project.scripts]
 museek = "museek.cli.main:main"
+# Console entry points for UHF processing and notebook execution
+museek_run_process_uhf_band = "museek.cli.run_process_uhf_band:main"
+museek_run_notebook = "museek.cli.run_notebook:main"
 
 [tool.setuptools]
 packages = ["museek"]
-
-[tool.setuptools.data-files]
-"bin" = [
-    "scripts/museek_process_uhf_band.sh",
-    "scripts/museek_run_notebook.sh",
-]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
