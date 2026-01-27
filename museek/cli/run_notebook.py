@@ -182,7 +182,11 @@ def generate_sbatch_script(
     return "\n".join(script_lines) + "\n"
 
 
-@click.command()
+@click.command(
+    context_settings=dict(
+        help_option_names=['-h', '--help'],
+    )
+)
 @click.option(
     "--notebook",
     required=True,
