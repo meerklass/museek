@@ -66,8 +66,8 @@ Repository = "https://github.com/meerklass/museek"
 museek = "museek.cli.main:main"
 # Console entry points that wrap the repository shell scripts. These forward
 # arguments to the corresponding shell scripts and work in editable installs.
-museek_process_uhf_band = "museek.cli.scripts:process_uhf_band"
-museek_run_notebook = "museek.cli.scripts:run_notebook"
+"museek_process_uhf_band.sh" = "museek.cli.scripts:process_uhf_band"
+"museek_run_notebook.sh" = "museek.cli.scripts:run_notebook"
 
 [tool.setuptools]
 packages = ["museek"]
