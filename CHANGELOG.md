@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-02-03
+
+### Added
+- Notebook templates are now included as package data under `museek/notebooks/` so templates are available after installing MuSEEK (including `pip install git+https://github.com/meerklass/museek.git`).
+
+### Changed
+- `museek_run_notebook` now resolves notebooks from the installed package location (`museek/notebooks/`) and from a local `./notebooks/` folder when running from the repository. It also accepts absolute paths to notebook files.
+- Path handling in the notebook CLI was modernized to use `pathlib.Path`.
+- Documentation updated to reflect packaged notebooks and absolute-path support.
+
+### Fixed
+- Fixed a bug where absolute notebook paths produced malformed output filenames when generating sbatch scripts; the output filename now uses the notebook stem.
+- Improved CLI error messages and dry-run behavior for missing notebooks.
+
+
 ## [0.4.0] - 2026-01-27
 
 ### Added

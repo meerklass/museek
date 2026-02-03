@@ -4,6 +4,7 @@ Generates and submits a Slurm job to process UHF band data. This script creates
 a temporary sbatch script and submits it to Slurm. Designed for processing
 MEERKLASS observations.
 """
+
 from __future__ import annotations
 
 import click
@@ -78,7 +79,7 @@ def generate_sbatch_script(
 
 @click.command(
     context_settings=dict(
-        help_option_names=['-h', '--help'],
+        help_option_names=["-h", "--help"],
     )
 )
 @click.option(
@@ -122,14 +123,14 @@ def main(
     dry_run: bool,
 ) -> None:
     """Generate and submit a Slurm job to process UHF band data using the MuSEEK pipeline.
-    
+
     \b
     EXAMPLES:
       museek_run_process_uhf_band --block-name 1675632179 --box 6
       museek_run_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
       museek_run_process_uhf_band --block-name 1675632179 --box 6 --dry-run
       museek_run_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
-    
+
     \b
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-<block_name>
@@ -139,7 +140,7 @@ def main(
       Max time:       48 hours
       Output:         museek-<block_name>-stdout.log
       Error:          museek-<block_name>-stderr.log
-    
+
     \b
     REQUIREMENTS:
       - Access to Ilifu
