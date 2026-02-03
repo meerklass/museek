@@ -1,4 +1,5 @@
 """Shared utilities for SLURM job submission."""
+
 from __future__ import annotations
 
 import subprocess
@@ -11,7 +12,7 @@ import click
 
 def submit_sbatch_script(script_content: str, dry_run: bool = False) -> None:
     """Submit a sbatch script to SLURM or display it in dry-run mode.
-    
+
     Args:
         script_content: The complete sbatch script content to submit
         dry_run: If True, display the script instead of submitting it
