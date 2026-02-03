@@ -389,7 +389,9 @@ Then to execute a notebook, simply do, for example,
 papermill -k meerklass -p block_name 12345678 notebooks/calibrated_data_check-postcali.ipynb output_notebook.ipynb
 ```
 
-Here, we tell `papermill` to run the `calibrated_data_check-postcali.ipynb` notebook using the `meerklass` kernel that we just installed, overidding the default `block_name` parameter in the notebook with `12345678` and saved the output notebook as `output_notebook.ipynb`
+Here, we tell `papermill` to run the `calibrated_data_check-postcali.ipynb` notebook using the `meerklass` kernel that we just installed, overidding the default `block_name` parameter in the notebook with `12345678` and saved the output notebook as `output_notebook.ipynb`.
+
+Note: As of v0.4.1, MuSEEK ships notebook templates as package data under `museek/notebooks/`. After installing MuSEEK (including via `pip install git+https://github.com/meerklass/museek.git`) you can run templates by name with `museek_run_notebook --notebook <name>` or provide an absolute path to any notebook file. This makes using the templates from shared/non-editable installs straightforward.
 
 To figure out which parameters in the notebook can be passed thorugh `papermill`, use the `--help-notebook` tag. For example,
 
@@ -411,7 +413,7 @@ papermill --help
 
 ### Running the Notebook with `museek_run_notebook` Script
 
-The `museek_run_notebook` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option.
+The `museek_run_notebook` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option (packaged under `museek/notebooks/`), or you may provide an absolute path to any notebook file.
 
 ```
 $ museek_run_notebook --help

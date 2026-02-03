@@ -3,7 +3,14 @@
 Generates and submits a Slurm job to execute a MuSEEK Jupyter notebook using
 papermill. This script creates a temporary sbatch script and submits it to Slurm.
 Kernel validation is performed before submission.
+
+Notebook Discovery:
+    Notebooks are searched in the following order:
+    1. Installed package location (museek/notebooks/) - works for all installs
+    2. Current working directory + notebooks/
+    3. Absolute path (if provided)
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -15,18 +22,37 @@ import click
 from museek.cli.slurm_utils import submit_sbatch_script
 
 
-def find_project_root() -> Path:
-    """Find the project root by looking for the museek package."""
-    # Try to find via the installed package location
+def find_notebooks_directory() -> Path | None:
+    """Find the notebooks directory by searching multiple locations.
+
+    Search order:
+    1. Installed package location (museek/notebooks/) - works for all install types
+    2. Current working directory + notebooks/
+
+    Returns:
+        Path to notebooks directory if found, None otherwise.
+    """
+    search_paths = []
+
+    # 1. Check installed package location (works for all install types)
     try:
         import museek
 
         pkg_path = Path(museek.__file__).parent
-        project_root = pkg_path.parent
-        return project_root
+        # Notebooks are now inside the package
+        search_paths.append(pkg_path / "notebooks")
     except Exception:
-        # Fallback: assume we're running from within the project
-        return Path.cwd()
+        pass
+
+    # 2. Check current working directory
+    search_paths.append(Path.cwd() / "notebooks")
+
+    # Return the first valid notebooks directory found
+    for path in search_paths:
+        if path.exists() and path.is_dir():
+            return path
+
+    return None
 
 
 def validate_kernel(kernel: str) -> None:
@@ -70,21 +96,42 @@ def validate_kernel(kernel: str) -> None:
 
 
 def validate_notebook(notebook_name: str) -> Path:
-    """Verify that the notebook exists and return its path."""
-    project_root = find_project_root()
-    notebooks_dir = project_root / "notebooks"
+    """Verify that the notebook exists and return its path.
+
+    If notebook_name is an absolute path, use it directly.
+    Otherwise, search for notebooks in standard locations (see find_notebooks_directory).
+    """
+    # Check if absolute path was provided
+    notebook_path = Path(notebook_name)
+    if notebook_path.is_absolute():
+        if not notebook_path.exists():
+            click.echo(f"Error: Notebook not found: {notebook_path}")
+            sys.exit(1)
+        return notebook_path
+
+    # Search for notebook in standard locations
+    notebooks_dir = find_notebooks_directory()
+
+    if notebooks_dir is None:
+        click.echo("Error: Could not find notebooks directory.")
+        click.echo("Tried searching in:")
+        click.echo("  1. Installed package location (museek/notebooks/)")
+        click.echo("  2. Current working directory + notebooks/")
+        click.echo("")
+        click.echo("You can also provide an absolute path to the notebook.")
+        sys.exit(1)
+
     notebook_path = notebooks_dir / f"{notebook_name}.ipynb"
 
     if not notebook_path.exists():
         click.echo(f"Error: Notebook not found: {notebook_path}")
         click.echo(f"Available notebooks in {notebooks_dir}:")
-        if notebooks_dir.exists():
-            notebooks = list(notebooks_dir.glob("*.ipynb"))
-            if notebooks:
-                for nb in notebooks:
-                    click.echo(f"  {nb.stem}")
-            else:
-                click.echo("  No notebooks found")
+        notebooks = list(notebooks_dir.glob("*.ipynb"))
+        if notebooks:
+            for nb in notebooks:
+                click.echo(f"  {nb.stem}")
+        else:
+            click.echo("  No notebooks found")
         sys.exit(1)
 
     return notebook_path
@@ -100,9 +147,17 @@ def generate_sbatch_script(
     parameters: list[tuple[str, str]],
     slurm_options: list[str],
 ) -> str:
-    """Generate the sbatch script content."""
-    output_dir = f"{output_path}/BOX{box}/{block_name}"
-    output_notebook = f"{output_dir}/{notebook_name}_output.ipynb"
+    """Generate the sbatch script content.
+
+    Best-effort uses pathlib to construct output paths and uses the notebook's stem
+    for the output filename so absolute notebook paths do not create malformed
+    filenames.
+    """
+    output_dir_path = Path(output_path) / f"BOX{box}" / str(block_name)
+    output_dir = str(output_dir_path)
+    # Use the notebook name's stem (base name without suffix) for the output file
+    output_notebook_path = output_dir_path / f"{Path(notebook_name).stem}_output.ipynb"
+    output_notebook = str(output_notebook_path)
 
     # Build papermill parameters string
     papermill_params = ""
@@ -147,7 +202,7 @@ def generate_sbatch_script(
             f'echo "Output:        {output_notebook}"',
             'echo "=========================================="',
             "",
-            f"# Create output directory",
+            "# Create output directory",
             f'mkdir -p "{output_dir}"',
             "",
             "# Execute notebook using papermill with collected parameters",
@@ -184,13 +239,13 @@ def generate_sbatch_script(
 
 @click.command(
     context_settings=dict(
-        help_option_names=['-h', '--help'],
+        help_option_names=["-h", "--help"],
     )
 )
 @click.option(
     "--notebook",
     required=True,
-    help="Name of the notebook to run (e.g., calibrated_data_check-postcali)",
+    help="Name of the notebook to run (e.g., calibrated_data_check-postcali) or absolute path to notebook file",
 )
 @click.option(
     "--block-name",
@@ -242,14 +297,23 @@ def main(
     dry_run: bool,
 ) -> None:
     """Generate and submit a Slurm job to execute a MuSEEK Jupyter notebook using papermill.
-    
+
+    The notebook is searched for in multiple locations (in order):
+      1. Installed package (works for: pip install, pip install -e, pip install git+...)
+      2. ./notebooks/ (current directory)
+      3. Absolute path to the notebook (if provided)
+
     \b
     EXAMPLES:
+      # Using notebook name (searches in standard locations)
       museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
       museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
       museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
       museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
-    
+
+      # Using absolute path to notebook:
+      museek_run_notebook --notebook /custom/path/my_notebook.ipynb --block-name 1708972386 --box 6
+
     \b
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-Notebook
@@ -259,13 +323,7 @@ def main(
       Max time:       1 hour
       Output:         notebook-<block_name>-stdout.log
       Error:          notebook-<block_name>-stderr.log
-    
-    \b
-    REQUIREMENTS:
-      - Access to Ilifu
-      - Jupyter kernel installed or auto-installable (meerklass)
-      - papermill installed
-      - sbatch command available (Slurm)
+
     """
     # Validate kernel (only when not in dry-run mode to avoid side effects)
     if not dry_run:

@@ -71,6 +71,9 @@ museek_run_notebook = "museek.cli.run_notebook:main"
 [tool.setuptools]
 packages = ["museek"]
 
+[tool.setuptools.package-data]
+museek = ["notebooks/*.ipynb", "notebooks/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["test"]
 python_files = ["test_*.py"]
