@@ -34,13 +34,14 @@ class GainCalibrationPlugin(AbstractPlugin):
         frequency_low: float,
         flag_combination_threshold: int,
         do_store_context: bool,
-        zscoreflag_threshold: float,
-        polyflag_deg: int,
-        polyflag_threshold: float,
-        polyfit_deg: int,
+        nd_zscoreflag_threshold: float,
+        nd_polyflag_deg: int,
+        nd_polyflag_threshold: float,
+        nd_polyfit_deg: int,
         cali_method: str,
-        window_movingmedian: int,
+        nd_window_movingmedian: int,
         nd_gausm_sigma: int,
+        do_delete_auto_data: bool,
         **kwargs,
     ):
         """
@@ -53,15 +54,16 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param frequency_low: low frequency cut
         :param flag_combination_threshold: for combining sets of flags, usually `1`
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
-        :param zscoreflag_threshold: threshold for flagging noise diode excess using modified zscore method
-        :param polyflag_deg: degree of the polynomials used for fitting and flagging noise diode excess
-        :param polyflag_threshold: threshold for flagging noise diode excess using polynomials fit
-        :param polyfit_deg: degree of the polynomials used for fitting flagged noise diode excess
+        :param nd_zscoreflag_threshold: threshold for flagging noise diode excess using modified zscore method
+        :param nd_polyflag_deg: degree of the polynomials used for fitting and flagging noise diode excess
+        :param nd_polyflag_threshold: threshold for flagging noise diode excess using polynomials fit
+        :param nd_polyfit_deg: degree of the polynomials used for fitting flagged noise diode excess
         :param cali_method: Method for calibration: 'corr' or 'rms'.
                'corr': Uses the correlation between the synchrotron model and visibility data for calibration.
                'rms': Uses the ratio of the RMS values of the synchrotron model and visibility data for calibration.
-        :param window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
+        :param nd_window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
         :param nd_gausm_sigma: The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum.
+        :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
 
         """
         super().__init__(**kwargs)
@@ -73,13 +75,14 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.frequency_low = frequency_low
         self.flag_combination_threshold = flag_combination_threshold
         self.do_store_context = do_store_context
-        self.zscoreflag_threshold = zscoreflag_threshold
-        self.polyflag_deg = polyflag_deg
-        self.polyflag_threshold = polyflag_threshold
-        self.polyfit_deg = polyfit_deg
+        self.nd_zscoreflag_threshold = nd_zscoreflag_threshold
+        self.nd_polyflag_deg = nd_polyflag_deg
+        self.nd_polyflag_threshold = nd_polyflag_threshold
+        self.nd_polyfit_deg = nd_polyfit_deg
         self.cali_method = cali_method
-        self.window_movingmedian = window_movingmedian
+        self.nd_window_movingmedian = nd_window_movingmedian
         self.nd_gausm_sigma = nd_gausm_sigma
+        self.do_delete_auto_data = do_delete_auto_data
 
     def set_requirements(self):
         """
@@ -132,6 +135,7 @@ class GainCalibrationPlugin(AbstractPlugin):
             scan_data.frequencies.squeeze
         )  ####  the unit of scan_data.frequencies is Hz
         temperature = np.zeros(scan_data.visibility.array.shape)
+        gain = np.ones((scan_data.visibility.array.shape[1], scan_data.visibility.array.shape[2]))
 
         print(f"Producing synch sky: synch model {self.synch_model} used")
         synch = Synch_model_sm(
@@ -158,7 +162,7 @@ class GainCalibrationPlugin(AbstractPlugin):
                             warnings.simplefilter("ignore")
                             ###  calculate the moving_median of the noise diode on - off signal
                             noise_excess_time_mf = moving_median_masked(
-                                noise_excess_time, window_size=self.window_movingmedian
+                                noise_excess_time, window_size=self.nd_window_movingmedian
                             )
                             ###  flagging outliers
                             noise_excess_time_residual = (
@@ -167,7 +171,7 @@ class GainCalibrationPlugin(AbstractPlugin):
                             noise_excess_time.mask = remove_outliers_zscore_mad(
                                 noise_excess_time_residual.data,
                                 noise_excess_time_residual.mask,
-                                self.zscoreflag_threshold,
+                                self.nd_zscoreflag_threshold,
                             )
                             ###  interpolating masked regions
                             noise_excess_time = interpolate_1d_masked_array(
@@ -190,19 +194,19 @@ class GainCalibrationPlugin(AbstractPlugin):
                         noise_excess_freq.mask = remove_outliers_zscore_mad(
                             noise_excess_freq.data,
                             noise_excess_freq.mask,
-                            self.zscoreflag_threshold,
+                            self.nd_zscoreflag_threshold,
                         )
                         noise_excess_freq.mask, p_fit = polynomial_flag_outlier(
                             noise_on_index,
                             noise_excess_freq.data,
                             noise_excess_freq.mask,
-                            self.polyflag_deg,
-                            self.polyflag_threshold,
+                            self.nd_polyflag_deg,
+                            self.nd_polyflag_threshold,
                         )
                         p_poly = np.polyfit(
                             noise_on_index[~noise_excess_freq.mask],
                             noise_excess_freq.data[~noise_excess_freq.mask],
-                            deg=self.polyfit_deg,
+                            deg=self.nd_polyfit_deg,
                         )
                         noise_excess_recv_fit[:, i_freq] = np.polyval(
                             p_poly, np.arange(visibility_recv.shape[0])
@@ -239,10 +243,10 @@ class GainCalibrationPlugin(AbstractPlugin):
                 )
                 visrms_in_time = np.ma.std(visibility_recv_norm, axis=0)
                 synchrms_in_time = np.ma.std(synch_recv, axis=0)
-                gain = visrms_in_time / synchrms_in_time
+                gain_recv = visrms_in_time / synchrms_in_time
 
                 temperature[:, :, i_receiver] = (
-                    visibility_recv_norm.data / (gain[np.newaxis, :])
+                    visibility_recv_norm.data / (gain_recv[np.newaxis, :])
                 )
 
                 del visibility_recv_norm
@@ -260,11 +264,13 @@ class GainCalibrationPlugin(AbstractPlugin):
                     (synch_recv - np.ma.mean(synch_recv, axis=0, keepdims=True)) ** 2,
                     axis=0,
                 )
-                gain = vis_synch_sum / synch_synch_sum
+                gain_recv = vis_synch_sum / synch_synch_sum
 
                 temperature[:, :, i_receiver] = (
-                    visibility_recv.data / (gain[np.newaxis, :])
+                    visibility_recv.data / (gain_recv[np.newaxis, :])
                 )
+
+            gain[:,i_receiver] = gain_recv
 
         #########  select the frequency region we want to use  #######
         freqlow_index = np.argmin(np.abs(freq / 10.0**6 - self.frequency_low))
@@ -303,9 +309,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
-        calibrated_data_flag_name_list = ["HH_VV_combined"]
-        calibrated_data_flag = []
-        calibrated_data_flag.append(temperature_antennas.mask)
 
         self.set_result(
             result=Result(
@@ -330,18 +333,28 @@ class GainCalibrationPlugin(AbstractPlugin):
         )
         self.set_result(
             result=Result(
-                location=ResultEnum.CALIBRATED_VIS_FLAG,
-                result=calibrated_data_flag,
+                location=ResultEnum.GAIN,
+                result=gain,
                 allow_overwrite=True,
             )
         )
-        self.set_result(
-            result=Result(
-                location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST,
-                result=calibrated_data_flag_name_list,
-                allow_overwrite=True,
+        if self.do_delete_auto_data:
+            scan_data.delete_visibility_flags_weights(polars='auto')
+            self.set_result(
+                result=Result(
+                    location=ResultEnum.SCAN_DATA, 
+                    result=scan_data, 
+                    allow_overwrite=True,
+                )
             )
-        )
+        else:
+            self.set_result(
+                result=Result(
+                    location=ResultEnum.SCAN_DATA, 
+                    result=scan_data, 
+                    allow_overwrite=True,
+                )
+            )
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
