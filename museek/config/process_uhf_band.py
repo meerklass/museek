@@ -204,7 +204,6 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     zscore_antenatempflag_threshold=5., # threshold for flagging the antennas based on their average temperature using modified zscore method
     do_store_context=True,
     do_delete_auto_data = False, # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
-    do_delete_calibrated_data = False, # switch that determines wether the calibrated data (from gain_calibration_plugin) should be deleted after AoflaggerPostCalibration
     new_output_path = None, # new path to save output, if `None`, using old output_path
 )
 
