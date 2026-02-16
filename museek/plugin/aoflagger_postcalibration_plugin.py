@@ -48,7 +48,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         zscore_antenatempflag_threshold: float,
         do_store_context: bool,
         do_delete_auto_data: bool,
-        do_delete_calibrated_data: bool,
         new_output_path: str,
         **kwargs,
     ):
@@ -75,7 +74,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param zscore_antenatempflag_threshold: threshold for flagging the antennas based on their average temperature using modified zscore method
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
-        :param do_delete_calibrated_data: switch that determines wether the calibrated data (from gain_calibration_plugin) should be deleted
         :param new_output_path: new path to save the output
         """
         super().__init__(**kwargs)
@@ -103,7 +101,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.calibrated_data_flag = {}
         self.calibrated_data_flag_name_list = []
         self.do_delete_auto_data = do_delete_auto_data
-        self.do_delete_calibrated_data = do_delete_calibrated_data
         self.new_output_path = new_output_path
 
     def set_requirements(self):
@@ -498,22 +495,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                     allow_overwrite=True,
                 )
             )
-        if self.do_delete_calibrated_data:
-            self.set_result(
-                result=Result(
-                    location=ResultEnum.CALIBRATED_VIS, 
-                    result=None, 
-                    allow_overwrite=True,
-                )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.CALIBRATED_VIS, 
+                result=calibrated_data, 
+                allow_overwrite=True,
             )
-        else:
-            self.set_result(
-                result=Result(
-                    location=ResultEnum.CALIBRATED_VIS, 
-                    result=calibrated_data, 
-                    allow_overwrite=True,
-                )
-            )
+        )
         self.set_result(
             result=Result(
                 location=ResultEnum.CORRELATION_COEFFICIENT_VIS_SYNCH_ANT,
