@@ -296,7 +296,7 @@ def generate_sbatch_script(
         "--cpus-per-task=32",
         "--mem=248GB",
         "--time=01:00:00",
-        f"--output={Path(notebook_name).stem}-{block_name}.log",
+        f"--output=slurm-{Path(notebook_name).stem}-{block_name}-%j.out",
     ]
 
     # Build job-specific body

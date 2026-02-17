@@ -39,7 +39,7 @@ def generate_sbatch_script(
         "--cpus-per-task=32",
         "--mem=248GB",
         "--time=48:00:00",
-        f"--output=museek-process-uhf-{block_name}.log",
+        f"--output=slurm-museek-process-uhf-{block_name}-%j.log",
     ]
 
     # Build job-specific body
