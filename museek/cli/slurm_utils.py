@@ -136,6 +136,7 @@ def build_sbatch_script(
             "# Activate Python virtual environment",
             f"source {venv_path}/bin/activate",
             'echo "Python executable is: $(which python)"',
+            "echo \"MuSEEK version: $(python -c 'import museek; print(museek.__version__)')\"",
             "",
         ]
     )
