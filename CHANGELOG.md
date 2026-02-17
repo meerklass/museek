@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Automatic Jupyter kernel detection from virtual environment in `museek_run_notebook`
+- Kernel detection searches both visible kernels and venv's share directory
+- Helpful error messages with instructions when no kernel is found for a venv
+- `merge_slurm_options()` utility function to handle SLURM option overrides (user options override defaults)
+- `build_sbatch_script()` utility function to generalize sbatch script generation across CLI commands
+
+### Changed
+- `--kernel` option in `museek_run_notebook` is now optional (no default value)
+- When `--kernel` is not specified, the CLI auto-detects the kernel associated with the provided venv
+- SLURM options specified by users now properly override default options instead of duplicating them
+- Refactored `run_notebook.py` and `run_process_uhf_band.py` to use shared `build_sbatch_script()` function
+- Reduced code duplication in sbatch script generation logic
+
+### Fixed
+- Fixed issue where custom SLURM options would be appended rather than overriding defaults
+- Fixed dry-run mode to show actual auto-detected kernel name instead of placeholder
+- Fixed issue where block anme and box number are not passed to papermill
+- Fixed path handling in post calibration notebook.
+
 ## [0.4.1] - 2026-02-03
 
 ### Added
