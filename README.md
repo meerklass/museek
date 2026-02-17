@@ -369,6 +369,8 @@ More information on these are included in their class documentations.
 
 MuSEEK now come with a few Jupyter notebook templates for data inspection, which are now run after `process_uhf_band` pipeline has been run on the data. 
 
+For quick run of observer notebooks on Ilifu, see [Running the Notebook with `museek_run_notebook` Command](#running-the-notebook-with-museek_run_notebook-command).
+
 ### Running the Notebook with Jupyter
 
 The notebooks can be copy and run on Jupyter, with the Jupyter Hub on Ilifu (jupyter.ilifu.ac.za), for example. This is only recommend for experimenting with the notebooks.
@@ -414,7 +416,7 @@ papermill --help
 
 ### Running the Notebook with `museek_run_notebook` Command
 
-The `museek_run_notebook` command further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package currently installed in your Python environment with name matching `--notebook` option, or you may provide an absolute path to any notebook file. For MeerKLASS standard analysis on Ilifu, user only have to run the following commands, providing the block name and box number.
+The `museek_run_notebook` command further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command that dynamically generates and submits SLURM jobs. It will find the notebook "template" of matching name in the MuSEEK package currently installed in the provided Python environment, or you may provide an absolute path to any notebook file. It will also attempt to detect a kernel associcated the provided Python environment and construct appropiate papermill command with default path linked to the XLP data. For MeerKLASS XLP data analysis on Ilifu, user only have to run the following commands, providing the block name and box number.
 
 ```
 source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
