@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helpful error messages with instructions when no kernel is found for a venv
 - `merge_slurm_options()` utility function to handle SLURM option overrides (user options override defaults)
 - `build_sbatch_script()` utility function to generalize sbatch script generation across CLI commands
+- New `museek/cli/common.py` module with reusable CLI option decorators for consistent CLI interfaces
+- `--data-path` option in `museek_run_notebook` to specify base data path for notebooks
+- `--output-dir` option in `museek_run_notebook` for explicit output directory control
 
 ### Changed
 - `--kernel` option in `museek_run_notebook` is now optional (no default value)
@@ -20,12 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SLURM options specified by users now properly override default options instead of duplicating them
 - Refactored `run_notebook.py` and `run_process_uhf_band.py` to use shared `build_sbatch_script()` function
 - Reduced code duplication in sbatch script generation logic
+- Split `--output-path` parameter in `museek_run_notebook` into separate `--data-path` and `--output-dir` parameters for improved clarity
+- Changed notebook search order in `museek_run_notebook`: absolute path first, then installed package, then current working directory
+- SLURM log filenames now standardized with job number: `slurm-<command>-<block_name>-%j.out`
+- Job names now include block name: `MuSEEK-Notebook-<block_name>` and `MuSEEK-Process-UHF-<block_name>`
+- Improved CLI help text and examples for both `museek_run_notebook` and `museek_run_process_uhf_band`
+- Both CLI commands now use shared option decorators from `common.py` for consistency
+- Enhanced error messages when notebooks or kernels are not found
+- `--venv` option added to both CLI commands for specifying virtual environment path
 
 ### Fixed
 - Fixed issue where custom SLURM options would be appended rather than overriding defaults
 - Fixed dry-run mode to show actual auto-detected kernel name instead of placeholder
-- Fixed issue where block anme and box number are not passed to papermill
-- Fixed path handling in post calibration notebook.
+- Fixed issue where block name and box number are not passed to papermill
+- Fixed path handling in post-calibration notebook
+- Fixed path handling to properly support absolute paths, installed packages, and relative paths
 
 ## [0.4.1] - 2026-02-03
 
