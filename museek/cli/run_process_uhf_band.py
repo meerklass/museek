@@ -7,118 +7,100 @@ MEERKLASS observations.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
-from museek.cli.slurm_utils import submit_sbatch_script
+from museek.cli.common import (
+    add_block_name_option,
+    add_box_option,
+    add_dry_run_option,
+    add_slurm_options,
+    add_venv_option,
+)
+from museek.cli.slurm_utils import build_sbatch_script, submit_sbatch_script
 
 
 def generate_sbatch_script(
     block_name: str,
     box: str,
-    base_context_folder: str,
-    data_folder: str,
+    base_context_folder: Path,
+    data_folder: Path,
+    venv_path: Path,
     slurm_options: list[str],
 ) -> str:
     """Generate the sbatch script content."""
-    context_folder = f"{base_context_folder}/BOX{box}/{block_name}"
+    context_folder = Path(base_context_folder) / f"BOX{box}" / block_name
 
-    script_lines = [
-        "#!/bin/bash",
-        "",
-        f"#SBATCH --job-name='MuSEEK-{block_name}'",
-        "#SBATCH --ntasks=1",
-        "#SBATCH --cpus-per-task=32",
-        "#SBATCH --mem=248GB",
-        "#SBATCH --time=48:00:00",
-        f"#SBATCH --output=museek-{block_name}-stdout.log",
-        f"#SBATCH --error=museek-{block_name}-stderr.log",
+    # Define default SLURM options
+    default_slurm_options = [
+        f"--job-name=MuSEEK-Process-UHF-{block_name}",
+        "--ntasks=1",
+        "--cpus-per-task=32",
+        "--mem=248GB",
+        "--time=48:00:00",
+        f"--output=slurm-museek-process-uhf-{block_name}-%j.log",
     ]
 
-    # Add additional SLURM options
-    for option in slurm_options:
-        script_lines.append(f"#SBATCH {option}")
+    # Build job-specific body
+    body_lines = [
+        "# Log job information",
+        'echo "=========================================="',
+        'echo "Executing MuSEEK UHF Band Processing"',
+        'echo "=========================================="',
+        f'echo "Block name:    {block_name}"',
+        f'echo "Box:           {box}"',
+        f'echo "Data folder:   "{data_folder}""',
+        f'echo "Context folder: "{context_folder}""',
+        'echo "=========================================="',
+        "",
+        "# Execute the pipeline",
+        f'museek --InPlugin-block-name={block_name} --InPlugin-context-folder="{context_folder}" \\',
+        f'    --InPlugin-data-folder="{data_folder}" museek.config.process_uhf_band',
+    ]
 
-    script_lines.extend(
-        [
-            "",
-            "# Use shared meerklass environment",
-            "source /idia/projects/meerklass/virtualenv/meerklass/bin/activate",
-            'echo "Python executable is: $(which python)"',
-            "",
-            "# Log job information",
-            'echo "=========================================="',
-            'echo "Executing MuSEEK UHF Band Processing"',
-            'echo "=========================================="',
-            f'echo "Block name: {block_name}"',
-            f'echo "Box: {box}"',
-            f'echo "Data folder: {data_folder}"',
-            f'echo "Context folder: {context_folder}"',
-            'echo "=========================================="',
-            "",
-            "# Execute the pipeline",
-            f"museek --InPlugin-block-name={block_name} --InPlugin-context-folder={context_folder} \\",
-            f"    --InPlugin-data-folder={data_folder} museek.config.process_uhf_band",
-            "",
-            "# Check exit status",
-            "if [ $? -eq 0 ]; then",
-            '    echo "=========================================="',
-            '    echo "MuSEEK pipeline completed successfully!"',
-            '    echo "=========================================="',
-            "    exit 0",
-            "else",
-            '    echo "=========================================="',
-            '    echo "Error: MuSEEK pipeline failed!"',
-            '    echo "=========================================="',
-            "    exit 1",
-            "fi",
-        ]
+    return build_sbatch_script(
+        default_slurm_options=default_slurm_options,
+        user_slurm_options=slurm_options,
+        venv_path=venv_path,
+        body_lines=body_lines,
+        success_message="MuSEEK pipeline completed successfully!",
+        error_message="MuSEEK pipeline failed!",
     )
-
-    return "\n".join(script_lines) + "\n"
 
 
 @click.command(
-    context_settings=dict(
-        help_option_names=["-h", "--help"],
-    )
+    context_settings=dict(help_option_names=["-h", "--help"], max_content_width=100)
 )
+@add_block_name_option()
+@add_box_option()
 @click.option(
-    "--block-name",
-    required=True,
-    help="Block name or observation ID (e.g., 1675632179)",
-)
-@click.option(
-    "--box",
-    required=True,
-    help="Box number of this block name (e.g., 6)",
-)
-@click.option(
+    "-c",
     "--base-context-folder",
+    type=click.Path(
+        file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
+    ),
     default="/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline",
-    help="Path to the base context/output folder. The final context folder will be <base-context-folder>/BOX<box>/<block-name>",
+    help="Base directory for context/output. Final output: <base-context-folder>/BOX<box>/<block-name>",
     show_default=True,
 )
 @click.option(
+    "-d",
     "--data-folder",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path, resolve_path=True),
     default="/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/raw",
     help="Path to raw data folder",
     show_default=True,
 )
-@click.option(
-    "--slurm-options",
-    multiple=True,
-    help="Additional SLURM options to pass to sbatch. Each --slurm-options takes ONE flag. Can be specified multiple times.",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Show the generated sbatch script without submitting",
-)
+@add_venv_option()
+@add_slurm_options()
+@add_dry_run_option()
 def main(
     block_name: str,
     box: str,
-    base_context_folder: str,
-    data_folder: str,
+    base_context_folder: Path,
+    data_folder: Path,
+    venv: Path,
     slurm_options: tuple[str, ...],
     dry_run: bool,
 ) -> None:
@@ -133,13 +115,12 @@ def main(
 
     \b
     DEFAULT SLURM PARAMETERS:
-      Job name:       MuSEEK-<block_name>
+      Job name:       MuSEEK-Process-UHF-<block_name>
       Tasks:          1
       CPUs per task:  32
       Memory:         248GB
       Max time:       48 hours
-      Output:         museek-<block_name>-stdout.log
-      Error:          museek-<block_name>-stderr.log
+      Log output:     museek-process-uhf-<block_name>.log
 
     \b
     REQUIREMENTS:
@@ -153,6 +134,7 @@ def main(
         box=box,
         base_context_folder=base_context_folder,
         data_folder=data_folder,
+        venv_path=venv,
         slurm_options=list(slurm_options),
     )
 
