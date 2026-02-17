@@ -47,6 +47,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         beam_frequency: float,
         zscore_antenatempflag_threshold: float,
         do_store_context: bool,
+        do_delete_auto_data: bool,
+        new_output_path: str,
         **kwargs,
     ):
         """
@@ -71,6 +73,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param beam_frequency: reference frequencies at which the beam fwhm are defined [MHz]
         :param zscore_antenatempflag_threshold: threshold for flagging the antennas based on their average temperature using modified zscore method
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
+        :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
+        :param new_output_path: new path to save the output
         """
         super().__init__(**kwargs)
         self.first_threshold_rms = first_threshold_rms
@@ -94,6 +98,10 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.zscore_antenatempflag_threshold = zscore_antenatempflag_threshold
         self.do_store_context = do_store_context
         self.report_file_name = "flag_report.md"
+        self.calibrated_data_flag = {}
+        self.calibrated_data_flag_name_list = []
+        self.do_delete_auto_data = do_delete_auto_data
+        self.new_output_path = new_output_path
 
     def set_requirements(self):
         """
@@ -111,13 +119,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             Requirement(
                 location=ResultEnum.POINT_SOURCE_FLAG, variable="point_source_flag"
             ),
-            Requirement(
-                location=ResultEnum.CALIBRATED_VIS_FLAG, variable="calibrated_data_flag"
-            ),
-            Requirement(
-                location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST,
-                variable="calibrated_data_flag_name_list",
-            ),
         ]
 
     def map(
@@ -129,8 +130,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         flag_report_writer: ReportWriter,
         output_path: str,
         block_name: str,
-        calibrated_data_flag: list[np.ndarray],
-        calibrated_data_flag_name_list: list,
     ) -> Generator[
         tuple[
             str,
@@ -154,12 +153,37 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block
-        :param calibrated_data_flag: list of the existing flags for calibrated data
-        :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
         print(
             f"flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used"
         )
+
+
+        if self.new_output_path is not None:
+            output_path = self.new_output_path
+            flag_report_writer.file_name = os.path.join(output_path, self.report_file_name)
+            if not os.path.exists(output_path):
+                os.makedirs(output_path)
+                print(f"Directory '{output_path}' was created.")
+            else:
+                print(f"Directory '{output_path}' already exists.")
+
+
+        ##########  mask new known RFI from cellphone frequencies
+        # List of frequency intervals to mask
+        mask_intervals = [(765.0, 775.0),(801.0, 821.0),(925.0, 960.0)]
+        # Start with all False (unmasked)
+        mask_freq = np.zeros_like(freq_select, dtype=bool)
+        # Set mask to True within each interval
+        for low, high in mask_intervals:
+            mask_freq |= (freq_select/10**6 > low) & (freq_select/10**6 < high)
+        calibrated_data.mask[:,mask_freq,:] = True
+
+
+        ###########  save the mask
+        self.calibrated_data_flag['HH_VV_combined'] = calibrated_data.mask.copy()
+        self.calibrated_data_flag_name_list.append('HH_VV_combined')
+
 
         ######## mask antennas that have temperature far from the median temperature for all antennas
         calibrated_data_median = np.ma.masked_array(
@@ -175,8 +199,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             self.zscore_antenatempflag_threshold,
         )
         calibrated_data.mask[:, :, antenna_mask_temp] = True
-        calibrated_data_flag.append(calibrated_data.mask)
-        calibrated_data_flag_name_list.append("temp_outlier_flag")
+        self.calibrated_data_flag['temp_outlier_flag'] = antenna_mask_temp
+        self.calibrated_data_flag_name_list.append('temp_outlier_flag')
 
         ##########   report of the flagging
         flag_percent = []
@@ -209,14 +233,14 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
         for i_antenna, antenna in enumerate(scan_data.antennas):
             calibrated_data_std[i_antenna] = np.ma.std(calibrated_data[:, :, i_antenna])
-        antenna_mask_temp = remove_outliers_zscore_mad(
+        antenna_mask_temprms = remove_outliers_zscore_mad(
             calibrated_data_std.data,
             calibrated_data_std.mask,
             self.zscore_antenatempflag_threshold,
         )
-        calibrated_data.mask[:, :, antenna_mask_temp] = True
-        calibrated_data_flag.append(calibrated_data.mask)
-        calibrated_data_flag_name_list.append("temp_fluctuation_flag")
+        calibrated_data.mask[:, :, antenna_mask_temprms] = True
+        self.calibrated_data_flag['temp_fluctuation_flag'] = antenna_mask_temprms
+        self.calibrated_data_flag_name_list.append('temp_fluctuation_flag')
 
         ##########   report of the flagging
         flag_percent = []
@@ -376,15 +400,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         initial_flag_postflagfraction = initial_flag_post.squeeze + initial_flag_postrms
 
-        return self.flag_antennas_using_correlation_with_synch_model(
-            visibility_recv,
-            initial_flag_postflagfraction,
-            point_source_flag_recv,
-            right_ascension,
-            declination,
-            freq_select,
-            antenna,
-        )
+        ##########  mask bad antennas with low correlation with synch model
+        mask_corr, spearman_corr, mask_poly = self.flag_antennas_using_correlation_with_synch_model(
+                visibility_recv, initial_flag_postflagfraction, point_source_flag_recv,
+                right_ascension, declination, freq_select, antenna)
+
+        return mask_corr, mask_poly, spearman_corr
+
 
     def gather_and_set_result(
         self,
@@ -396,8 +418,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         flag_report_writer: ReportWriter,
         output_path: str,
         block_name: str,
-        calibrated_data_flag: list[np.ndarray],
-        calibrated_data_flag_name_list: list,
     ):
         """
         Combine the `np.ma.MaskedArray`s in `result_list` into a new data set, and mask the frequencies that flag fraction is high (taking all antennas into consideration)
@@ -408,39 +428,38 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
-        :param calibrated_data_flag: list of the existing flags for calibrated data
-        :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
 
+        if self.new_output_path is not None:
+            output_path = self.new_output_path
+            flag_report_writer.file_name = os.path.join(output_path, self.report_file_name)
+
         result_list = np.array(result_list, dtype="object")
-        correlation_coefficient_ant = [
-            result_list[i][1] for i in range(np.shape(result_list)[0])
-        ]
         calibrated_data.mask = np.array(
-            [result_list[i][0] for i in range(np.shape(result_list)[0])]
+                [result_list[i][0] for i in range(np.shape(result_list)[0])]
         ).transpose(1, 2, 0)
         polynomial_fit_flag = np.array(
-            [result_list[i][2] for i in range(np.shape(result_list)[0])]
+                [result_list[i][1] for i in range(np.shape(result_list)[0])]
         ).transpose(1, 2, 0)
+        correlation_coefficient_antlist = [
+                result_list[i][2] for i in range(np.shape(result_list)[0])
+                ]
+
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [
             ~calibrated_data[:, :, i_antenna].mask.all()
             for i_antenna, antenna in enumerate(scan_data.antennas)
         ]
-        for i_freq, freq in enumerate(freq_select):
-            if (
-                np.mean(calibrated_data.mask[:, i_freq, good_antennas])
-                > self.time_dump_flag_threshold
-            ):
-                calibrated_data.mask[:, i_freq, :] = True
-            else:
-                pass
+        bad_freq = np.mean(calibrated_data.mask[:,:,good_antennas], axis=(0,2)) > self.time_dump_flag_threshold
+        calibrated_data.mask[:,bad_freq,:] = True
 
-        calibrated_data_flag.append(polynomial_fit_flag)
-        calibrated_data_flag_name_list.append("polynomial_fit_flag")
-        calibrated_data_flag.append(calibrated_data.mask)
-        calibrated_data_flag_name_list.append("synch_correlation_flag")
+        self.calibrated_data_flag['polynomial_fit_flag'] = polynomial_fit_flag
+        self.calibrated_data_flag_name_list.append('polynomial_fit_flag')
+        self.calibrated_data_flag['synch_correlation_flag'] = np.array(correlation_coefficient_antlist) <= self.correlation_threshold_ant
+        self.calibrated_data_flag_name_list.append('synch_correlation_flag')
+        self.calibrated_data_flag['freq_flaggedfraction_flag'] = bad_freq
+        self.calibrated_data_flag_name_list.append('freq_flaggedfraction_flag')
 
         ##########   report of the flagging
         flag_percent = []
@@ -467,34 +486,58 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         flag_report_writer.write_to_report(lines)
 
         #########   save results
+        if self.do_delete_auto_data:
+            scan_data.delete_visibility_flags_weights(polars='auto')
+            self.set_result(
+                result=Result(
+                    location=ResultEnum.SCAN_DATA, 
+                    result=scan_data, 
+                    allow_overwrite=True,
+                )
+            )
         self.set_result(
             result=Result(
-                location=ResultEnum.CALIBRATED_VIS,
-                result=calibrated_data,
+                location=ResultEnum.CALIBRATED_VIS, 
+                result=calibrated_data, 
                 allow_overwrite=True,
             )
         )
         self.set_result(
             result=Result(
                 location=ResultEnum.CORRELATION_COEFFICIENT_VIS_SYNCH_ANT,
-                result=correlation_coefficient_ant,
+                result=correlation_coefficient_antlist,
                 allow_overwrite=True,
             )
         )
         self.set_result(
             result=Result(
                 location=ResultEnum.CALIBRATED_VIS_FLAG,
-                result=calibrated_data_flag,
+                result=self.calibrated_data_flag,
                 allow_overwrite=True,
             )
         )
         self.set_result(
             result=Result(
                 location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST,
-                result=calibrated_data_flag_name_list,
+                result=self.calibrated_data_flag_name_list,
                 allow_overwrite=True,
             )
         )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.OUTPUT_PATH, 
+                result=output_path, 
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.FLAG_REPORT_WRITER, 
+                result=flag_report_writer, 
+                allow_overwrite=True,
+            )
+        )
+
         if self.do_store_context:
             context_file_name = "aoflagger_plugin_postcalibration.pickle"
             self.store_context_to_disc(

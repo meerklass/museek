@@ -1,7 +1,6 @@
 import datetime
 import warnings
 from collections.abc import Generator
-
 import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
@@ -164,36 +163,53 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         noise_diode_excess = np.ma.zeros(
             (len(continuous_noise_on_index), visibility.shape[1])
         )
-        for i_freq in range(visibility.shape[1]):
-            for i_index_list, index_list in enumerate(continuous_noise_on_index):
-                if len(index_list) == 1:
-                    noise_on_value = visibility[index_list[0], i_freq]
-                    noise_off_value = np.ma.mean(
-                        [
-                            visibility[i, i_freq]
-                            for i in range(index_list[0] - 1, index_list[0] + 2)
-                            if i != index_list[0]
-                        ]
+        for i_index_list, index_list in enumerate(continuous_noise_on_index):
+            if len(index_list) == 1:
+                noise_on_value = visibility[index_list[0],:]
+                noise_off_value_data = [
+                        visibility.data[i,:] 
+                        for i in range(index_list[0]-1, index_list[0]+2) 
+                        if i!=index_list[0]
+                    ]
+                noise_off_value_mask = [
+                        visibility.mask[i,:] 
+                        for i in range(index_list[0]-1, index_list[0]+2) 
+                        if i!=index_list[0]
+                    ]
+                noise_off_value = np.ma.masked_array(
+                        np.mean(noise_off_value_data, axis=0), 
+                        mask=np.mean(noise_off_value_mask, axis=0)
                     )
-                    noise_diode_excess[i_index_list, i_freq] = (
-                        noise_on_value - noise_off_value
+                noise_diode_excess[i_index_list,:] = np.ma.masked_array(
+                        noise_on_value.data-noise_off_value.data, 
+                        mask=noise_on_value.mask+noise_off_value.mask
                     )
 
-                elif len(index_list) > 1:
-                    noise_on_value = np.ma.sum(
-                        [visibility[i, i_freq] for i in index_list]
+
+            elif len(index_list) > 1:
+                noise_on_value_data = [visibility.data[i,:] for i in index_list]
+                noise_on_value_mask = [visibility.mask[i,:] for i in index_list]
+                noise_on_value = np.ma.masked_array(
+                        np.sum(noise_on_value_data, axis=0), 
+                        mask=np.mean(noise_on_value_mask, axis=0)
                     )
-                    noise_off_value = np.ma.mean(
-                        [
-                            visibility[i, i_freq]
-                            for i in range(
-                                np.min(index_list) - 1, np.max(index_list) + 2
-                            )
-                            if i not in index_list
-                        ]
+                noise_off_value_data = [
+                        visibility.data[i,:] 
+                        for i in range(np.min(index_list)-1, np.max(index_list)+2) 
+                        if i not in index_list
+                    ]
+                noise_off_value_mask = [
+                        visibility.mask[i,:] 
+                        for i in range(np.min(index_list)-1, np.max(index_list)+2) 
+                        if i not in index_list
+                    ]
+                noise_off_value = np.ma.masked_array(
+                        np.mean(noise_off_value_data, axis=0), 
+                        mask=np.mean(noise_off_value_mask, axis=0)
                     )
-                    noise_diode_excess[i_index_list, i_freq] = (
-                        noise_on_value - noise_off_value * len(index_list)
+                noise_diode_excess[i_index_list,:] = np.ma.masked_array(
+                        noise_on_value.data - noise_off_value.data*len(index_list), 
+                        mask=noise_on_value.mask+noise_off_value.mask
                     )
 
         noise_diode_excess.mask[np.isnan(noise_diode_excess.data)] = True
