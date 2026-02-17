@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 
@@ -32,10 +34,28 @@ def add_slurm_options():
     return click.option(
         "-s",
         "--slurm-options",
-        type=(str, str),
-        metavar="<OPTION VALUE>...",
+        type=str,
         multiple=True,
-        help="Additional SLURM options to pass to sbatch. Can be specified multiple times.",
+        help="Additional SLURM options to pass to sbatch (e.g., --exclusive, --mail-user=user@domain.com). Can be specified multiple times.",
+    )
+
+
+def add_venv_option():
+    """Decorator for adding --venv / -v option."""
+    return click.option(
+        "-v",
+        "--venv",
+        type=click.Path(
+            file_okay=False,
+            dir_okay=True,
+            writable=False,
+            path_type=Path,
+            resolve_path=True,
+        ),
+        default="/idia/projects/meerklass/virtualenv/meerklass",
+        help="Path to Python virtual environment. "
+        "Use the default shared meerklass environment on ilifu if not specified.",
+        show_default=True,
     )
 
 
