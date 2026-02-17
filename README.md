@@ -440,19 +440,25 @@ Usage: museek_run_notebook [OPTIONS]
 
   EXAMPLES:
     # Using notebook name (searches in standard locations):
-    # Standard usage for post-calibration notebook with block name and box:
-    museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
+    # Standard usage for post-calibration notebook with block name
+    # and box:
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6
     # Dry run to show the generated sbatch script without submitting:
-    museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
-      --dry-run
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 --dry-run
     # Passing additional parameters to the notebook (e.g., data_path):
-    museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
-      --parameters data_path /custom/path/
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 --parameters data_path \
+      /custom/path/
     # Passing additional SLURM options (e.g., email notification):
-    museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 \
-      --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 \
+      --slurm-options --mail-user=user@uni.edu \
+      --slurm-options --mail-type=ALL
     # Using absolute path to notebook:
-    museek_run_notebook --notebook /custom/path/my_notebook.ipynb --block-name 1708972386 --box 6
+    museek_run_notebook --notebook /custom/path/my_notebook.ipynb \
+      --block-name 1708972386 --box 6
 
   DEFAULT SLURM PARAMETERS:
     Job name:       MuSEEK-Notebook-<block_name>
@@ -467,9 +473,11 @@ Options:
                                   postcali) or absolute path to notebook file  [required]
   -b, --block-name TEXT           Block name or observation ID (e.g., 1708972386)  [required]
   -x, --box TEXT                  Box number of this block name (e.g., 6)  [required]
-  -o, --output-dir DIRECTORY      Base directory for notebook output. The final output folder will
-                                  be <output-dir>/BOX<box>/<block-name>/  [default:
+  -d, --data-path DIRECTORY       Base path of the data for the notebook. Same as `data_path`
+                                  parameter in calibrated_data_check*.ipynb notebooks.  [default:
                                   /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline]
+  -o, --output-dir DIRECTORY      Directory for notebook output. If not specify, output will be
+                                  saved to <data-path>/BOX<box>/<block-name>/
   -v, --venv DIRECTORY            Path to Python virtual environment. Use the default shared
                                   meerklass environment on ilifu if not specified.  [default:
                                   /idia/projects/meerklass/virtualenv/meerklass]
