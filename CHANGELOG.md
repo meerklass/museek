@@ -2,24 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+* Add `gain_selfcalibration_plugin` and `aoflagger_postselfcalibration_plugin`
+* Add the notebooks for pinpointing, mapmaking, and combining blocks
+* Update the codes in `gain_calibration_plugin` and `aoflagger_postcalibration_plugin`:
+  * fix the bug in mask saving, using a dictionary to save the mask for calibrated data
+    save gain in the results
+
+  * add do_delete_auto_data to decide whether save the raw data and flags in pickles after calibration
+  * add new_output_path in aoflagger_postcalibration_plugin, then we can change the output path if needed
+  * update the config file process_uhf_band.py, reorder the configsection
+
+## [0.5.0] - 2026-02-03
 
 ### Added
 
 * Add `museek.__version__` attribute
 * CLI
-    - Automatic Jupyter kernel detection from virtual environment in `museek_run_notebook`
-    - Kernel detection searches both visible kernels and venv's share directory
-    - Helpful error messages with instructions when no kernel is found for a venv
-    - `merge_slurm_options()` utility function to handle SLURM option overrides (user options override defaults)
-    - `build_sbatch_script()` utility function to generalize sbatch script generation across CLI commands
-    - New `museek/cli/common.py` module with reusable CLI option decorators for consistent CLI interfaces
-    - `--data-path` option in `museek_run_notebook` to specify base data path for notebooks
-    - `--output-dir` option in `museek_run_notebook` for explicit output directory control
-    - MuSEEK version is now printed in SLURM job output logs for all CLI commands
+  * Automatic Jupyter kernel detection from virtual environment in `museek_run_notebook`
+  * Kernel detection searches both visible kernels and venv's share directory
+  * Helpful error messages with instructions when no kernel is found for a venv
+  * `merge_slurm_options()` utility function to handle SLURM option overrides (user options override defaults)
+  * `build_sbatch_script()` utility function to generalize sbatch script generation across CLI commands
+  * New `museek/cli/common.py` module with reusable CLI option decorators for consistent CLI interfaces
+  * `--data-path` option in `museek_run_notebook` to specify base data path for notebooks
+  * `--output-dir` option in `museek_run_notebook` for explicit output directory control
+  * MuSEEK version is now printed in SLURM job output logs for all CLI commands
 
 ### Changed
 
@@ -95,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-* Shell script wrappers (`museek_process_uhf_band.sh`,  `museek_run_notebook.sh`) replaced by Python CLIs
+* Shell script wrappers (`museek_process_uhf_band.sh`,    `museek_run_notebook.sh`) replaced by Python CLIs
 * Obsolete `museek/cli/scripts.py` wrapper module
 * `.sh` suffix from all command names in documentation
 

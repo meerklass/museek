@@ -831,3 +831,43 @@ def consecutive_subsets(lst):
 
     subsets.append(current)  # add the last group
     return subsets
+
+
+def compute_mask_mad(data, base_mask, threshold, n_iter=2, two_sided=False):
+    """
+    Iteratively compute a mask using MAD thresholding.
+
+    Parameters
+    ----------
+    data : ndarray
+        Initial data.
+    base_mask : ndarray (bool)
+        Initial mask (True = masked).
+    threshold : float
+        Threshold factor applied to MAD.
+    n_iter : int, optional
+        Number of iterations (default: 2).
+    two_sided : bool, optional
+        If True, mask deviations on both sides (|x - median| >= threshold * MAD).
+        If False, mask only positive deviations ((x - median) >= threshold * MAD).
+
+    Returns
+    -------
+    mask : ndarray (bool)
+        Final combined mask after n_iter iterations.
+    """
+    mask = base_mask.copy()
+
+    for _ in range(n_iter):
+        masked_data = np.ma.array(data, mask=mask)
+        median = np.ma.median(masked_data)
+        mad = np.ma.median(np.abs(masked_data - median))
+
+        if two_sided:
+            new_mask = np.abs(data - median) >= threshold * mad
+        else:
+            new_mask = (data - median) >= threshold * mad
+
+        mask = mask | new_mask  # update mask
+
+    return mask
