@@ -1,54 +1,58 @@
-from typing import Generator
+import datetime
+from collections.abc import Generator
+
+import healpy as hp
+import numpy as np
+import pysm3
+import pysm3.units as u
+import scipy
+from astropy.coordinates import SkyCoord
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+from scipy.stats import spearmanr
+
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
-from museek.flag_factory import FlagFactory
 from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import flag_percent_recv, git_version_info, remove_outliers_zscore_mad
-import pickle
-import numpy as np
-import scipy
-import datetime
-from scipy.stats import spearmanr
-import pysm3
-import pysm3.units as u
-import healpy as hp
-from astropy.coordinates import SkyCoord
-from scipy import ndimage
+from museek.util.tools import (
+    git_version_info,
+    remove_outliers_zscore_mad,
+)
 
 
 class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
-    """ Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them, for self-calibrated data """
+    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them, for self-calibrated data"""
 
-    def __init__(self,
-                 first_threshold_rms: float,
-                 first_threshold_flag_fraction: float,
-                 threshold_scales: list[float],
-                 smoothing_kernel_rms: int,
-                 smoothing_sigma_rms: float,
-                 smoothing_kernel_flag_fraction: int,
-                 smoothing_sigma_flag_fraction: float,
-                 struct_size: tuple[int, int] | None,
-                 channel_flag_threshold: float,
-                 time_dump_flag_threshold: float,
-                 flag_combination_threshold: int,
-                 poly_fit_degree: int,
-                 poly_fit_threshold: float,
-                 correlation_threshold_ant: float,
-                 synch_model:[str],
-                 nside: int,
-                 beamsize: float,
-                 beam_frequency: float,
-                 zscore_antenatempflag_threshold: float,
-                 do_store_context: bool,
-                 do_delete_auto_data: bool,
-                 **kwargs):
+    def __init__(
+        self,
+        first_threshold_rms: float,
+        first_threshold_flag_fraction: float,
+        threshold_scales: list[float],
+        smoothing_kernel_rms: int,
+        smoothing_sigma_rms: float,
+        smoothing_kernel_flag_fraction: int,
+        smoothing_sigma_flag_fraction: float,
+        struct_size: tuple[int, int] | None,
+        channel_flag_threshold: float,
+        time_dump_flag_threshold: float,
+        flag_combination_threshold: int,
+        poly_fit_degree: int,
+        poly_fit_threshold: float,
+        correlation_threshold_ant: float,
+        synch_model: [str],
+        nside: int,
+        beamsize: float,
+        beam_frequency: float,
+        zscore_antenatempflag_threshold: float,
+        do_store_context: bool,
+        do_delete_auto_data: bool,
+        **kwargs,
+    ):
         """
         Initialise the plugin
         :param first_threshold_rms: initial threshold to be used for the aoflagger for the rms of powerlaw fitting residuals
@@ -95,7 +99,7 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.zscore_antenatempflag_threshold = zscore_antenatempflag_threshold
         self.do_store_context = do_store_context
         self.do_delete_auto_data = do_delete_auto_data
-        self.report_file_name = 'flag_report.md'
+        self.report_file_name = "flag_report.md"
         self.map_selfcali_flag = {}
         self.map_selfcali_flag_name_list = []
 
@@ -103,28 +107,48 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
         Set the requirements, the scanning data `scan_data`, a path to store results and the name of the data block.
         """
-        self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.MAP_SELFCALI, variable='map_selfcali'),
-                             Requirement(location=ResultEnum.FREQ_SELECT, variable='freq_select'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.POINT_SOURCE_FLAG, variable='point_source_flag'),
-                             #Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG, variable='calibrated_data_flag'),
-                             #Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, variable='calibrated_data_flag_name_list'),
-                             ]
+        self.requirements = [
+            Requirement(location=ResultEnum.SCAN_DATA, variable="scan_data"),
+            Requirement(location=ResultEnum.MAP_SELFCALI, variable="map_selfcali"),
+            Requirement(location=ResultEnum.FREQ_SELECT, variable="freq_select"),
+            Requirement(location=ResultEnum.OUTPUT_PATH, variable="output_path"),
+            Requirement(location=ResultEnum.BLOCK_NAME, variable="block_name"),
+            Requirement(
+                location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
+            ),
+            Requirement(
+                location=ResultEnum.POINT_SOURCE_FLAG, variable="point_source_flag"
+            ),
+            # Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG, variable='calibrated_data_flag'),
+            # Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, variable='calibrated_data_flag_name_list'),
+        ]
 
-    def map(self,
-            scan_data: TimeOrderedData,
-            map_selfcali: np.ma.MaskedArray,
-            point_source_flag: np.ndarray,
-            #calibrated_data_flag: dict,
-            #calibrated_data_flag_name_list: [str],
-            freq_select: np.ndarray,
-            flag_report_writer: ReportWriter,
-            output_path: str,
-            block_name: str) \
-            -> Generator[tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str], None, None]:
+    def map(
+        self,
+        scan_data: TimeOrderedData,
+        map_selfcali: np.ma.MaskedArray,
+        point_source_flag: np.ndarray,
+        # calibrated_data_flag: dict,
+        # calibrated_data_flag_name_list: [str],
+        freq_select: np.ndarray,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+        block_name: str,
+    ) -> Generator[
+        tuple[
+            str,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            str,
+        ],
+        None,
+        None,
+    ]:
         """
         Yield a `tuple` of the results path for one antenna, the scanning calibrated data for one antenna and the flag for one antenna.
         :param scan_data: time ordered data containing the scanning part of the observation
@@ -137,39 +161,37 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block
         """
-        print(f'flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used')
-
+        print(
+            f"flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used"
+        )
 
         ##########  mask new known RFI from cellphone frequencies
         # List of frequency intervals to mask
-        mask_intervals = [(765.0, 775.0),(801.0, 821.0),(925.0, 960.0)]
+        mask_intervals = [(765.0, 775.0), (801.0, 821.0), (925.0, 960.0)]
         # Start with all False (unmasked)
         mask_freq = np.zeros_like(freq_select, dtype=bool)
         # Set mask to True within each interval
         for low, high in mask_intervals:
-            mask_freq |= (freq_select/10**6 > low) & (freq_select/10**6 < high)
-        map_selfcali.mask[:,mask_freq,:] = True
+            mask_freq |= (freq_select / 10**6 > low) & (freq_select / 10**6 < high)
+        map_selfcali.mask[:, mask_freq, :] = True
 
-
-        self.map_selfcali_flag['HH_VV_combined'] = map_selfcali.mask.copy()
-        self.map_selfcali_flag_name_list.append('HH_VV_combined')
+        self.map_selfcali_flag["HH_VV_combined"] = map_selfcali.mask.copy()
+        self.map_selfcali_flag_name_list.append("HH_VV_combined")
 
         ######## mask antennas that have temperature far from the median temperature for all antennas
         map_selfcali_median = np.ma.masked_array(
             np.zeros(len(scan_data.antennas)), mask=np.zeros(len(scan_data.antennas))
         )
         for i_antenna, antenna in enumerate(scan_data.antennas):
-            map_selfcali_median[i_antenna] = np.ma.median(
-                map_selfcali[:, :, i_antenna]
-            )
+            map_selfcali_median[i_antenna] = np.ma.median(map_selfcali[:, :, i_antenna])
         antenna_mask_temp = remove_outliers_zscore_mad(
             map_selfcali_median.data,
             map_selfcali_median.mask,
             self.zscore_antenatempflag_threshold,
         )
         map_selfcali.mask[:, :, antenna_mask_temp] = True
-        self.map_selfcali_flag['temp_outlier_flag'] = antenna_mask_temp
-        self.map_selfcali_flag_name_list.append('temp_outlier_flag')
+        self.map_selfcali_flag["temp_outlier_flag"] = antenna_mask_temp
+        self.map_selfcali_flag_name_list.append("temp_outlier_flag")
 
         ##########   report of the flagging
         flag_percent = []
@@ -196,7 +218,6 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         ] + [f"{x}  {y}" for x, y in zip(antennas_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-
         ######## mask antennas that have larger temperature fluctuations
         map_selfcali_std = np.ma.masked_array(
             np.zeros(len(scan_data.antennas)), mask=np.zeros(len(scan_data.antennas))
@@ -209,8 +230,8 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
             self.zscore_antenatempflag_threshold,
         )
         map_selfcali.mask[:, :, antenna_mask_temprms] = True
-        self.map_selfcali_flag['temp_fluctuation_flag'] = antenna_mask_temprms
-        self.map_selfcali_flag_name_list.append('temp_fluctuation_flag')
+        self.map_selfcali_flag["temp_fluctuation_flag"] = antenna_mask_temprms
+        self.map_selfcali_flag_name_list.append("temp_fluctuation_flag")
 
         ##########   report of the flagging
         flag_percent = []
@@ -237,99 +258,162 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         ] + [f"{x}  {y}" for x, y in zip(antennas_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-
         ########################################
         receiver_path = None
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
             declination = scan_data.declination.get(recv=i_antenna).squeeze
-            yield receiver_path, map_selfcali.data[:,:,i_antenna], map_selfcali.mask[:,:,i_antenna], point_source_flag[:,:,i_antenna], right_ascension, declination, freq_select, antenna.name
+            yield (
+                receiver_path,
+                map_selfcali.data[:, :, i_antenna],
+                map_selfcali.mask[:, :, i_antenna],
+                point_source_flag[:, :, i_antenna],
+                right_ascension,
+                declination,
+                freq_select,
+                antenna.name,
+            )
 
-    def run_job(self, anything: tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]) -> np.ndarray:
+    def run_job(
+        self,
+        anything: tuple[
+            str,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            str,
+        ],
+    ) -> np.ndarray:
         """
         Run the Aoflagger algorithm and post-process the result. Done for one antenna at a time.
         :param anything: `tuple` of the output path, calibrated data, flag, right ascension, declination, frequency and antenna name
         :return: updated mask
         """
-        receiver_path, map_selfcali_recv, initial_flag_recv, point_source_flag_recv, right_ascension, declination, freq_select, antenna_name  = anything
+        (
+            receiver_path,
+            map_selfcali_recv,
+            initial_flag_recv,
+            point_source_flag_recv,
+            right_ascension,
+            declination,
+            freq_select,
+            antenna_name,
+        ) = anything
 
         initial_flag_recv = np.array(initial_flag_recv, copy=True)
-        ###########  fitting a powerlaw to the time median removed data and then mask outlier   ######## 
-        map_selfcali_recv_masked = np.ma.masked_array(map_selfcali_recv, mask=initial_flag_recv)
+        ###########  fitting a powerlaw to the time median removed data and then mask outlier   ########
+        map_selfcali_recv_masked = np.ma.masked_array(
+            map_selfcali_recv, mask=initial_flag_recv
+        )
         for i in range(map_selfcali_recv.shape[0]):
-            map_selfcali_recv_masked.mask[i], p_fit = self.polynomial_flag_outlier(freq_select, map_selfcali_recv_masked.data[i], map_selfcali_recv_masked.mask[i], self.poly_fit_degree, self.poly_fit_threshold)
+            map_selfcali_recv_masked.mask[i], p_fit = self.polynomial_flag_outlier(
+                freq_select,
+                map_selfcali_recv_masked.data[i],
+                map_selfcali_recv_masked.mask[i],
+                self.poly_fit_degree,
+                self.poly_fit_threshold,
+            )
 
         #############  second run  #########
-        map_selfcali_recv_masked = np.ma.masked_array(map_selfcali_recv, mask=map_selfcali_recv_masked.mask)
+        map_selfcali_recv_masked = np.ma.masked_array(
+            map_selfcali_recv, mask=map_selfcali_recv_masked.mask
+        )
         residuals = np.zeros_like(map_selfcali_recv)
         for i in range(map_selfcali_recv.shape[0]):
-            map_selfcali_recv_masked.mask[i], p_fit = self.polynomial_flag_outlier(freq_select, map_selfcali_recv_masked.data[i], map_selfcali_recv_masked.mask[i], self.poly_fit_degree, self.poly_fit_threshold)
+            map_selfcali_recv_masked.mask[i], p_fit = self.polynomial_flag_outlier(
+                freq_select,
+                map_selfcali_recv_masked.data[i],
+                map_selfcali_recv_masked.mask[i],
+                self.poly_fit_degree,
+                self.poly_fit_threshold,
+            )
             if map_selfcali_recv_masked.mask[i].all():
                 pass
             else:
-                residuals[i] = map_selfcali_recv_masked.data[i] - np.polyval(p_fit, freq_select) 
+                residuals[i] = map_selfcali_recv_masked.data[i] - np.polyval(
+                    p_fit, freq_select
+                )
         residuals = np.ma.masked_array(residuals, mask=map_selfcali_recv_masked.mask)
-
 
         ###############  aoflagger on the rms of powerlaw fitting residuals  #################
         residuals_rms = np.ma.std(residuals, axis=0).data
         residuals_rms_mask = np.ma.std(residuals, axis=0).mask
 
-        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=residuals_rms[:,np.newaxis,np.newaxis]),
-                                mask=FlagElement(array=residuals_rms_mask[:,np.newaxis,np.newaxis]),
-                                mask_type='vis',
-                                first_threshold=self.first_threshold_rms,
-                                threshold_scales=self.threshold_scales,
-                                output_path=receiver_path,
-                                smoothing_window_size=self.smoothing_kernel_rms,
-                                smoothing_sigma=self.smoothing_sigma_rms)
-
+        rfi_flag = get_rfi_mask_1d(
+            time_ordered=DataElement(array=residuals_rms[:, np.newaxis, np.newaxis]),
+            mask=FlagElement(array=residuals_rms_mask[:, np.newaxis, np.newaxis]),
+            mask_type="vis",
+            first_threshold=self.first_threshold_rms,
+            threshold_scales=self.threshold_scales,
+            output_path=receiver_path,
+            smoothing_window_size=self.smoothing_kernel_rms,
+            smoothing_sigma=self.smoothing_sigma_rms,
+        )
 
         rfi_flag_tile = np.tile(rfi_flag.squeeze, (map_selfcali_recv.shape[0], 1))
         initial_flag_tile = np.tile(residuals_rms_mask, (map_selfcali_recv.shape[0], 1))
-        initial_flag_post = self.post_process_flag(flag=FlagElement(array=rfi_flag_tile[:,:,np.newaxis]), initial_flag=FlagElement(array=initial_flag_tile[:,:,np.newaxis]))
+        initial_flag_post = self.post_process_flag(
+            flag=FlagElement(array=rfi_flag_tile[:, :, np.newaxis]),
+            initial_flag=FlagElement(array=initial_flag_tile[:, :, np.newaxis]),
+        )
 
         initial_flag_postrms = initial_flag_post.squeeze + map_selfcali_recv_masked.mask
 
-
         ###############  aoflagger on the flagged fraction  #################
-        flag_fraction = np.mean(initial_flag_postrms>0, axis=0)
+        flag_fraction = np.mean(initial_flag_postrms > 0, axis=0)
         flag_fraction_mask = flag_fraction > self.time_dump_flag_threshold
 
-        rfi_flag = get_rfi_mask_1d(time_ordered=DataElement(array=flag_fraction[:,np.newaxis,np.newaxis]),
-                                mask=FlagElement(array=flag_fraction_mask[:,np.newaxis,np.newaxis]),
-                                mask_type='vis',
-                                first_threshold=self.first_threshold_flag_fraction,
-                                threshold_scales=self.threshold_scales,
-                                output_path=receiver_path,
-                                smoothing_window_size=self.smoothing_kernel_flag_fraction,
-                                smoothing_sigma=self.smoothing_sigma_flag_fraction)
-
+        rfi_flag = get_rfi_mask_1d(
+            time_ordered=DataElement(array=flag_fraction[:, np.newaxis, np.newaxis]),
+            mask=FlagElement(array=flag_fraction_mask[:, np.newaxis, np.newaxis]),
+            mask_type="vis",
+            first_threshold=self.first_threshold_flag_fraction,
+            threshold_scales=self.threshold_scales,
+            output_path=receiver_path,
+            smoothing_window_size=self.smoothing_kernel_flag_fraction,
+            smoothing_sigma=self.smoothing_sigma_flag_fraction,
+        )
 
         rfi_flag_tile = np.tile(rfi_flag.squeeze, (map_selfcali_recv.shape[0], 1))
         initial_flag_tile = np.tile(flag_fraction_mask, (map_selfcali_recv.shape[0], 1))
-        initial_flag_post = self.post_process_flag(flag=FlagElement(array=rfi_flag_tile[:,:,np.newaxis]), initial_flag=FlagElement(array=initial_flag_tile[:,:,np.newaxis]))
+        initial_flag_post = self.post_process_flag(
+            flag=FlagElement(array=rfi_flag_tile[:, :, np.newaxis]),
+            initial_flag=FlagElement(array=initial_flag_tile[:, :, np.newaxis]),
+        )
 
         initial_flag_postflagfraction = initial_flag_post.squeeze + initial_flag_postrms
 
         ##########  mask bad antennas with low correlation with synch model
-        mask_corr, spearman_corr, mask_poly =  self.flag_antennas_using_correlation_with_synch_model(
-                map_selfcali_recv, initial_flag_postflagfraction, point_source_flag_recv, 
-                right_ascension, declination, freq_select, antenna_name)
+        mask_corr, spearman_corr, mask_poly = (
+            self.flag_antennas_using_correlation_with_synch_model(
+                map_selfcali_recv,
+                initial_flag_postflagfraction,
+                point_source_flag_recv,
+                right_ascension,
+                declination,
+                freq_select,
+                antenna_name,
+            )
+        )
 
         return mask_corr, mask_poly, spearman_corr
 
-    def gather_and_set_result(self,
-                              result_list: list[np.ndarray],
-                              scan_data: TimeOrderedData,
-                              map_selfcali: np.ma.MaskedArray,
-                              point_source_flag: np.ndarray,
-                              #calibrated_data_flag: dict,
-                              #calibrated_data_flag_name_list: [str],
-                              freq_select: np.ndarray,
-                              flag_report_writer: ReportWriter,
-                              output_path: str,
-                              block_name: str):
+    def gather_and_set_result(
+        self,
+        result_list: list[np.ndarray],
+        scan_data: TimeOrderedData,
+        map_selfcali: np.ma.MaskedArray,
+        point_source_flag: np.ndarray,
+        # calibrated_data_flag: dict,
+        # calibrated_data_flag_name_list: [str],
+        freq_select: np.ndarray,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+        block_name: str,
+    ):
         """
         Combine the `np.ma.MaskedArray`s in `result_list` into a new data set, and mask the frequencies that flag fraction is high (taking all antennas into consideration)
         :param result_list: `list` of `np.ndarray`s created from the RFI flagging
@@ -343,60 +427,107 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
 
-        result_list = np.array(result_list, dtype='object')
-        map_selfcali.mask = np.array([result_list[i][0] for i in range(np.shape(result_list)[0])]).transpose(1, 2, 0)
-        polynomial_fit_flag = np.array([result_list[i][1] for i in range(np.shape(result_list)[0])]).transpose(1, 2, 0)
-        correlation_coefficient_antlist = [result_list[i][2] for i in range(np.shape(result_list)[0])]
-
+        result_list = np.array(result_list, dtype="object")
+        map_selfcali.mask = np.array(
+            [result_list[i][0] for i in range(np.shape(result_list)[0])]
+        ).transpose(1, 2, 0)
+        polynomial_fit_flag = np.array(
+            [result_list[i][1] for i in range(np.shape(result_list)[0])]
+        ).transpose(1, 2, 0)
+        correlation_coefficient_antlist = [
+            result_list[i][2] for i in range(np.shape(result_list)[0])
+        ]
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
-        good_antennas = [~map_selfcali[:,:,i_antenna].mask.all() for i_antenna, antenna in enumerate(scan_data.antennas)]
-        bad_freq = np.mean(map_selfcali.mask[:,:,good_antennas], axis=(0,2)) > self.time_dump_flag_threshold
-        map_selfcali.mask[:,bad_freq,:] = True
+        good_antennas = [
+            ~map_selfcali[:, :, i_antenna].mask.all()
+            for i_antenna, antenna in enumerate(scan_data.antennas)
+        ]
+        bad_freq = (
+            np.mean(map_selfcali.mask[:, :, good_antennas], axis=(0, 2))
+            > self.time_dump_flag_threshold
+        )
+        map_selfcali.mask[:, bad_freq, :] = True
 
-        self.map_selfcali_flag['polynomial_fit_flag'] = polynomial_fit_flag
-        self.map_selfcali_flag_name_list.append('polynomial_fit_flag')
-        self.map_selfcali_flag['synch_correlation_flag'] = np.array(correlation_coefficient_antlist) <= self.correlation_threshold_ant 
-        self.map_selfcali_flag_name_list.append('synch_correlation_flag')
-        self.map_selfcali_flag['freq_flaggedfraction_flag'] = bad_freq
-        self.map_selfcali_flag_name_list.append('freq_flaggedfraction_flag')
+        self.map_selfcali_flag["polynomial_fit_flag"] = polynomial_fit_flag
+        self.map_selfcali_flag_name_list.append("polynomial_fit_flag")
+        self.map_selfcali_flag["synch_correlation_flag"] = (
+            np.array(correlation_coefficient_antlist) <= self.correlation_threshold_ant
+        )
+        self.map_selfcali_flag_name_list.append("synch_correlation_flag")
+        self.map_selfcali_flag["freq_flaggedfraction_flag"] = bad_freq
+        self.map_selfcali_flag_name_list.append("freq_flaggedfraction_flag")
 
-
-        ##########   report of the flagging  
+        ##########   report of the flagging
         flag_percent = []
         antennas_list = []
         for i_antenna, antenna in enumerate(scan_data.antennas):
-            flag_percent.append(round(np.sum(map_selfcali.mask[:,:,i_antenna]>=1)/len(map_selfcali.mask[:,:,i_antenna].flatten()), 4))
+            flag_percent.append(
+                round(
+                    np.sum(map_selfcali.mask[:, :, i_antenna] >= 1)
+                    / len(map_selfcali.mask[:, :, i_antenna].flatten()),
+                    4,
+                )
+            )
             antennas_list.append(str(antenna.name))
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
         lines = [
-                '...........................',
-                'Running AoflaggerPostSelfCalibrationPlugin with '
-                +f"MuSEEK version: {branch} ({commit})", 'Finished at '
-                + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each antenna: '
-                ] + [f'{x}  {y}' for x, y in zip(antennas_list, flag_percent)]
+            "...........................",
+            "Running AoflaggerPostSelfCalibrationPlugin with "
+            + f"MuSEEK version: {branch} ({commit})",
+            "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "The flag fraction for each antenna: ",
+        ] + [f"{x}  {y}" for x, y in zip(antennas_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
         #########   save results
         if self.do_delete_auto_data:
-            scan_data.delete_visibility_flags_weights(polars='auto')
-            self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.MAP_SELFCALI, result=map_selfcali, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.CORRELATION_COEFFICIENT_SELFCALI_SYNCH_ANT, result=correlation_coefficient_antlist, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.MAP_SELFCALI_FLAG, result=self.map_selfcali_flag, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.MAP_SELFCALI_FLAG_NAME_LIST, result=self.map_selfcali_flag_name_list, allow_overwrite=True))
+            scan_data.delete_visibility_flags_weights(polars="auto")
+            self.set_result(
+                result=Result(
+                    location=ResultEnum.SCAN_DATA,
+                    result=scan_data,
+                    allow_overwrite=True,
+                )
+            )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.MAP_SELFCALI,
+                result=map_selfcali,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.CORRELATION_COEFFICIENT_SELFCALI_SYNCH_ANT,
+                result=correlation_coefficient_antlist,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.MAP_SELFCALI_FLAG,
+                result=self.map_selfcali_flag,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.MAP_SELFCALI_FLAG_NAME_LIST,
+                result=self.map_selfcali_flag_name_list,
+                allow_overwrite=True,
+            )
+        )
         if self.do_store_context:
-            context_file_name = 'aoflagger_plugin_postselfcalibration.pickle'
-            self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=output_path)
-
+            context_file_name = "aoflagger_plugin_postselfcalibration.pickle"
+            self.store_context_to_disc(
+                context_file_name=context_file_name, context_directory=output_path
+            )
 
     def post_process_flag(
-            self,
-            flag: FlagElement,
-            initial_flag: FlagElement
+        self, flag: FlagElement, initial_flag: FlagElement
     ) -> FlagElement:
         """
         Post process `flag` and return the result.
@@ -409,34 +540,40 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         :return: the result of the post-processing, a binary mask
         """
         # operations on the RFI mask only
-        post_process = RfiPostProcess(new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size)
+        post_process = RfiPostProcess(
+            new_flag=flag, initial_flag=initial_flag, struct_size=self.struct_size
+        )
         post_process.binary_mask_dilation()
         post_process.binary_mask_closing()
         rfi_result = post_process.get_flag()
 
-
         # operations on the entire mask
-        post_process = RfiPostProcess(new_flag=rfi_result + initial_flag,
-                                      initial_flag=None,
-                                      struct_size=self.struct_size)
-        post_process.flag_all_channels(channel_flag_threshold=self.channel_flag_threshold)
-        post_process.flag_all_time_dumps(time_dump_flag_threshold=self.time_dump_flag_threshold)
+        post_process = RfiPostProcess(
+            new_flag=rfi_result + initial_flag,
+            initial_flag=None,
+            struct_size=self.struct_size,
+        )
+        post_process.flag_all_channels(
+            channel_flag_threshold=self.channel_flag_threshold
+        )
+        post_process.flag_all_time_dumps(
+            time_dump_flag_threshold=self.time_dump_flag_threshold
+        )
         overall_result = post_process.get_flag()
         return overall_result
 
-
     def flag_antennas_using_correlation_with_synch_model(
-            self, 
-            calibrated_data: np.ndarray, 
-            mask: np.ndarray, 
-            point_source_flag: np.ndarray,
-            ra: np.ndarray, 
-            dec: np.ndarray, 
-            freq: np.ndarray,
-            antenna: str
-        ) -> np.ndarray:
+        self,
+        calibrated_data: np.ndarray,
+        mask: np.ndarray,
+        point_source_flag: np.ndarray,
+        ra: np.ndarray,
+        dec: np.ndarray,
+        freq: np.ndarray,
+        antenna: str,
+    ) -> np.ndarray:
         """
-        Excludes bad antennas based on the Spearman correlation coefficient between the synch model at the median of 
+        Excludes bad antennas based on the Spearman correlation coefficient between the synch model at the median of
         frequency and the frequency median of calibrated data.
 
         Parameters:
@@ -456,44 +593,68 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
             spearman_corr = np.nan
         else:
             #####  Update the mask to eliminate inhomogeneities when take the median along time axis  ######
-            mask_fraction = np.mean(mask[:,~np.all(mask, axis=0)], axis=1) # ingnore the all-timepoint masked frequency points, calculate the mask fraction
-            time_points_to_mask = mask_fraction > 0.05 
+            mask_fraction = np.mean(
+                mask[:, ~np.all(mask, axis=0)], axis=1
+            )  # ingnore the all-timepoint masked frequency points, calculate the mask fraction
+            time_points_to_mask = mask_fraction > 0.05
             mask_update = mask.copy()
-            mask_update[time_points_to_mask, :] = True  #mask time points where the mask fraction is greater than the threshold
+            mask_update[time_points_to_mask, :] = (
+                True  # mask time points where the mask fraction is greater than the threshold
+            )
             ########  calculate the frequency corrsponding to the frequency median of calibrated data   ########
-            mask_freq = np.median(mask_update[~time_points_to_mask,:], axis=0) == 1.
-            assert mask_freq.all() == False, f"antenna {antenna}, too much data is masked, please check data, maybe increase the threshold for mask_fraction"
+            mask_freq = np.median(mask_update[~time_points_to_mask, :], axis=0) == 1.0
+            assert not mask_freq.all(), (
+                f"antenna {antenna}, too much data is masked, please check data, maybe increase the threshold for mask_fraction"
+            )
             freq_median = np.median(freq[~mask_freq])
 
             #########   produce synch model at freq_median and smooth   #########
-            sky = pysm3.Sky(nside=self.nside, preset_strings=self.synch_model)  
+            sky = pysm3.Sky(nside=self.nside, preset_strings=self.synch_model)
             map_reference = sky.get_emission(freq_median * u.Hz).value
-            map_reference_smoothed = pysm3.apply_smoothing_and_coord_transform(map_reference, fwhm=self.beamsize*u.arcmin * ((self.beam_frequency*u.MHz)/(freq_median * u.Hz)).decompose().value )
+            map_reference_smoothed = pysm3.apply_smoothing_and_coord_transform(
+                map_reference,
+                fwhm=self.beamsize
+                * u.arcmin
+                * ((self.beam_frequency * u.MHz) / (freq_median * u.Hz))
+                .decompose()
+                .value,
+            )
 
             #########   map the smoothed synch model to the same sky covered by ra,dec of calibrated data
-            c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame='icrs')
-            theta = 90. - (c.galactic.b / u.degree).value
+            c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
+            theta = 90.0 - (c.galactic.b / u.degree).value
             phi = (c.galactic.l / u.degree).value
-            synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta / 180. * np.pi, phi / 180. * np.pi)
+            synch_I = hp.pixelfunc.get_interp_val(
+                map_reference_smoothed[0], theta / 180.0 * np.pi, phi / 180.0 * np.pi
+            )
 
-            map_freqmedian = np.ma.median(np.ma.masked_array(calibrated_data, mask = mask_update+point_source_flag), axis=1)
+            map_freqmedian = np.ma.median(
+                np.ma.masked_array(
+                    calibrated_data, mask=mask_update + point_source_flag
+                ),
+                axis=1,
+            )
             synch_I = np.ma.masked_array(synch_I, mask=map_freqmedian.mask)
-            synch_I = synch_I / 10**6.   #####  convert from uK to K
+            synch_I = synch_I / 10**6.0  #####  convert from uK to K
 
-            spearman_corr, spearman_p = spearmanr(map_freqmedian.data[~map_freqmedian.mask], synch_I.data[~synch_I.mask])
+            spearman_corr, spearman_p = spearmanr(
+                map_freqmedian.data[~map_freqmedian.mask], synch_I.data[~synch_I.mask]
+            )
 
             if spearman_corr > self.correlation_threshold_ant:
                 pass
             else:
                 mask[:] = True
-                print(f'antenna {antenna} is masked, Spearman correlation coefficient is '+str(round(spearman_corr,3)))
+                print(
+                    f"antenna {antenna} is masked, Spearman correlation coefficient is "
+                    + str(round(spearman_corr, 3))
+                )
 
         return mask, spearman_corr, mask_ori
 
-
     def polynomial_flag_outlier(self, x, y, mask, degree, threshold):
         """
-        fitting a powerlaw to the input data and mask outliers which deviate the powerlaw larger than 
+        fitting a powerlaw to the input data and mask outliers which deviate the powerlaw larger than
         `threshold' times median absolute deviation
 
         Parameters:
@@ -507,33 +668,30 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         bool array: updated mask
         1darray: fitting polynomial coefficients
         """
-        
+
         initial_mask = mask.copy()
-        #struct = np.ones(self.struct_size[1], dtype=bool)
+        # struct = np.ones(self.struct_size[1], dtype=bool)
         ########  mask the whole data if the flagged fraction is larger than 0.5
-        if np.mean(mask>0) > self.channel_flag_threshold:
+        if np.mean(mask > 0) > self.channel_flag_threshold:
             initial_mask[:] = True
             p_fit = None
         else:
-           fit_x = x[~mask]
-           fit_y = y[~mask]
+            fit_x = x[~mask]
+            fit_y = y[~mask]
 
-           # Fit a polynomial
-           p_fit = np.polyfit(fit_x, fit_y, degree)
-           y_fit = np.polyval(p_fit, fit_x)
+            # Fit a polynomial
+            p_fit = np.polyfit(fit_x, fit_y, degree)
+            y_fit = np.polyval(p_fit, fit_x)
 
-           # Calculate residuals
-           residuals = fit_y - y_fit
-           mad_residuals = scipy.stats.median_abs_deviation(residuals)
+            # Calculate residuals
+            residuals = fit_y - y_fit
+            mad_residuals = scipy.stats.median_abs_deviation(residuals)
 
-           # Identify outliers
-           initial_mask[~mask] |= np.abs(residuals) >= threshold * mad_residuals
+            # Identify outliers
+            initial_mask[~mask] |= np.abs(residuals) >= threshold * mad_residuals
 
-           #to_dilate = initial_mask ^ mask
-           #dilated = ndimage.binary_dilation(to_dilate, structure=struct, iterations=1)
-           #initial_mask = initial_mask + dilated
+            # to_dilate = initial_mask ^ mask
+            # dilated = ndimage.binary_dilation(to_dilate, structure=struct, iterations=1)
+            # initial_mask = initial_mask + dilated
 
         return initial_mask, p_fit
-
-
-

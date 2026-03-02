@@ -135,7 +135,9 @@ class GainCalibrationPlugin(AbstractPlugin):
             scan_data.frequencies.squeeze
         )  ####  the unit of scan_data.frequencies is Hz
         temperature = np.zeros(scan_data.visibility.array.shape)
-        gain = np.ones((scan_data.visibility.array.shape[1], scan_data.visibility.array.shape[2]))
+        gain = np.ones(
+            (scan_data.visibility.array.shape[1], scan_data.visibility.array.shape[2])
+        )
 
         print(f"Producing synch sky: synch model {self.synch_model} used")
         synch = Synch_model_sm(
@@ -162,7 +164,8 @@ class GainCalibrationPlugin(AbstractPlugin):
                             warnings.simplefilter("ignore")
                             ###  calculate the moving_median of the noise diode on - off signal
                             noise_excess_time_mf = moving_median_masked(
-                                noise_excess_time, window_size=self.nd_window_movingmedian
+                                noise_excess_time,
+                                window_size=self.nd_window_movingmedian,
                             )
                             ###  flagging outliers
                             noise_excess_time_residual = (
@@ -270,7 +273,7 @@ class GainCalibrationPlugin(AbstractPlugin):
                     visibility_recv.data / (gain_recv[np.newaxis, :])
                 )
 
-            gain[:,i_receiver] = gain_recv
+            gain[:, i_receiver] = gain_recv
 
         #########  select the frequency region we want to use  #######
         freqlow_index = np.argmin(np.abs(freq / 10.0**6 - self.frequency_low))
@@ -309,7 +312,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
-
         self.set_result(
             result=Result(
                 location=ResultEnum.CALIBRATED_VIS,
@@ -339,19 +341,19 @@ class GainCalibrationPlugin(AbstractPlugin):
             )
         )
         if self.do_delete_auto_data:
-            scan_data.delete_visibility_flags_weights(polars='auto')
+            scan_data.delete_visibility_flags_weights(polars="auto")
             self.set_result(
                 result=Result(
-                    location=ResultEnum.SCAN_DATA, 
-                    result=scan_data, 
+                    location=ResultEnum.SCAN_DATA,
+                    result=scan_data,
                     allow_overwrite=True,
                 )
             )
         else:
             self.set_result(
                 result=Result(
-                    location=ResultEnum.SCAN_DATA, 
-                    result=scan_data, 
+                    location=ResultEnum.SCAN_DATA,
+                    result=scan_data,
                     allow_overwrite=True,
                 )
             )
