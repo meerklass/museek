@@ -260,11 +260,12 @@ OPTIONS:
 
   --slurm-options <options>
       (optional) Additional SLURM options to pass to sbatch
-      Each --slurm-options takes ONE flag (e.g., --mail-user=user@domain.com)
-      Multiple --slurm-options can be specified for multiple flags
+      Pass raw SLURM options exactly as you would in a batch script
+      Can be specified multiple times for multiple flags
+      Supports flags with values (--mail-user=user@domain.com) and flags without values (--exclusive)
       Examples: 
         Single: --slurm-options --time=72:00:00
-        Multiple: --slurm-options --mail-user=user@domain.com --slurm-options --mail-type=ALL
+        Multiple flags: --slurm-options --mail-user=user@domain.com --slurm-options --mail-type=ALL --slurm-options --exclusive
 
   --dry-run
       (optional) Show the generated sbatch script without submitting
@@ -368,6 +369,8 @@ More information on these are included in their class documentations.
 
 MuSEEK now come with a few Jupyter notebook templates for data inspection, which are now run after `process_uhf_band` pipeline has been run on the data. 
 
+For quick run of observer notebooks on Ilifu, see [Running the Notebook with `museek_run_notebook` Command](#running-the-notebook-with-museek_run_notebook-command).
+
 ### Running the Notebook with Jupyter
 
 The notebooks can be copy and run on Jupyter, with the Jupyter Hub on Ilifu (jupyter.ilifu.ac.za), for example. This is only recommend for experimenting with the notebooks.
@@ -411,67 +414,84 @@ Check out [papermill documentation](https://papermill.readthedocs.io/en/latest/i
 papermill --help
 ```
 
-### Running the Notebook with `museek_run_notebook` Script
+### Running the Notebook with `museek_run_notebook` Command
 
-The `museek_run_notebook` script further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command and dynamically generates and submits SLURM jobs. It will find the notebook "template" in the MuSEEK package with name matching `--notebook` option (packaged under `museek/notebooks/`), or you may provide an absolute path to any notebook file.
+The `museek_run_notebook` command further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command that dynamically generates and submits SLURM jobs. It will find the notebook "template" of matching name in the MuSEEK package currently installed in the provided Python environment, or you may provide an absolute path to any notebook file. It will also attempt to detect a kernel associcated the provided Python environment and construct appropiate papermill command with default path linked to the XLP data. For MeerKLASS XLP data analysis on Ilifu, user only have to run the following commands, providing the block name and box number.
 
 ```
-$ museek_run_notebook --help
-MuSEEK Notebook Execution Script
+source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
+museek_run_notebook --notebook calibrated_data_check-postcali --block-name <block-name> --box <box-number>
+```
 
-This script generates and submits a Slurm job to execute a MuSEEK Jupyter 
-notebook using papermill.
+This will create an SBATCH script and submit a SLURM job for you, executing the notebook while overriding the block name and box number, and saving the output to the correct path.
 
-USAGE:
-  museek_run_notebook --notebook <notebook_name> --block-name <block_name> --box <box_number>
-                    [--output-path <path>] [--kernel <kernel_name>]
-                    [-p <param_name> <param_value>] ... [-p <param_name> <param_value>]
-                    [--slurm-options <options>] ... [--slurm-options <options>] 
-                    [--dry-run]
+```
+$ museek_run_notebook -h
+Usage: museek_run_notebook [OPTIONS]
 
-OPTIONS:
-  --notebook <notebook_name>
-      (required) Name of the notebook to run (e.g., calibrated_data_check-postcali)
+  Generate and submit a Slurm job to execute a MuSEEK Jupyter notebook using papermill.
 
-  --block-name <block_name>
-      (required) Block name or observation ID (e.g., 1708972386)
+  This command is desined specifically for post-calibration and observer notebooks, thus requring
+  --block-name and --box parameters, but in principle it can be used to run any Jupyter notebook
+  on a SLURM cluster. The two required parameters will simply be written at the top of the
+  notebook without being used in that case.
 
-  --box <box_number>
-      (required) Box number of this block name (e.g., 6)
+  The notebook is searched for in multiple locations (in order):   1. Absolute path to notebook
+  file (if provided)   2. Installed package (museek/notebooks/<notebook_name>.ipynb)   3. Current
+  working directory (./<notebook_name>.ipynb)
 
-  --output-path <path>
-      (optional) Base directory for notebook output
-      The final output folder will be <output_path>/BOX<box>/<block_name>/
-      Default: /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline
+  EXAMPLES:
+    # Using notebook name (searches in standard locations):
+    # Standard usage for post-calibration notebook with block name
+    # and box:
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6
+    # Dry run to show the generated sbatch script without submitting:
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 --dry-run
+    # Passing additional parameters to the notebook (e.g., data_path):
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 --parameters data_path \
+      /custom/path/
+    # Passing additional SLURM options (e.g., email notification):
+    museek_run_notebook --notebook calibrated_data_check-postcali \
+      --block-name 1708972386 --box 6 \
+      --slurm-options --mail-user=user@uni.edu \
+      --slurm-options --mail-type=ALL
+    # Using absolute path to notebook:
+    museek_run_notebook --notebook /custom/path/my_notebook.ipynb \
+      --block-name 1708972386 --box 6
 
-  --kernel <kernel_name>
-      (optional) Jupyter kernel to use for execution
-      Default: meerklass
+  DEFAULT SLURM PARAMETERS:
+    Job name:       MuSEEK-Notebook-<block_name>
+    Tasks:          1
+    CPUs per task:  32
+    Memory:         248GB
+    Max time:       1 hour
+    Log output:     <notebook_name>-<block_name>.log
 
-  -p <param_name> <param_value> | --parameters <param_name> <param_value>
-      (optional, repeatable) Parameters to pass to the notebook via papermill
-      These override notebook defaults
-      Examples: -p data_path /custom/path/ -p data_name custom.pickle
-
-  --slurm-options <options>
-      (optional) Additional SLURM options to pass to sbatch
-      Each --slurm-options takes ONE flag (e.g., --mail-user=user@domain.com)
-      Multiple --slurm-options can be specified for multiple flags
-      Examples: 
-        Single: --slurm-options --time=02:00:00
-        Multiple: --slurm-options --mail-user=user@domain.com --slurm-options --mail-type=ALL
-
-  --dry-run
-      (optional) Show the generated sbatch script without submitting
-
-  --help
-      Display this help message
-
-EXAMPLES:
-  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
-  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 -p data_path /custom/path/
-  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --dry-run
-  museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+Options:
+  -n, --notebook TEXT             Name of the notebook to run (e.g., calibrated_data_check-
+                                  postcali) or absolute path to notebook file  [required]
+  -b, --block-name TEXT           Block name or observation ID (e.g., 1708972386)  [required]
+  -x, --box TEXT                  Box number of this block name (e.g., 6)  [required]
+  -d, --data-path DIRECTORY       Base path of the data for the notebook. Same as `data_path`
+                                  parameter in calibrated_data_check*.ipynb notebooks.  [default:
+                                  /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline]
+  -o, --output-dir DIRECTORY      Directory for notebook output. If not specify, output will be
+                                  saved to <data-path>/BOX<box>/<block-name>/
+  -v, --venv DIRECTORY            Path to Python virtual environment. Use the default shared
+                                  meerklass environment on ilifu if not specified.  [default:
+                                  /idia/projects/meerklass/virtualenv/meerklass]
+  -k, --kernel TEXT               Jupyter kernel to use for execution. If not specified, auto-
+                                  detects from venv.
+  -p, --parameters <NAME VALUE>...
+                                  Extra notebook parameters to pass papermill. Can be specified
+                                  multiple times.
+  -s, --slurm-options TEXT        Additional SLURM options to pass to sbatch (e.g., --exclusive,
+                                  --mail-user=user@domain.com). Can be specified multiple times.
+  --dry-run                       Show the generated sbatch script without submitting
+  -h, --help                      Show this message and exit.
 ```
 
 ## Contributing
