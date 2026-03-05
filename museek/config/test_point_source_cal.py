@@ -13,7 +13,7 @@ Pipeline = ConfigSection(
         'museek.plugin.extract_calibrators_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
-        'museek.plugin.point_source_calibration0_plugin',
+        'museek.plugin.point_source_calibration_plugin',
     ],
 #    context=os.path.join('/home/mgrsantos/projects/data/', '1675021905/aoflagger_tracking_plugin.pickle')
 
@@ -32,6 +32,9 @@ InPlugin = ConfigSection(
     do_store_context=True,
     context_folder='/idia/users/msantos/museek',  # directory to store results, if `None`, 'results/' is chosen
 )
+
+
+NoiseDiodeFlaggerPlugin = ConfigSection()
 
 
 KnownRfiPlugin = ConfigSection(
@@ -95,10 +98,11 @@ AoflaggerTrackingPlugin = ConfigSection(
     do_store_context=True
 )
 
-PointSourceCalibration0Plugin = ConfigSection(
+PointSourceCalibrationPlugin = ConfigSection(
     n_jobs=8,
     verbose=0,
     flag_combination_threshold=1,
+    on_source_separation_threshold_deg=0.1,
     beam_file_path='/idia/projects/meerklass/beams/uhf/MeerKAT_U_band_primary_beam_aa_highres.npz',
     receiver_models_dir=os.path.join(ROOT_DIR, 'model/receiver_models'),
     spillover_model_file=os.path.join(ROOT_DIR, 'model/MK_U_Tspill_AsBuilt_atm_mask.dat'),

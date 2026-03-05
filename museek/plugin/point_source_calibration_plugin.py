@@ -2,7 +2,9 @@ import os
 from typing import Generator
 
 import numpy as np
+import numpy.ma as ma
 import datetime
+import matplotlib.pyplot as plt
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
@@ -23,6 +25,101 @@ from museek.util.report_writer import ReportWriter
 from museek.util.tools import git_version_info
 
 
+def calculate_median_coordinates_excluding_flagged_antennas(
+    track_data: TimeOrderedData,
+    flag_name_list: list
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Calculate median azimuth and elevation per time dump, excluding antennas
+    flagged by 'outlier_antenna_flag' or 'elevation_flag'.
+
+    Uses numpy masked arrays for efficient vectorized calculation. For each time dump,
+    calculates the median pointing across all unflagged antennas. If all antennas are
+    flagged at a particular time, uses antenna 0 as fallback.
+
+    Parameters
+    ----------
+    track_data : TimeOrderedData
+        The track data object containing coordinates and flags
+    flag_name_list : list
+        List of flag names corresponding to track_data.flags._flags
+
+    Returns
+    -------
+    median_az : np.ndarray
+        Median azimuth per time dump, shape (n_time,), in degrees
+    median_el : np.ndarray
+        Median elevation per time dump, shape (n_time,), in degrees
+    """
+
+    # Extract and combine 'outlier_antenna_flag' and 'elevation_flag'
+    flag_indices = []
+    for flag_name in ['outlier_antenna_flag', 'elevation_flag']:
+        if flag_name in flag_name_list:
+            flag_indices.append(flag_name_list.index(flag_name))
+
+    if not flag_indices:
+        # No antenna flags present - use all antennas
+        az_data = track_data.azimuth.squeeze  # Shape: (n_time, n_antennas)
+        el_data = track_data.elevation.squeeze
+        median_az = np.median(az_data, axis=1)
+        median_el = np.median(el_data, axis=1)
+        return median_az, median_el
+
+    # Combine the two flags using logical OR
+    combined_flag_array = np.zeros(track_data.flags.shape, dtype=bool)
+    for idx in flag_indices:
+        combined_flag_array = np.logical_or(
+            combined_flag_array,
+            track_data.flags._flags[idx].get_array()
+        )
+
+    # Create per-antenna, per-time flag array
+    # Flags shape: (n_time, n_freq, n_receivers)
+    # Receivers: n_receivers = 2 * n_antennas (H and V polarization)
+
+    # Pick one receiver per antenna (H polarization = even indices: 0, 2, 4, ...)
+    # Pick middle frequency channel (any channel works - if antenna flagged, all are)
+    mid_freq_channel = combined_flag_array.shape[1] // 2
+    receiver_indices = np.arange(0, combined_flag_array.shape[2], 2)  # [0, 2, 4, 6, ...]
+
+    # Extract per-antenna, per-time flag array
+    # Shape: (n_time, n_receivers//2)
+    antenna_flags = combined_flag_array[:, mid_freq_channel, :][:, receiver_indices]
+
+    # Get azimuth and elevation data
+    az_data = track_data.azimuth.squeeze  # Shape: (n_time, n_antennas)
+    el_data = track_data.elevation.squeeze
+
+    # Create masked arrays where mask=True means "exclude this antenna"
+    az_masked = ma.masked_array(az_data, mask=antenna_flags)
+    el_masked = ma.masked_array(el_data, mask=antenna_flags)
+
+    # Calculate median across antennas (axis=1), keeping time dimension
+    # Result has shape (n_time,)
+    median_az = ma.median(az_masked, axis=1)
+    median_el = ma.median(el_masked, axis=1)
+
+    # Handle edge case - all antennas flagged at a time
+    # If all antennas are masked at a time, use antenna 0 as fallback
+    all_flagged_mask = np.all(antenna_flags, axis=1)  # Shape: (n_time,)
+
+    if np.any(all_flagged_mask):
+        # Convert masked array to regular numpy array
+        median_az = median_az.filled(fill_value=0)
+        median_el = median_el.filled(fill_value=0)
+
+        # For times where all antennas are flagged, use antenna 0
+        median_az[all_flagged_mask] = az_data[all_flagged_mask, 0]
+        median_el[all_flagged_mask] = el_data[all_flagged_mask, 0]
+    else:
+        # Convert masked array to regular numpy array
+        median_az = np.asarray(median_az)
+        median_el = np.asarray(median_el)
+
+    return median_az, median_el
+
+
 class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
     """
     Plugin to calculate gain calibration using point source calibrators (e.g., HydraA, PictorA).
@@ -37,6 +134,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                  receiver_models_dir: str,
                  spillover_model_file: str,
                  do_store_context: bool,
+                 on_source_separation_threshold_deg: float = 0.3,
                  **kwargs):
         """
         Initialize the plugin.
@@ -46,6 +144,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param receiver_models_dir: Directory containing receiver temperature model files
         :param spillover_model_file: Path to spillover temperature model file
         :param do_store_context: If True, context is stored to disc after finishing
+        :param on_source_separation_threshold_deg: Angular separation threshold in degrees to
+            classify a time dump as on-source. Dumps with telescope-to-source separation below
+            this value are considered on-source; all others are off-source.
         """
         super().__init__(**kwargs)
         self.flag_combination_threshold = flag_combination_threshold
@@ -53,6 +154,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.receiver_models_dir = receiver_models_dir
         self.spillover_model_file = spillover_model_file
         self.do_store_context = do_store_context
+        self.on_source_separation_threshold_deg = on_source_separation_threshold_deg
 
     def set_requirements(self):
         """Set the requirements for the plugin."""
@@ -93,34 +195,11 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                          freq, atm_period, point_source_temp_period, dump_indices_period)
         """
         track_data.load_visibility_flags_weights(polars='auto')
-
-        # Combine all flags EXCEPT 'noise_diode_on' (we need ND-firing dumps for calibration)
-        result_array = np.zeros(track_data.flags.shape)
-        for i, flag_name in enumerate(flag_name_list):
-            if flag_name != 'noise_diode_on':
-                result_array += track_data.flags._flags[i].get_array()
-        result_array[result_array < self.flag_combination_threshold] = 0
-        initial_flags = track_data.flags._flag_element_factory.create(
-            array=np.asarray(result_array, dtype=bool)
-        )
+        initial_flags = track_data.flags.combine(threshold=self.flag_combination_threshold)
 
         freq = track_data.frequencies.squeeze  # Frequencies in Hz
         freq_MHz = freq / 1e6  # Convert to MHz for beam model
         dumps = np.array(track_data._dumps())  # Absolute dump indices in track_data
-
-        # Calculate noise diode ratios for track data (needed for calibration)
-        noise_diode = NoiseDiode(
-            dump_period=track_data.dump_period,
-            observation_log=track_data.obs_script_log
-        )
-        noise_diode_cycle_start_times = noise_diode._get_noise_diode_cycle_start_times(
-            timestamps=track_data.timestamps
-        )
-        noise_diode_ratios = noise_diode._get_noise_diode_ratios(
-            timestamps=track_data.timestamps,
-            noise_diode_cycle_starts=noise_diode_cycle_start_times,
-            dump_period=noise_diode._dump_period
-        )  # Shape: (n_time,)
 
         # Physical constants
         k_B = 1.380649e-23  # Boltzmann constant [J/K]
@@ -149,6 +228,10 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         # Calculate atmospheric model once (before all loops)
         atmospheric_model = AtmosphericModel(track_data)
 
+        # Calculate median coordinates per time, excluding flagged antennas
+        median_az_all, median_el_all = \
+            calculate_median_coordinates_excluding_flagged_antennas(track_data, flag_name_list)
+
         # Extract visibility and flags for all receivers (before period loop)
         visibility_data = {}
         flag_data = {}
@@ -168,6 +251,19 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             # Calculate receiver temperature for this specific receiver
             rec_temp_model = ReceiverTemperature(receiver, self.receiver_models_dir)
             rec_temp_data[i_receiver] = rec_temp_model(freq_MHz)  # Shape: (n_freq,)
+
+        # Pre-calculate beam solid angles (frequency-dependent only, same for all antennas)
+        beam_solid_angle_HH = beam_model.get_beam_solid_angle_at_freq(
+            frequency_MHz=freq_MHz,
+            polarization='HH'
+        )  # Shape: (n_freq,)
+        beam_solid_angle_VV = beam_model.get_beam_solid_angle_at_freq(
+            frequency_MHz=freq_MHz,
+            polarization='VV'
+        )  # Shape: (n_freq,)
+
+        # Initialize model_components to store receiver-independent data
+        self.model_components = {}
 
         # Loop over periods FIRST (outer loop)
         for period in calibrator_validated_periods:
@@ -194,59 +290,88 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             # Boolean mask for this period
             select = np.isin(dumps, dump_indices_period)
 
+            # Subset median coordinates for this period (same for all receivers)
+            az_median_period = median_az_all[select]  # (n_dumps_period,)
+            el_median_period = median_el_all[select]  # (n_dumps_period,)
+            az_source_period = az_source_all[select]  # (n_dumps_period,)
+            el_source_period = el_source_all[select]  # (n_dumps_period,)
+
+            # Pre-calculate beam gain for both polarizations using median pointing
+            # This avoids recalculating for each receiver
+            beam_gain_HH = beam_model.get_beam_gain(
+                az_pointing=az_median_period,
+                el_pointing=el_median_period,
+                az_source=az_source_period,
+                el_source=el_source_period,
+                frequency_MHz=freq_MHz,
+                polarization='HH'
+            )  # Shape: (n_dumps_period, n_freq)
+
+            beam_gain_VV = beam_model.get_beam_gain(
+                az_pointing=az_median_period,
+                el_pointing=el_median_period,
+                az_source=az_source_period,
+                el_source=el_source_period,
+                frequency_MHz=freq_MHz,
+                polarization='VV'
+            )  # Shape: (n_dumps_period, n_freq)
+
+            # Pre-calculate spillover temperature for both polarizations
+            # Uses median elevation (same for all antennas in calibrator tracking)
+            spillover_temp_HH = spillover_model.get_temperature(
+                elevation=el_median_period,
+                frequency_MHz=freq_MHz,
+                polarization='HH'
+            )  # Shape: (n_dumps_period, n_freq)
+
+            spillover_temp_VV = spillover_model.get_temperature(
+                elevation=el_median_period,
+                frequency_MHz=freq_MHz,
+                polarization='VV'
+            )  # Shape: (n_dumps_period, n_freq)
+
+            # Calculate point source temperature for both polarizations
+            # T = (λ² × 10^-26 / (2 k_B)) × S_ν[Jy] × G_beam / Ω_beam
+            conversion_factor = (wavelength_m**2 * 1e-26) / (2 * k_B)  # [K·sr/Jy], shape (n_freq,)
+            point_source_temp_HH = (
+                conversion_factor * point_source_flux * beam_gain_HH / beam_solid_angle_HH
+            )  # Shape: (n_dumps_period, n_freq)
+            point_source_temp_VV = (
+                conversion_factor * point_source_flux * beam_gain_VV / beam_solid_angle_VV
+            )  # Shape: (n_dumps_period, n_freq)
+
+            # Classify each time dump as on-source or off-source using angular separation
+            d_az = (az_median_period - az_source_period) * np.cos(np.deg2rad(el_source_period))
+            d_el = el_median_period - el_source_period
+            on_mask = np.sqrt(d_az**2 + d_el**2) < self.on_source_separation_threshold_deg
+            print(f"Period {period}: {on_mask.sum()} on-source dumps, {(~on_mask).sum()} off-source dumps")
+
+            # Initialize model_components for this period (once, outside receiver loop)
+            self.model_components[period] = {
+                'calibrator': calibrator_name,
+                'dump_indices': dump_indices_period,
+                'on_mask': on_mask,
+                'gain': [],  # Will be filled in gather_and_set_result
+                'gain_on_off': [],  # Will be filled in gather_and_set_result
+                'beam_gain_HH': beam_gain_HH,  # (n_dumps, n_freq) - same for all receivers
+                'beam_gain_VV': beam_gain_VV,  # (n_dumps, n_freq) - same for all receivers
+                'temperatures': {
+                    'atmospheric': [],  # Will be (n_dumps, n_freq, n_receivers)
+                    'point_source_HH': point_source_temp_HH,  # (n_dumps, n_freq)
+                    'point_source_VV': point_source_temp_VV,  # (n_dumps, n_freq)
+                    'receiver': [],  # Will be (n_freq, n_receivers)
+                    'spillover_HH': spillover_temp_HH,  # (n_dumps, n_freq)
+                    'spillover_VV': spillover_temp_VV  # (n_dumps, n_freq)
+                }
+            }
+
             # Now loop over receivers for this period (inner loop)
             for i_receiver, receiver in enumerate(track_data.receivers):
-                receiver_path = os.path.join(output_path, receiver.name)
-                if not os.path.isdir(receiver_path):
-                    os.makedirs(receiver_path)
 
-                # Get pointing for this receiver's antenna
-                antenna_idx = track_data.antenna_index_of_receiver(receiver=receiver)
-                az_pointing_all = track_data.azimuth.squeeze[:, antenna_idx]  # (n_time,)
-                el_pointing_all = track_data.elevation.squeeze[:, antenna_idx]  # (n_time,)
-
-                # Subset for this period
-                az_pointing_period = az_pointing_all[select]  # (n_dumps_period,)
-                el_pointing_period = el_pointing_all[select]  # (n_dumps_period,)
-                az_source_period = az_source_all[select]  # (n_dumps_period,)
-                el_source_period = el_source_all[select]  # (n_dumps_period,)
-
-                # Determine polarization for beam calculation
+                # Determine polarization and select pre-calculated values
                 polarization = 'HH' if receiver.polarisation == 'h' else 'VV'
-
-                # Calculate beam gain for this receiver and period
-                # This is not very efficient because at the moment the beam is antenna independent. But if we want to calculate it
-                # outside the receiver cycle, we will need to pick an antenna to get the pointing and if we pick an antenna that is not 
-                # working it will be a problem. There are ways around that but for now I just decided to leave it inside the loop.
-                # We could also use Katbeam for a faster calculation
-                beam_gain_period = beam_model.get_beam_gain(
-                    az_pointing=az_pointing_period,
-                    el_pointing=el_pointing_period,
-                    az_source=az_source_period,
-                    el_source=el_source_period,
-                    frequency_MHz=freq_MHz,
-                    polarization=polarization
-                )  # Shape: (n_dumps_period, n_freq)
-
-                # Get beam solid angle for this polarization
-                beam_solid_angle = beam_model.get_beam_solid_angle_at_freq(
-                    frequency_MHz=freq_MHz,
-                    polarization=polarization
-                )  # Shape: (n_freq,)
-
-                # Calculate point source temperature [K]
-                # T = (λ² × 10^-26 / (2 k_B)) × S_ν[Jy] × G_beam / Ω_beam
-                conversion_factor = (wavelength_m**2 * 1e-26) / (2 * k_B)  # [K·sr/Jy], shape (n_freq,)
-                point_source_temp_period = (
-                    conversion_factor * point_source_flux * beam_gain_period / beam_solid_angle
-                )  # Shape: (n_dumps_period, n_freq)
-
-                # Calculate spillover temperature [K]
-                spillover_temp_period = spillover_model.get_temperature(
-                    elevation=el_pointing_period,  # (n_dumps_period,)
-                    frequency_MHz=freq_MHz,         # (n_freq,)
-                    polarization=polarization       # 'HH' or 'VV'
-                )  # Shape: (n_dumps_period, n_freq)
+                spillover_temp_period = spillover_temp_HH if polarization == 'HH' else spillover_temp_VV
+                point_source_temp_period = point_source_temp_HH if polarization == 'HH' else point_source_temp_VV
 
                 # Get pre-extracted visibility, flags, atmospheric emission, and receiver temperature
                 visibility_recv = visibility_data[i_receiver]
@@ -258,11 +383,15 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 vis_period = visibility_recv.squeeze[select]  # (n_dumps_period, n_freq)
                 flag_period = initial_flag_recv.squeeze[select]  # (n_dumps_period, n_freq)
                 atm_period = atm_emission_recv[select, :]  # (n_dumps_period, n_freq)
-                noise_diode_ratios_period = noise_diode_ratios[select]  # (n_dumps_period,)
 
-                yield (receiver_path, period, calibrator_name, vis_period, flag_period,
+                # Store receiver-specific data only
+                self.model_components[period]['temperatures']['atmospheric'].append(atm_period)
+                self.model_components[period]['temperatures']['receiver'].append(rec_temp_recv)
+
+                yield (period, calibrator_name, vis_period, flag_period,
                        freq, atm_period, point_source_temp_period, rec_temp_recv,
-                       spillover_temp_period, noise_diode_ratios_period, dump_indices_period)
+                       spillover_temp_period, on_mask)
+
 
     def run_job(self, anything: tuple) -> dict:
         """
@@ -271,33 +400,74 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param anything: Tuple from map() containing data for one receiver-period combo
         :return: Dictionary containing gain solution and metadata for reconstruction
         """
-        (receiver_path, period, calibrator_name, vis_period, flag_period,
+        (period, calibrator_name, vis_period, flag_period,
          freq, atm_period, point_source_temp_period, rec_temp_recv,
-         spillover_temp_period, noise_diode_ratios_period, dump_indices_period) = anything
+         spillover_temp_period, on_mask) = anything
 
         # Verify all temperature components are available
         # Find frequency channel closest to 750 MHz (avoids band edges)
         freq_MHz = freq / 1e6  # Convert Hz to MHz
         idx_750 = np.argmin(np.abs(freq_MHz - 750.0))
 
-        # Print values at 750 MHz and first time dump
+        # Calculate gain using masked array approach
+        # Total model temperature (rec_temp_recv broadcasts automatically)
+        model_total = atm_period + point_source_temp_period + rec_temp_recv + spillover_temp_period
+
+        # Create masked arrays using flags
+        vis_masked = ma.masked_array(vis_period, mask=flag_period)
+        model_masked = ma.masked_array(model_total, mask=flag_period)
+
+        # Remove time average per frequency (axis=0 is time)
+        vis_mean = ma.mean(vis_masked, axis=0)  # Shape: (n_freq,)
+        vis_zeromean = vis_masked - vis_mean  # Broadcasting automatic
+
+        model_mean = ma.mean(model_masked, axis=0)  # Shape: (n_freq,)
+        model_zeromean = model_masked - model_mean  # Broadcasting automatic
+
+        # Calculate gain per frequency (sum over time axis=0)
+        numerator = ma.sum(vis_zeromean * model_zeromean, axis=0)  # Shape: (n_freq,)
+        denominator = ma.sum(model_zeromean**2, axis=0)  # Shape: (n_freq,)
+
+        # Calculate gain with edge case handling (gain=0 where denominator too small)
+        threshold = 1e-10
+        gain_per_freq = ma.where(
+            ma.abs(denominator) > threshold,
+            numerator / denominator,
+            0.0  # Set to 0.0 for edge cases
+        )  # Shape: (n_freq,) - masked array, constant in time
+
+        # Print diagnostic values at 750 MHz
         print(f"Period {period}, Calibrator {calibrator_name}: "
               f"vis shape = {vis_period.shape}, "
               f"Maximum values at 750 MHz: "
               f"atm = {np.max(atm_period[:, idx_750]):.2f} K, "
               f"point_source = {np.max(point_source_temp_period[:, idx_750]):.2e} K, "
               f"rec_temp = {rec_temp_recv[idx_750]:.2f} K, "
-              f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K")
+              f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K, "
+              f"gain = {gain_per_freq[idx_750]:.6f}")
 
-        # TODO: Calculate gain 
-        gain_solution_period = np.ones(vis_period.shape, dtype=float)  # (n_dumps_period, n_freq)
-         
-        # Return dictionary with gain and metadata for reconstruction
+        # On-off gain calculation
+        off_mask = ~on_mask
+        if on_mask.any() and off_mask.any():
+            vis_masked = ma.masked_array(vis_period,  mask=flag_period)
+            mod_masked = ma.masked_array(model_total, mask=flag_period)
+            vis_on  = ma.mean(vis_masked[on_mask],  axis=0)
+            vis_off = ma.mean(vis_masked[off_mask], axis=0)
+            mod_on  = ma.mean(mod_masked[on_mask],  axis=0)
+            mod_off = ma.mean(mod_masked[off_mask], axis=0)
+            denom = mod_on - mod_off
+            gain_on_off = ma.where(ma.abs(denom) > threshold, (vis_on - vis_off) / denom, 0.0)
+            print(f"Period {period}, Calibrator {calibrator_name}: "
+                  f"gain_on_off at 750 MHz = {gain_on_off[idx_750]:.6f}")
+        else:
+            gain_on_off = ma.zeros(gain_per_freq.shape)
+            print(f"Period {period}: skipping gain_on_off (no on or off dumps)")
+
+        # Return only period and gains (other components already stored in map())
         return {
             'period': period,
-            'calibrator_name': calibrator_name,
-            'dump_indices': dump_indices_period,
-            'gain': gain_solution_period
+            'gain': gain_per_freq,      # Shape: (n_freq,) - constant in time
+            'gain_on_off': gain_on_off  # Shape: (n_freq,) - constant in time
         }
 
     def gather_and_set_result(self,
@@ -325,47 +495,52 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: Output path
         :param block_name: Block name
         """
-        # Get dimensions
-        if track_data.visibility is not None:
-            n_time = track_data.visibility.shape[0]
-            n_freq = track_data.visibility.shape[1]
-        else:
-            # Fallback (should not happen after load_visibility_flags_weights)
-            raise RuntimeError("track_data.visibility is None - data not loaded properly")
 
         n_receivers = len(track_data.receivers)
 
-        # Initialize full gain solution array with ones
-        gain_solution_array = np.ones((n_time, n_freq, n_receivers), dtype=float)
-
-        # Get absolute dump indices for track_data
-        dumps = np.array(track_data._dumps())
-
-        # Reconstruct gain solution from per-period results
+        # Append gain solutions from result_list to self.model_components (already populated in map())
         # result_list is ordered as: [period0_recv0, period0_recv1, period1_recv0, period1_recv1, ...]
         for i_result, result_dict in enumerate(result_list):
-            gain_period = result_dict['gain']  # Shape: (n_dumps_period, n_freq)
-            dump_indices_period = result_dict['dump_indices']
+            gain_period = result_dict['gain']  # Shape: (n_freq,)
+            period = result_dict['period']
 
             # Determine receiver index from result ordering
-            # Results are yielded as: period0->recv0, period0->recv1, period1->recv0, period1->recv1, ...
-            i_receiver = i_result % n_receivers
+ #           i_receiver = i_result % n_receivers
 
-            # Create boolean mask for this period's dumps
-            select = np.isin(dumps, dump_indices_period)
+            # Append gains to model_components
+            self.model_components[period]['gain'].append(gain_period)
+            self.model_components[period]['gain_on_off'].append(result_dict['gain_on_off'])
 
-            # Insert gain solution for this (receiver, period) into the full array
-            gain_solution_array[select, :, i_receiver] = gain_period
-
-        # TODO: Set gain solution on track_data
-        # track_data.set_gain_solution(gain_solution_array, mask_array)
+        # Stack receiver-specific components along receiver axis
+        for period in self.model_components:
+            # Stack gain: list of (n_freq,) -> (n_freq, n_receivers)
+            self.model_components[period]['gain'] = np.ma.stack(
+                self.model_components[period]['gain'],
+                axis=1
+            )
+            # Stack gain_on_off: list of (n_freq,) -> (n_freq, n_receivers)
+            self.model_components[period]['gain_on_off'] = np.ma.stack(
+                self.model_components[period]['gain_on_off'],
+                axis=1
+            )
+            # Stack atmospheric: list of (n_dumps, n_freq) -> (n_dumps, n_freq, n_receivers)
+            self.model_components[period]['temperatures']['atmospheric'] = np.stack(
+                self.model_components[period]['temperatures']['atmospheric'],
+                axis=2
+            )
+            # Stack receiver: list of (n_freq,) -> (n_freq, n_receivers)
+            self.model_components[period]['temperatures']['receiver'] = np.stack(
+                self.model_components[period]['temperatures']['receiver'],
+                axis=1
+            )
 
         # Write report
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
 
-        # Count calibrators processed
-        calibrators_processed = set([r['calibrator_name'] for r in result_list])
+        # Count calibrators processed (from model_components)
+        calibrators_processed = set([self.model_components[period]['calibrator']
+                                     for period in self.model_components])
 
         lines = [
             '...........................',
@@ -374,14 +549,90 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             f'Calibrator periods processed: {calibrator_validated_periods}',
             f'Calibrators used: {", ".join(calibrators_processed)}',
             f'Number of receivers: {n_receivers}',
-            f'Gain solution shape: {gain_solution_array.shape}'
+            f'Model components saved for {len(self.model_components)} periods'
         ]
         flag_report_writer.write_to_report(lines)
 
+        # Create diagnostic plot
+#        self._plot_coordinate_comparison(
+#            track_data=track_data,
+#            flag_name_list=flag_name_list,
+#            output_path=output_path
+#        )
+
         # Set results
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.MODEL_COMPONENTS, result=self.model_components, allow_overwrite=True))
 
         if self.do_store_context:
             context_file_name = 'point_source_calibration_plugin.pickle'
             self.store_context_to_disc(context_file_name=context_file_name,
                                        context_directory=output_path)
+
+
+
+    def _plot_coordinate_comparison(self,
+                                    track_data: TimeOrderedData,
+                                    flag_name_list: list,
+                                    output_path: str):
+        """
+        Diagnostic plot comparing median coordinates (excluding flagged antennas)
+        vs first available receiver coordinates for entire track data timeline.
+
+        :param track_data: Time ordered data
+        :param flag_name_list: List of flag names
+        :param output_path: Directory to save plot
+        """
+        # Recalculate median coordinates using existing helper function
+        median_az_all, median_el_all = \
+            calculate_median_coordinates_excluding_flagged_antennas(track_data, flag_name_list)
+
+        # Use the first available antenna in the dataset for comparison
+        az_data = track_data.azimuth.squeeze  # Shape: (n_time, n_antennas)
+        el_data = track_data.elevation.squeeze
+        antenna_idx = 0
+
+        # Get antenna name from track_data receivers (first H-pol receiver)
+        first_receiver = track_data.receivers[0]
+        antenna_name = first_receiver.name
+
+        # Extract selected antenna's coordinates
+        az_recv = az_data[:, antenna_idx]  # Shape: (n_time,)
+        el_recv = el_data[:, antenna_idx]
+
+        # Create time axis for x-axis (dump indices)
+        n_time = len(median_az_all)
+        time_indices = np.arange(n_time)
+
+        # Create figure with 2 subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+
+        # Azimuth plot
+        ax1.plot(time_indices, median_az_all,
+                color='blue', linewidth=2, label='Median (excluding flagged)', linestyle='--')
+        ax1.plot(time_indices, az_recv,
+                color='red', linewidth=1, label=f'Receiver {antenna_name}', linestyle=':', alpha=0.7)
+        ax1.set_xlabel('Time dump index')
+        ax1.set_ylabel('Azimuth (degrees)')
+        ax1.set_title(f'Azimuth: Median (excluding flagged antennas) vs Receiver {antenna_name}')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        # Elevation plot
+        ax2.plot(time_indices, median_el_all,
+                color='blue', linewidth=2, label='Median (excluding flagged)', linestyle='--')
+        ax2.plot(time_indices, el_recv,
+                color='red', linewidth=1, label=f'Receiver {antenna_name}', linestyle=':', alpha=0.7)
+        ax2.set_xlabel('Time dump index')
+        ax2.set_ylabel('Elevation (degrees)')
+        ax2.set_title(f'Elevation: Median (excluding flagged antennas) vs Receiver {antenna_name}')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        # Save plot
+        plot_filename = os.path.join(output_path, f'coordinate_comparison_median_vs_{antenna_name}.png')
+        plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+        print(f'Coordinate comparison plot saved to: {plot_filename}')
+        plt.close()

@@ -16,6 +16,7 @@ from museek.factory.data_element_factory import AbstractDataElementFactory, Data
 from museek.flag_list import FlagList
 from museek.receiver import Receiver
 from museek.util.clustering import Clustering
+from museek.util.resource_config import get_resource_config
 
 
 class ScanTuple(NamedTuple):
@@ -35,15 +36,18 @@ class TimeOrderedData:
     Class for handling time ordered data coming from `katdal`.
     """
 
-    def __init__(self,
-                 block_name: str,
-                 receivers: list[Receiver],
-                 token: Optional[str],
-                 data_folder: Optional[str],
-                 scan_state: ScanStateEnum | None = None,
-                 force_load_auto_from_correlator_data: bool = False,
-                 force_load_cross_from_correlator_data: bool = False,
-                 do_create_cache: bool = True):
+    def __init__(
+        self,
+        block_name: str,
+        receivers: list[Receiver],
+        token: str | None,
+        data_folder: str | None,
+        scan_state: ScanStateEnum | None = None,
+        force_load_auto_from_correlator_data: bool = False,
+        force_load_cross_from_correlator_data: bool = False,
+        do_create_cache: bool = True,
+        memory_gb: float | None = None,
+    ):
         """
         Initialise
         :param block_name: name of the observation block
@@ -56,6 +60,7 @@ class TimeOrderedData:
         :param force_load_cross_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
+        :param memory_gb: memory budget in GB for loading visibility data in batches; if `None`, auto-detected
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
@@ -84,6 +89,7 @@ class TimeOrderedData:
         self.auto_correlator_products = self._get_auto_correlator_products()
         self.cross_correlator_products = self._get_cross_correlator_products()
         self.all_antennas = data.ants
+        self._n_all_products = len(data.corr_products)
         self._auto_select(data=data)
         self._data_str = str(data)
         self._auto_cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
@@ -95,6 +101,7 @@ class TimeOrderedData:
 
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
+        _, self._memory_gb = get_resource_config(memory_gb=memory_gb)
         self.name = data.name
         self.dump_period = data.dump_period
         self.antennas = data.ants
@@ -430,18 +437,28 @@ class TimeOrderedData:
 
     def _load_visibility(self, data: DataSet) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Loads and returns the visibility, flags and weights from katdal lazy indexer.
-        Note: this consumes a lot of memory depending on the selection of `data`.
+        Loads and returns the visibility, flags and weights from katdal lazy indexer in time batches.
         :param data: a `katdal` `DataSet`
         :return: a tuple of visibility, flags and weights as `np.ndarray` each, with the visibility and weights
                  3-dimensional and the flags 4-dimensional
         """
+        n_time = self.shape[0]
+        bytes_per_element = data.vis.dtype.itemsize + data.flags.dtype.itemsize + data.weights.dtype.itemsize
+        batch_size = max(1, int(self._memory_gb * 1e9 / (self.shape[1] * self._n_all_products * bytes_per_element)))
+        print(
+            f"Loading visibility in batches of {batch_size} time dumps "
+            f"(memory budget: {self._memory_gb:.1f} GB)..."
+        )
         visibility = np.zeros(shape=self.shape, dtype=complex)
         flags = np.zeros(shape=self.shape, dtype=bool)
         weights = np.zeros(shape=self.shape, dtype=float)
-        DaskLazyIndexer.get(arrays=[data.vis, data.flags, data.weights],
-                            keep=...,
-                            out=[visibility, flags, weights])
+        for start in range(0, n_time, batch_size):
+            end = min(start + batch_size, n_time)
+            DaskLazyIndexer.get(
+                arrays=[data.vis, data.flags, data.weights],
+                keep=slice(start, end),
+                out=[visibility[start:end], flags[start:end], weights[start:end]],
+            )
         flags = flags[np.newaxis]  # necessary for compatibility
         return visibility, flags, weights
 
