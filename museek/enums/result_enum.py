@@ -40,3 +40,4 @@ class ResultEnum(Enum):
     CORRELATION_COEFFICIENT_SELFCALI_SYNCH_ANT = auto()
     MAP_SELFCALI_FLAG = auto()
     MAP_SELFCALI_FLAG_NAME_LIST = auto()
+    KNOWN_RFI_LIST = auto()
