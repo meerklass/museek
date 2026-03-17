@@ -1,7 +1,7 @@
 import datetime
 import os
 from collections.abc import Generator
-
+import gc
 import healpy as hp
 import numpy as np
 import pysm3
@@ -50,6 +50,11 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         do_store_context: bool,
         do_delete_auto_data: bool,
         new_output_path: str,
+        gsm_900_uplink: tuple[float, float] | None,
+        gsm_900_downlink: tuple[float, float] | None,
+        gsm_1800_uplink: tuple[float, float] | None,
+        gps: tuple[float, float] | None,
+        extra_rfi: list[tuple[float, float]] | None = None,
         **kwargs,
     ):
         """
@@ -103,6 +108,12 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.calibrated_data_flag_name_list = []
         self.do_delete_auto_data = do_delete_auto_data
         self.new_output_path = new_output_path
+
+        ##########  mask new known RFI from cellphone frequencies
+        rfi_list = [gsm_900_uplink, gsm_900_downlink, gsm_1800_uplink, gps]
+        if extra_rfi is not None:
+            rfi_list.extend(extra_rfi)
+        self.rfi_list = [rfi for rfi in rfi_list if rfi is not None]
 
     def set_requirements(self):
         """
@@ -171,12 +182,10 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 print(f"Directory '{output_path}' already exists.")
 
         ##########  mask new known RFI from cellphone frequencies
-        # List of frequency intervals to mask
-        mask_intervals = [(765.0, 775.0), (801.0, 821.0), (925.0, 960.0)]
         # Start with all False (unmasked)
         mask_freq = np.zeros_like(freq_select, dtype=bool)
         # Set mask to True within each interval
-        for low, high in mask_intervals:
+        for low, high in self.rfi_list:
             mask_freq |= (freq_select / 10**6 > low) & (freq_select / 10**6 < high)
         calibrated_data.mask[:, mask_freq, :] = True
 
@@ -453,6 +462,9 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             result_list[i][2] for i in range(np.shape(result_list)[0])
         ]
 
+        del result_list
+        gc.collect()
+
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [
             ~calibrated_data[:, :, i_antenna].mask.all()
@@ -546,6 +558,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             result=Result(
                 location=ResultEnum.FLAG_REPORT_WRITER,
                 result=flag_report_writer,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.KNOWN_RFI_LIST,
+                result=self.rfi_list,
                 allow_overwrite=True,
             )
         )
