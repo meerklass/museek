@@ -126,6 +126,7 @@ class TimeOrderedData:
         self.timestamp_dates: DataElement | None = None
         self.frequencies: DataElement | None = None
         # sky coordinates
+        self.parangle: DataElement | None = None
         self.azimuth: DataElement | None = None
         self.elevation: DataElement | None = None
         self.declination: DataElement | None = None
@@ -299,6 +300,7 @@ class TimeOrderedData:
         )
 
         # sky coordinates
+        self.parangle = self._element_factory.create(array=data.parangle[:, np.newaxis, :])
         self.azimuth = self._element_factory.create(array=data.az[:, np.newaxis, :])
         self.elevation = self._element_factory.create(array=data.el[:, np.newaxis, :])
         self.declination = self._element_factory.create(
@@ -343,6 +345,7 @@ class TimeOrderedData:
         self.frequencies = self._element_factory.create(array=self.frequencies.array)
 
         # sky coordinates
+        self.parangle = self._element_factory.create(array=self.parangle.array)
         self.azimuth = self._element_factory.create(array=self.azimuth.array)
         self.elevation = self._element_factory.create(array=self.elevation.array)
         self.declination = self._element_factory.create(array=self.declination.array)
