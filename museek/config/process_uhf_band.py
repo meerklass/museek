@@ -1,21 +1,24 @@
 from ivory.utils.config_section import ConfigSection
+import os 
 
 Pipeline = ConfigSection(
     plugins=[
-        "museek.plugin.in_plugin",
-        "museek.plugin.noise_diode_flagger_plugin",
-        "museek.plugin.known_rfi_plugin",
-        "museek.plugin.rawdata_flagger_plugin",
-        "museek.plugin.scan_track_split_plugin",
-        "museek.plugin.point_source_flagger_plugin",
-        "museek.plugin.aoflagger_plugin",
-        "museek.plugin.aoflagger_secondrun_plugin",
-        "museek.plugin.antenna_flagger_plugin",
-        "museek.plugin.noise_diode_plugin",
-        "museek.plugin.gain_calibration_plugin",
-        "museek.plugin.aoflagger_postcalibration_plugin",
+        'museek.plugin.in_plugin',
+        'museek.plugin.noise_diode_flagger_plugin',
+        'museek.plugin.known_rfi_plugin',
+        'museek.plugin.rawdata_flagger_plugin',
+        'museek.plugin.scan_track_split_plugin',
+        'museek.plugin.point_source_flagger_plugin',
+        'museek.plugin.aoflagger_plugin',
+        'museek.plugin.aoflagger_secondrun_plugin',
+        'museek.plugin.antenna_flagger_plugin',
+        'museek.plugin.noise_diode_plugin',
+        'museek.plugin.gain_calibration_plugin',
+        'museek.plugin.aoflagger_postcalibration_plugin',
+        'museek.plugin.inpainting_mapmaking_plugin',
         #'museek.plugin.gain_selfcalibration_plugin',
         #'museek.plugin.aoflagger_postselfcalibration_plugin',
+        #'museek.plugin.inpainting_mapmaking_selfcali_plugin',
         #'museek.plugin.aoflagger_cross_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
         #'museek.plugin.zebra_remover_plugin',
@@ -43,10 +46,8 @@ KnownRfiPlugin = ConfigSection(
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
-    # gps=(1170, 1390),
-    # extra_rfi=[(1524, 1630)],
     gps=None,
-    extra_rfi=[(765, 775), (801, 811), (811, 821)],  # Vodacom  # MTN  # Telkom
+    extra_rfi=[(768, 778), (801, 811), (811, 821)],  # Vodacom  # MTN  # Telkom
 )
 
 RawdataFlaggerPlugin = ConfigSection(flag_lower_threshold=5.0, do_store_context=False)
@@ -128,6 +129,7 @@ AoflaggerSecondRunPlugin = ConfigSection(
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
     do_store_context=False,
+    new_output_path=None,  # new path to save output, if `None`, using old output_path
 )
 
 
@@ -172,6 +174,7 @@ GainCalibrationPlugin = ConfigSection(
     nd_window_movingmedian=20,  # The size of the window for the moving median calculation for frequency spectrum of noise diode signal
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=False,  # switch that determines wether the raw auto data should be deleted after calibration
+    new_output_path=None,  # new path to save output, if `None`, using old output_path
 )
 
 
@@ -205,8 +208,28 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     do_store_context=True,
     do_delete_auto_data=False,  # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
     new_output_path=None,  # new path to save output, if `None`, using old output_path
+    gsm_900_uplink=None,
+    gsm_900_downlink=(925, 960),
+    gsm_1800_uplink=None,
+    gps=None,
+    extra_rfi=[(768, 778), (801, 811), (811, 821)],
 )
 
+
+InpaintingMapmakingPlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    threshold_MHz=30., # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
+    inpainting_window=20., # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
+    inpainting_polydeg=6, # the degree of polynomials fit in inpainting
+    mask_antnum_threshold=10, # masking the pixels where <=mask_antnum_threshold antennas contributes
+    pix_reso=0.5, # map resolution [deg]
+    x_crval=165., # map center x(ra) [deg]
+    y_crval=-1.5, # map center y(dec) [deg]
+    x_range=35, # map range (+-x_range) in x(ra) [deg]
+    y_range=10, # map range (+-y_range) in y(dec) [deg]
+    do_store_context=True,
+    )
 
 GainSelfCalibrationPlugin = ConfigSection(
     n_jobs=13,
@@ -222,8 +245,8 @@ GainSelfCalibrationPlugin = ConfigSection(
     nd_window_movingmedian=20,  # The size of the window for the moving median calculation for frequency spectrum of noise diode signal
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=True,  # switch that determines wether the raw auto data should be deleted after calibration
-    map_path="/idia/projects/meerklass/MEERKLASS-2/UHF/DESI_2/",  # directory of the input map
-    map_name="map_making_DESI_2_model.pkl",  # name of the input map
+    map_path="/idia/projects/meerklass/MEERKLASS-2/UHF/DESI_2/",  # directory of the input map -- update this to match your own directory.
+    map_name="map_making_DESI_2_model.pkl",  # name of the input map -- update this to match your own filename
     baseline_polyfit_deg=2,  # degree of the polynomials used for fitting time baseline in raw data
     gain_polyfit_deg=2,  # degree of the polynomials used for fitting gain
     model_polyfit_deg=6,  # degree of the polynomials used for fitting model
@@ -261,8 +284,22 @@ AoflaggerPostSelfCalibrationPlugin = ConfigSection(
     zscore_antenatempflag_threshold=5.0,  # threshold for flagging the antennas based on their average temperature using modified zscore method
     do_store_context=True,
     do_delete_auto_data=True,  # switch that determines wether the raw auto data should be deleted after calibration
+    gsm_900_uplink=None,
+    gsm_900_downlink=(925, 960),
+    gsm_1800_uplink=None,
+    gps=None,
+    extra_rfi=[(768, 778), (801, 811), (811, 821)],
 )
 
+InpaintingMapmakingSelfcaliPlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    threshold_MHz=30., # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
+    inpainting_window=20., # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
+    inpainting_polydeg=6, # the degree of polynomials fit in inpainting
+    mask_antnum_threshold=10, # masking the pixels where <=mask_antnum_threshold antennas contributes
+    do_store_context=True,
+    )
 
 ApplyExternalGainSolutionPlugin = ConfigSection(
     gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"
