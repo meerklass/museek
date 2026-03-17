@@ -92,6 +92,13 @@ class KnownRfiPlugin(AbstractPlugin):
                 allow_overwrite=True,
             )
         )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.KNOWN_RFI_LIST,
+                result=self.rfi_list,
+                allow_overwrite=True,
+            )
+        )
 
         receivers_list, flag_percent = flag_percent_recv(data)
         branch, commit = git_version_info()
