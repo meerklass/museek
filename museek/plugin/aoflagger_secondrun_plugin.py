@@ -35,6 +35,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         time_dump_flag_threshold: float,
         flag_combination_threshold: int,
         do_store_context: bool,
+        new_output_path: str,
         **kwargs,
     ):
         """
@@ -49,6 +50,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param time_dump_flag_threshold: if the fraction of flagged time dumps exceeds this, all time dumps are flagged
         :param flag_combination_threshold: for combining sets of flags, usually `1`
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
+        :param new_output_path: new path to save the output
         """
         super().__init__(**kwargs)
         self.mask_type = mask_type
@@ -61,6 +63,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
+        self.new_output_path = new_output_path
         self.report_file_name = "flag_report.md"
 
     def set_requirements(self):
@@ -165,6 +168,17 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         scan_data.flags.add_flag(flag=new_flag)
         flag_name_list.append("aoflagger_secondrun")
 
+        if self.new_output_path is not None:
+            output_path = self.new_output_path
+            flag_report_writer.file_name = os.path.join(
+                output_path, self.report_file_name
+            )
+            if not os.path.exists(output_path):
+                os.makedirs(output_path)
+                print(f"Directory '{output_path}' was created.")
+            else:
+                print(f"Directory '{output_path}' already exists.")
+
         receivers_list, flag_percent = flag_percent_recv(scan_data)
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
@@ -199,6 +213,13 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
             result=Result(
                 location=ResultEnum.FLAG_NAME_LIST,
                 result=flag_name_list,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.OUTPUT_PATH,
+                result=output_path,
                 allow_overwrite=True,
             )
         )
