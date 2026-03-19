@@ -13,9 +13,10 @@ Pipeline = ConfigSection(
 #        'museek.plugin.extract_calibrators_plugin',
 #        'museek.plugin.antenna_flagger_plugin',
 #        'museek.plugin.aoflagger_tracking_plugin',
-        'museek.plugin.point_source_calibration_plugin',
+#        'museek.plugin.point_source_calibration_plugin',
+        'museek.plugin.read_calibrator_gains_plugin',
     ],
-    context=os.path.join('/home/mgrsantos/projects/data/context/', '1675021905/aoflagger_tracking_plugin.pickle')
+    context=os.path.join('/home/mgrsantos/projects/data/context/', '1675021905/point_source_calibration_plugin.pickle')
 
 )
 
@@ -125,4 +126,11 @@ PointSourceCalibrationPlugin = ConfigSection(
     synch_fwhm_ref_freq_MHz=850.0,
     synch_freq_step_MHz=20.0,
     do_store_context=True
+)
+
+ReadCalibratorGainsPlugin = ConfigSection(
+    model_components_files=[
+        '/home/mgrsantos/projects/data/context/1675021905/model_components.pkl',
+    ],
+    verbose=1,
 )

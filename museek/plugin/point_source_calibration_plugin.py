@@ -604,6 +604,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 output_path=output_path
             )
 
+        # Store receiver labels for use by ReadCalibratorGainsPlugin
+        self.model_components['receivers'] = [str(r) for r in track_data.receivers]
+
         # Save model_components to disk for later use
         model_components_file = os.path.join(output_path, 'model_components.pkl')
         with open(model_components_file, 'wb') as f:
