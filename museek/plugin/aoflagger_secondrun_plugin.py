@@ -71,15 +71,13 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
                              Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def map(self,
             scan_data: TimeOrderedData,
             flag_report_writer: ReportWriter,
             output_path: str,
-            block_name: str, 
-            flag_name_list:list) \
+            block_name: str) \
             -> Generator[tuple[str, DataElement, FlagElement], None, None]:
         """
         Yield a `tuple` of the results path for one receiver, the scanning visibility data for one receiver and the
@@ -88,7 +86,6 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
-        :param flag_name_list: list of the name of existing flags
         """
         scan_data.load_visibility_flags_weights(polars='auto')
         initial_flags = scan_data.flags.combine(threshold=self.flag_combination_threshold)
@@ -133,8 +130,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
                               scan_data: TimeOrderedData,
                               flag_report_writer: ReportWriter,
                               output_path: str,
-                              block_name: str,
-                              flag_name_list:list):
+                              block_name: str):
         """
         Combine the `FlagElement`s in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
@@ -142,11 +138,9 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
-        :param flag_name_list: list of the name of existing flags
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        scan_data.flags.add_flag(flag=new_flag)
-        flag_name_list.append('aoflagger_secondrun')
+        scan_data.flags.add_flag(flag=new_flag, name='aoflagger_secondrun')
 
         receivers_list, flag_percent = flag_percent_recv(scan_data)
         branch, commit = git_version_info()
@@ -154,16 +148,16 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         lines = ['...........................', 'Running AoflaggerSecondRunPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(scan_data.visibility.get(recv=0),
-                  scan_data.flags.get(recv=0),
-                  cmap='gist_ncar')
-        plt.xlabel('time stamps')
-        plt.ylabel('channels')
-        plt.savefig(os.path.join(output_path, 'rfi_mitigation_secondrun_result_receiver_0.png'), dpi=1000)
-        plt.close()
+        if self.verbose:
+            waterfall(scan_data.visibility.get(recv=0),
+                      scan_data.flags.get(recv=0),
+                      cmap='gist_ncar')
+            plt.xlabel('time stamps')
+            plt.ylabel('channels')
+            plt.savefig(os.path.join(output_path, 'rfi_mitigation_secondrun_result_receiver_0.png'), dpi=1000)
+            plt.close()
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
         if self.do_store_context:
             context_file_name = 'aoflagger_plugin_secondrun.pickle'
             self.store_context_to_disc(context_file_name=context_file_name,

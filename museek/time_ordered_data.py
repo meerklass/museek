@@ -1,4 +1,7 @@
+import ctypes
+import gc
 import os
+import sys
 from copy import copy
 from datetime import datetime
 from typing import Optional, NamedTuple, Any
@@ -47,6 +50,7 @@ class TimeOrderedData:
         force_load_cross_from_correlator_data: bool = False,
         do_create_cache: bool = True,
         memory_gb: float | None = None,
+        cache_folder: str | None = None,
     ):
         """
         Initialise
@@ -61,14 +65,15 @@ class TimeOrderedData:
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
         :param memory_gb: memory budget in GB for loading visibility data in batches; if `None`, auto-detected
+        :param cache_folder: directory to store and read cache files; defaults to `ROOT_DIR/cache`
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
-        self.flags: FlagList | None = None
+        self.flags: FlagList = FlagList(flags=[])
         self.weights: DataElement | None = None
 
         self.visibility_cross: DataElement | None = None
-        self.flags_cross: FlagList | None = None
+        self.flags_cross: FlagList = FlagList(flags=[])
         self.weights_cross: DataElement | None = None
 
         self._block_name = block_name
@@ -94,14 +99,14 @@ class TimeOrderedData:
         self._data_str = str(data)
         self._auto_cache_file_name = f'{data.name}_auto_visibility_flags_weights.npz'
         self._cross_cache_file_name = f'{data.name}_cross_visibility_flags_weights.npz'
-        cache_file_directory = os.path.join(ROOT_DIR, 'cache')
+        cache_file_directory = cache_folder if cache_folder is not None else os.path.join(ROOT_DIR, 'cache')
         os.makedirs(cache_file_directory, exist_ok=True)
         self._auto_cache_file = os.path.join(cache_file_directory, self._auto_cache_file_name)
         self._cross_cache_file = os.path.join(cache_file_directory, self._cross_cache_file_name)
 
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
-        _, self._memory_gb = get_resource_config(memory_gb=memory_gb)
+        self._requested_memory_gb = memory_gb  # None = auto-detect at load time
         self.name = data.name
         self.dump_period = data.dump_period
         self.antennas = data.ants
@@ -150,26 +155,23 @@ class TimeOrderedData:
     def load_visibility_flags_weights(self, polars: str):
         """ Load visibility, flag and weights and set them as attributes to `self`. """
         if polars == 'auto':
-            if self.flags is not None and self.weights is not None and self.visibility is not None:
+            if self.visibility is not None:
                 print('Auto Visibility, flag and weight data is already loaded.')
                 return
             visibility_array, flag_array, weight_array = self._visibility_flags_weights(polars)
             self.visibility = self._element_factory.create(array=visibility_array)
-            if self.flags is not None:
-                print('Overwriting existing auto flags.')
-            self.flags = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
+            self.flags.add_flag(FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory),
+                                name='SARAO')
             if self.weights is not None:
                 print('Overwriting existing auto weights.')
             self.weights = self._element_factory.create(array=weight_array)
         elif polars == 'cross':
-            if self.flags_cross is not None and self.weights_cross is not None and self.visibility_cross is not None:
+            if self.visibility_cross is not None:
                 print('Cross Visibility, flag and weight data is already loaded.')
                 return
             visibility_array, flag_array, weight_array = self._visibility_flags_weights(polars)
             self.visibility_cross = self._element_factory.create(array=visibility_array)
-            if self.flags_cross is not None:
-                print('Overwriting existing cross flags.')
-            self.flags_cross = FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory)
+            self.flags_cross.add_flag(FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory), name='SARAO')
             if self.weights_cross is not None:
                 print('Overwriting existing cross weights.')
             self.weights_cross = self._element_factory.create(array=weight_array)
@@ -179,13 +181,13 @@ class TimeOrderedData:
 
     def delete_visibility_flags_weights(self, polars: str):
         """ Delete large arrays from memory, i.e. replace them with `None`. """
-        if polars == 'auto': 
+        if polars == 'auto':
             self.visibility = None
-            self.flags = None
+            self.flags = FlagList(flags=[])
             self.weights = None
         elif polars == 'cross':
             self.visibility_cross = None
-            self.flags_cross = None
+            self.flags_cross = FlagList(flags=[])
             self.weights_cross = None
         else:
             raise ValueError(f'Input `polars` should be "auto" or "cross", got {polars!r}')
@@ -208,7 +210,7 @@ class TimeOrderedData:
     def set_gain_solution(self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray):
         """ Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`. """
         self.gain_solution = self._element_factory.create(array=gain_solution_array)
-        self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array))
+        self.flags.add_flag(flag=self._element_factory.create(array=gain_solution_mask_array), name='gain_solution_mask')
 
     def corrected_visibility(self) -> DataElement | None:
         """ Returns the gain-corrected visibility data. """
@@ -296,14 +298,18 @@ class TimeOrderedData:
         self.pressure = self._element_factory.create(array=self.pressure.array)
 
         # visibility, flags and weights
+        if len(self.flags) > 0:
+            self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory,
+                                             names=self.flags.flag_names, descriptions=self.flags.flag_descriptions)
         if self.visibility is not None:
             self.visibility = self._element_factory.create(array=self.visibility.array)
-            self.flags = FlagList.from_array(array=self.flags.array, element_factory=self._flag_element_factory)
             self.weights = self._element_factory.create(array=self.weights.array)
 
+        if len(self.flags_cross) > 0:
+            self.flags_cross = FlagList.from_array(array=self.flags_cross.array, element_factory=self._flag_element_factory,
+                                                   names=self.flags_cross.flag_names, descriptions=self.flags_cross.flag_descriptions)
         if self.visibility_cross is not None:
             self.visibility_cross = self._element_factory.create(array=self.visibility_cross.array)
-            self.flags_cross = FlagList.from_array(array=self.flags_cross.array, element_factory=self._flag_element_factory)
             self.weights_cross = self._element_factory.create(array=self.weights_cross.array)
 
     def _get_data(self) -> DataSet:
@@ -399,6 +405,15 @@ class TimeOrderedData:
                     correlator_products=correlator_products
                 )
 
+            # Return batch-loading intermediates to OS — Python's allocator retains freed
+            # heap pages by default; malloc_trim forces glibc to release them immediately.
+            gc.collect()
+            if sys.platform == 'linux':
+                try:
+                    ctypes.CDLL('libc.so.6').malloc_trim(0)
+                except OSError:
+                    pass
+
         else:
             print(f'Loading {polars} visibility, flags and weights for {self.name} from cache file...')
             data_from_cache = np.load(cache_file)
@@ -443,15 +458,23 @@ class TimeOrderedData:
                  3-dimensional and the flags 4-dimensional
         """
         n_time = self.shape[0]
-        bytes_per_element = data.vis.dtype.itemsize + data.flags.dtype.itemsize + data.weights.dtype.itemsize
-        batch_size = max(1, int(self._memory_gb * 1e9 / (self.shape[1] * self._n_all_products * bytes_per_element)))
-        print(
-            f"Loading visibility in batches of {batch_size} time dumps "
-            f"(memory budget: {self._memory_gb:.1f} GB)..."
-        )
         visibility = np.zeros(shape=self.shape, dtype=complex)
         flags = np.zeros(shape=self.shape, dtype=bool)
         weights = np.zeros(shape=self.shape, dtype=float)
+        bytes_per_element = data.vis.dtype.itemsize + data.flags.dtype.itemsize + data.weights.dtype.itemsize
+        _, memory_gb = get_resource_config(memory_gb=self._requested_memory_gb)
+#        print(f"Total memory available: {memory_gb:.1f} GB).", flush=True)
+        available_for_batching = memory_gb*0.9  # 10% buffer
+        if available_for_batching < 0.5:
+            raise MemoryError(
+                f"Insufficient memory to load visibility data."
+            )
+        batch_size = max(1, int(available_for_batching * 1e9 / (self.shape[1] * self._n_all_products * bytes_per_element)))
+        n_batches = np.ceil(n_time / batch_size)
+        print(
+            f"Loading visibilities using {n_batches:g} batches. "
+            f"Total Memory available for batching: {available_for_batching:.1f} GB).", flush=True
+        )
         for start in range(0, n_time, batch_size):
             end = min(start + batch_size, n_time)
             DaskLazyIndexer.get(

@@ -198,15 +198,18 @@ class PrimaryBeam:
         el_s_rad = np.radians(el_source)
 
         # Calculate direction cosines (dimensionless)
-        # l = cos(el_pointing) * sin(az_source - az_pointing)
         l = np.cos(el_s_rad) * np.sin(az_s_rad - az_p_rad)
 
         # m = cos(el_pointing) * sin(el_source) * cos(az_source - az_pointing)
-        #     - sin(el_pointing) * cos(el_source)
         m = (
             np.sin(el_s_rad) * np.cos(el_p_rad) -
             np.cos(el_s_rad) * np.sin(el_p_rad) * np.cos(az_s_rad - az_p_rad)
         )
+
+        # could also use katpont:
+        # import katpoint
+        # l,m=katpoint.projection.sphere_to_plane_sin(az_p_rad, el_p_rad, az_s_rad, el_s_rad)
+
 
         return l, m
 
@@ -312,7 +315,9 @@ class PrimaryBeam:
 
         # Calculate direction cosines (dimensionless)
         l, m = self.calculate_direction_cosines(
-            az_pointing, el_pointing, az_source, el_source
+#            az_pointing, el_source, az_source, el_pointing  # just testing some flips
+            az_pointing, el_pointing, az_source, el_source  # correct one
+#            az_source, el_source, az_pointing, el_pointing  # just testing some flips
         )  # shape (n_time,)
 
         # Convert to beam file coordinate convention: direction_cosine × 180/π

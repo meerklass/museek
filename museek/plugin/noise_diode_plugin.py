@@ -60,19 +60,16 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
     def set_requirements(self):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
     def map(self,
             scan_data: TimeOrderedData,
-            flag_report_writer: ReportWriter,
-            flag_name_list:list) \
+            flag_report_writer: ReportWriter) \
             -> Generator[tuple[np.ndarray, np.ndarray, np.ndarray, tuple], None, None]:
         """
         Yield a `tuple` of the scanning visibility data for one receiver and the initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param flag_report_writer: report of the flag
-        :param flag_name_list: list of the name of existing flags
         """
 
         scan_data.load_visibility_flags_weights(polars='auto')
@@ -143,14 +140,12 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
     def gather_and_set_result(self,
                               result_list: list[np.ndarray],
                               scan_data: TimeOrderedData,
-                              flag_report_writer: ReportWriter,
-                              flag_name_list:list):
+                              flag_report_writer: ReportWriter):
         """
         Combine the masks in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
         :param flag_report_writer: report of the flag
-        :param flag_name_list: list of the name of existing flags
         """
 
         noise_on_index = np.array(result_list[0][1])
@@ -185,8 +180,7 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
             flag_array = np.repeat(outlier_antenna_flag, shape[1]).reshape((shape[0], shape[1], 1))
             new_flag.insert_receiver_flag(flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0)
 
-        scan_data.flags.add_flag(flag=new_flag)
-        flag_name_list.append('noise_diode_bad_behavior')
+        scan_data.flags.add_flag(flag=new_flag, name='noise_diode_bad_behavior')
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
@@ -198,7 +192,6 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         self.set_result(result=Result(location=ResultEnum.NOISE_DIODE_EXCESS, result=noise_diode_excess, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.NOISE_ON_INDEX, result=noise_on_index, allow_overwrite=True))
         self.set_result(result=Result(location=ResultEnum.NOISE_ON_TIMESTAMP, result=noise_on_timestamp, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
 
     def find_continuous_noise_on_regions(self,

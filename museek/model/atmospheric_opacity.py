@@ -226,6 +226,8 @@ class AtmosphericModel:
 
         # Elevation: DataElement (n_time, 1, n_antennas) -> array (n_time, n_antennas) in degrees
         elevation_deg = track_data.elevation.squeeze
+        if elevation_deg.ndim == 1:
+            elevation_deg = elevation_deg[:, np.newaxis]
 
         # Calculate zenith opacity using ITU-R P.676-9
         self._zenith_opacity = calc_zenith_opacity(

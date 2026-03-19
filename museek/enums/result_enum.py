@@ -25,7 +25,6 @@ class ResultEnum(Enum):
     NOISE_DIODE_EXCESS = auto()
     NOISE_ON_INDEX = auto()
     NOISE_ON_TIMESTAMP = auto()
-    FLAG_NAME_LIST = auto()
     CALIBRATED_VIS_FLAG = auto()
     CALIBRATED_VIS_FLAG_NAME_LIST = auto()
     CALIBRATOR_VALIDATED_PERIODS = auto()

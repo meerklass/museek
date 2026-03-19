@@ -193,7 +193,7 @@ class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
         """
 
         result_list = np.array(result_list, dtype='bool').transpose(1, 2, 0)
-        track_data.flags.add_flag(flag=FlagList.from_array(array=result_list, element_factory=self.data_element_factory))
+        track_data.flags.add_flag(flag=FlagList.from_array(array=result_list, element_factory=self.data_element_factory), name='aoflagger_tracking')
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()

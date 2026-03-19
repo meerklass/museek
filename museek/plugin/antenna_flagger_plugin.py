@@ -49,10 +49,9 @@ class AntennaFlaggerPlugin(AbstractPlugin):
                              Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
                              Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
-                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
+                             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name')]
 
-    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, block_name: str, flag_name_list: list):
+    def run(self, scan_data: TimeOrderedData, track_data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, block_name: str):
         """
         Run the plugin
         :param scan_data: time ordered data of the scanning part
@@ -60,25 +59,23 @@ class AntennaFlaggerPlugin(AbstractPlugin):
         :param flag_report_writer: report_writer of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
-        :param flag_name_list: list of the name of existing flags
         """
-        scan_data.load_visibility_flags_weights(polars='auto')
-        self.flag_for_elevation_TOD(data=scan_data)
-        flag_name_list.append('elevation_flag')
-        track_data.load_visibility_flags_weights(polars='auto')
-        #for data in [scan_data, track_data]:
-        #    self.flag_outlier_antennas(data=data)
-        for data in [scan_data, track_data]:
-            self.flag_outlier_antennas_TOD(data=data)
-        flag_name_list.append('outlier_antenna_flag')
+        if scan_data is not None:
+            scan_data.load_visibility_flags_weights(polars='auto')
+            self.flag_for_elevation_TOD(data=scan_data)
+            self.flag_outlier_antennas_TOD(data=scan_data)
+        if track_data is not None:
+            track_data.load_visibility_flags_weights(polars='auto')
+            self.flag_outlier_antennas_TOD(data=track_data)
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data))
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data))
-        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
         for data, label in zip([scan_data, track_data], ['scan_data', 'track_data']):
+            if data is None:
+                continue
             receivers_list, flag_percent = flag_percent_recv(data)
             lines = ['...........................', 'Running AntennaFlaggerPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The '+label+' flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
             flag_report_writer.write_to_report(lines)
@@ -95,7 +92,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             i_receiver_list = data.receiver_indices_of_antenna(antenna)
             for i_receiver in i_receiver_list:
                 new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
-        data.flags.add_flag(flag=new_flag)
+        data.flags.add_flag(flag=new_flag, name='elevation_flag')
 
 
     def flag_outlier_antennas_TOD(self, data: TimeOrderedData):
@@ -132,7 +129,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
                 flag_array = np.repeat(outlier_antenna_flag, shape[1]).reshape((shape[0], shape[1], 1))
                 new_flag.insert_receiver_flag(flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0)
 
-        data.flags.add_flag(flag=new_flag)
+        data.flags.add_flag(flag=new_flag, name='outlier_antenna_flag')
 
 
     @staticmethod
@@ -173,7 +170,7 @@ class AntennaFlaggerPlugin(AbstractPlugin):
             i_receiver_list = data.receiver_indices_of_antenna(antenna)
             for i_receiver in i_receiver_list:
                 new_flag.insert_receiver_flag(flag=full_flag, i_receiver=i_receiver, index=0)
-        data.flags.add_flag(flag=new_flag)
+        data.flags.add_flag(flag=new_flag, name='elevation_flag')
 
 
     def flag_for_elevation_TOD(self, data: TimeOrderedData):
@@ -206,5 +203,5 @@ class AntennaFlaggerPlugin(AbstractPlugin):
                     flag_array = np.repeat(bad_elevation_flag, shape[1]).reshape((shape[0], shape[1], 1))
                     new_flag.insert_receiver_flag(flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0)
 
-        data.flags.add_flag(flag=new_flag)
+        data.flags.add_flag(flag=new_flag, name='elevation_flag')
 

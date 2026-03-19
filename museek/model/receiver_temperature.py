@@ -140,11 +140,7 @@ class ReceiverTemperature:
         """
         freq_array = np.atleast_1d(frequency_MHz)
         if freq_array.min() < self.freq_range_MHz[0] or freq_array.max() > self.freq_range_MHz[1]:
-            import warnings
-            warnings.warn(
-                f"Frequency partially out of range: {freq_array.min():.1f}-{freq_array.max():.1f} MHz. "
-                f"Valid: {self.freq_range_MHz[0]:.1f}-{self.freq_range_MHz[1]:.1f} MHz. "
-                f"Using constant extrapolation at edges.",
-                UserWarning
-            )
+            print(f"UserWarning: Frequency partially out of range: {freq_array.min():.1f}-{freq_array.max():.1f} MHz. "
+                  f"Valid: {self.freq_range_MHz[0]:.1f}-{self.freq_range_MHz[1]:.1f} MHz. "
+                  f"Using constant extrapolation at edges.")
         return self._interpolator(frequency_MHz)

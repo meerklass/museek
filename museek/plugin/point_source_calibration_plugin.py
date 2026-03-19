@@ -1,10 +1,14 @@
 import os
+import pickle
 from typing import Generator
+
+import psutil
 
 import numpy as np
 import numpy.ma as ma
 import datetime
 import matplotlib.pyplot as plt
+
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
@@ -19,6 +23,7 @@ from museek.model.point_sources import get_point_source_model
 from museek.model.primary_beam import PrimaryBeam
 from museek.model.receiver_temperature import ReceiverTemperature
 from museek.model.spillover_temperature import SpilloverTemperature
+from museek.model.synchrotron_temperature import SynchrotronTemperature
 from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
@@ -26,8 +31,7 @@ from museek.util.tools import git_version_info
 
 
 def calculate_median_coordinates_excluding_flagged_antennas(
-    track_data: TimeOrderedData,
-    flag_name_list: list
+    track_data: TimeOrderedData
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Calculate median azimuth and elevation per time dump, excluding antennas
@@ -41,8 +45,6 @@ def calculate_median_coordinates_excluding_flagged_antennas(
     ----------
     track_data : TimeOrderedData
         The track data object containing coordinates and flags
-    flag_name_list : list
-        List of flag names corresponding to track_data.flags._flags
 
     Returns
     -------
@@ -51,12 +53,13 @@ def calculate_median_coordinates_excluding_flagged_antennas(
     median_el : np.ndarray
         Median elevation per time dump, shape (n_time,), in degrees
     """
+    flag_names = track_data.flags.flag_names
 
     # Extract and combine 'outlier_antenna_flag' and 'elevation_flag'
     flag_indices = []
     for flag_name in ['outlier_antenna_flag', 'elevation_flag']:
-        if flag_name in flag_name_list:
-            flag_indices.append(flag_name_list.index(flag_name))
+        if flag_name in flag_names:
+            flag_indices.append(flag_names.index(flag_name))
 
     if not flag_indices:
         # No antenna flags present - use all antennas
@@ -135,6 +138,12 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                  spillover_model_file: str,
                  do_store_context: bool,
                  on_source_separation_threshold_deg: float = 0.3,
+                 synch_model: str = 's1',
+                 synch_nside: int = 128,
+                 synch_fwhm_ref_deg: float = 1.68,
+                 synch_fwhm_ref_freq_MHz: float = 850.0,
+                 synch_freq_step_MHz: float = 20.0,
+                 prefer: str = 'threads',
                  **kwargs):
         """
         Initialize the plugin.
@@ -147,14 +156,29 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param on_source_separation_threshold_deg: Angular separation threshold in degrees to
             classify a time dump as on-source. Dumps with telescope-to-source separation below
             this value are considered on-source; all others are off-source.
+        :param synch_model: pysm3 preset string for synchrotron model, e.g. 's1'
+        :param synch_nside: HEALPix nside resolution for synchrotron map
+        :param synch_fwhm_ref_deg: Reference Gaussian FWHM in degrees for beam smoothing
+            of synchrotron map. Approximation of the true (non-Gaussian, pol-dependent) beam.
+        :param synch_fwhm_ref_freq_MHz: Reference frequency in MHz for synch_fwhm_ref_deg
+        :param prefer: joblib backend preference, defaults to 'threads' to avoid process
+            overhead when parallelising pure-numpy run_job calls.
         """
-        super().__init__(**kwargs)
+
+#        print(f'Available memory 1 = {psutil.virtual_memory().available / 1e9:.2f} GB', flush=True)
+
+        super().__init__(prefer=prefer, **kwargs)
         self.flag_combination_threshold = flag_combination_threshold
         self.beam_file_path = beam_file_path
         self.receiver_models_dir = receiver_models_dir
         self.spillover_model_file = spillover_model_file
         self.do_store_context = do_store_context
         self.on_source_separation_threshold_deg = on_source_separation_threshold_deg
+        self.synch_model = synch_model
+        self.synch_nside = synch_nside
+        self.synch_fwhm_ref_deg = synch_fwhm_ref_deg
+        self.synch_fwhm_ref_freq_MHz = synch_fwhm_ref_freq_MHz
+        self.synch_freq_step_MHz = synch_freq_step_MHz
 
     def set_requirements(self):
         """Set the requirements for the plugin."""
@@ -163,7 +187,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             Requirement(location=ResultEnum.CALIBRATOR_VALIDATED_PERIODS, variable='calibrator_validated_periods'),
             Requirement(location=ResultEnum.CALIBRATOR_DUMP_INDICES, variable='calibrator_dump_indices'),
             Requirement(location=ResultEnum.CALIBRATOR_NAMES, variable='calibrator_names'),
-            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')
@@ -174,7 +197,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrator_validated_periods: list,
             calibrator_dump_indices: dict,
             calibrator_names: dict,
-            flag_name_list: list,
             flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) -> Generator[tuple, None, None]:
@@ -194,6 +216,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :yield: Tuple of (receiver_path, period, calibrator_name, vis_period, flag_period,
                          freq, atm_period, point_source_temp_period, dump_indices_period)
         """
+        
         track_data.load_visibility_flags_weights(polars='auto')
         initial_flags = track_data.flags.combine(threshold=self.flag_combination_threshold)
 
@@ -230,7 +253,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Calculate median coordinates per time, excluding flagged antennas
         median_az_all, median_el_all = \
-            calculate_median_coordinates_excluding_flagged_antennas(track_data, flag_name_list)
+            calculate_median_coordinates_excluding_flagged_antennas(track_data)
 
         # Extract visibility and flags for all receivers (before period loop)
         visibility_data = {}
@@ -238,6 +261,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         atm_emission_data = {}
         rec_temp_data = {}
 
+#        print(len(track_data.receivers), flush=True)
         for i_receiver, receiver in enumerate(track_data.receivers):
             if track_data.visibility is not None:
                 visibility_data[i_receiver] = track_data.visibility.get(recv=i_receiver)
@@ -262,6 +286,16 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             polarization='VV'
         )  # Shape: (n_freq,)
 
+        # Build synchrotron model once (smoothed maps at coarse frequencies — expensive SHT step)
+        synch_model = SynchrotronTemperature(
+            freq=freq,
+            model=self.synch_model,
+            nside=self.synch_nside,
+            fwhm_ref_deg=self.synch_fwhm_ref_deg,
+            fwhm_ref_freq_MHz=self.synch_fwhm_ref_freq_MHz,
+            freq_step_MHz=self.synch_freq_step_MHz,
+        )
+
         # Initialize model_components to store receiver-independent data
         self.model_components = {}
 
@@ -271,18 +305,11 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrator_name = calibrator_names[period]
 
             # Calculate point source flux and position for THIS period (once per period, not per receiver)
-            # There is also a catalogue in the data folder with all point sources above 1Jy. One could also use that 
+            # There is also a catalogue in the data folder with all point sources above 1Jy. One could also use that
             # to check for other sources next to the pointing. Note also that the spectral index in the
             # catalogue and the one used here is slightly different.
             point_source_flux, ra_deg, dec_deg = get_point_source_model(calibrator_name, freq)
             # point_source_flux shape: (n_freq,)
-
-            # Convert RA/Dec to Az/El for all times (once per period)
-            source_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame='icrs')
-            altaz_frame = AltAz(obstime=times, location=location)
-            source_altaz = source_coord.transform_to(altaz_frame)
-            az_source_all = source_altaz.az.deg  # Shape: (n_time,)
-            el_source_all = source_altaz.alt.deg  # Shape: (n_time,)
 
             # Get dump indices for this period
             dump_indices_period = calibrator_dump_indices[period]
@@ -290,11 +317,30 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             # Boolean mask for this period
             select = np.isin(dumps, dump_indices_period)
 
-            # Subset median coordinates for this period (same for all receivers)
+            # Subset to period dumps
+            times_period = times[select]
             az_median_period = median_az_all[select]  # (n_dumps_period,)
             el_median_period = median_el_all[select]  # (n_dumps_period,)
-            az_source_period = az_source_all[select]  # (n_dumps_period,)
-            el_source_period = el_source_all[select]  # (n_dumps_period,)
+
+            # Convert source RA/Dec to Az/El for this period's dumps only
+            source_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame='icrs')
+            altaz_frame_period = AltAz(obstime=times_period, location=location)
+            source_altaz = source_coord.transform_to(altaz_frame_period)
+            az_source_period = source_altaz.az.deg   # (n_dumps_period,)
+            el_source_period = source_altaz.alt.deg  # (n_dumps_period,)
+
+            # Convert median Az/El pointing to RA/Dec for synchrotron model
+            # Gaussian beam approximation: FWHM scales as 1/freq. Not HH/VV dependent.
+            median_pointing = SkyCoord(
+                az=az_median_period * u.deg, alt=el_median_period * u.deg, frame=altaz_frame_period
+            )
+            ra_median_period = median_pointing.icrs.ra.deg   # (n_dumps_period,)
+            dec_median_period = median_pointing.icrs.dec.deg  # (n_dumps_period,)
+
+            synch_temp_period = synch_model.get_temperature(
+                ra=ra_median_period,
+                dec=dec_median_period,
+            )  # Shape: (n_dumps_period, n_freq)
 
             # Pre-calculate beam gain for both polarizations using median pointing
             # This avoids recalculating for each receiver
@@ -344,7 +390,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             d_az = (az_median_period - az_source_period) * np.cos(np.deg2rad(el_source_period))
             d_el = el_median_period - el_source_period
             on_mask = np.sqrt(d_az**2 + d_el**2) < self.on_source_separation_threshold_deg
-            print(f"Period {period}: {on_mask.sum()} on-source dumps, {(~on_mask).sum()} off-source dumps")
+            print(f"Period {period}: {on_mask.sum()} on-source dumps, {(~on_mask).sum()} off-source dumps", flush=True)
 
             # Initialize model_components for this period (once, outside receiver loop)
             self.model_components[period] = {
@@ -361,13 +407,15 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                     'point_source_VV': point_source_temp_VV,  # (n_dumps, n_freq)
                     'receiver': [],  # Will be (n_freq, n_receivers)
                     'spillover_HH': spillover_temp_HH,  # (n_dumps, n_freq)
-                    'spillover_VV': spillover_temp_VV  # (n_dumps, n_freq)
+                    'spillover_VV': spillover_temp_VV,  # (n_dumps, n_freq)
+                    'synchrotron': synch_temp_period,  # (n_dumps, n_freq) - receiver-independent
                 }
             }
 
             # Now loop over receivers for this period (inner loop)
             for i_receiver, receiver in enumerate(track_data.receivers):
 
+#                print(receiver, flush=True)
                 # Determine polarization and select pre-calculated values
                 polarization = 'HH' if receiver.polarisation == 'h' else 'VV'
                 spillover_temp_period = spillover_temp_HH if polarization == 'HH' else spillover_temp_VV
@@ -387,10 +435,10 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 # Store receiver-specific data only
                 self.model_components[period]['temperatures']['atmospheric'].append(atm_period)
                 self.model_components[period]['temperatures']['receiver'].append(rec_temp_recv)
-
+                
                 yield (period, calibrator_name, vis_period, flag_period,
                        freq, atm_period, point_source_temp_period, rec_temp_recv,
-                       spillover_temp_period, on_mask)
+                       spillover_temp_period, synch_temp_period, on_mask)
 
 
     def run_job(self, anything: tuple) -> dict:
@@ -402,7 +450,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
         (period, calibrator_name, vis_period, flag_period,
          freq, atm_period, point_source_temp_period, rec_temp_recv,
-         spillover_temp_period, on_mask) = anything
+         spillover_temp_period, synch_temp_period, on_mask) = anything
 
         # Verify all temperature components are available
         # Find frequency channel closest to 750 MHz (avoids band edges)
@@ -411,7 +459,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Calculate gain using masked array approach
         # Total model temperature (rec_temp_recv broadcasts automatically)
-        model_total = atm_period + point_source_temp_period + rec_temp_recv + spillover_temp_period
+        model_total = atm_period + point_source_temp_period + rec_temp_recv + spillover_temp_period + synch_temp_period
 
         # Create masked arrays using flags
         vis_masked = ma.masked_array(vis_period, mask=flag_period)
@@ -428,23 +476,19 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         numerator = ma.sum(vis_zeromean * model_zeromean, axis=0)  # Shape: (n_freq,)
         denominator = ma.sum(model_zeromean**2, axis=0)  # Shape: (n_freq,)
 
-        # Calculate gain with edge case handling (gain=0 where denominator too small)
-        threshold = 1e-10
-        gain_per_freq = ma.where(
-            ma.abs(denominator) > threshold,
-            numerator / denominator,
-            0.0  # Set to 0.0 for edge cases
-        )  # Shape: (n_freq,) - masked array, constant in time
+        gain_per_freq = numerator / denominator
 
         # Print diagnostic values at 750 MHz
-        print(f"Period {period}, Calibrator {calibrator_name}: "
-              f"vis shape = {vis_period.shape}, "
-              f"Maximum values at 750 MHz: "
-              f"atm = {np.max(atm_period[:, idx_750]):.2f} K, "
-              f"point_source = {np.max(point_source_temp_period[:, idx_750]):.2e} K, "
-              f"rec_temp = {rec_temp_recv[idx_750]:.2f} K, "
-              f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K, "
-              f"gain = {gain_per_freq[idx_750]:.6f}")
+        if self.verbose:
+            print(f"Period {period}, Calibrator {calibrator_name}: "
+                  f"vis shape = {vis_period.shape}, "
+                  f"Maximum values at 750 MHz: "
+                  f"atm = {np.max(atm_period[:, idx_750]):.2f} K, "
+                  f"point_source = {np.max(point_source_temp_period[:, idx_750]):.2e} K, "
+                  f"synch_temp = {np.max(synch_temp_period[:, idx_750]):.2e} K, "
+                  f"rec_temp = {rec_temp_recv[idx_750]:.2f} K, "
+                  f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K, "
+                  f"gain = {gain_per_freq[idx_750]:.6f}", flush=True)
 
         # On-off gain calculation
         off_mask = ~on_mask
@@ -456,12 +500,14 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             mod_on  = ma.mean(mod_masked[on_mask],  axis=0)
             mod_off = ma.mean(mod_masked[off_mask], axis=0)
             denom = mod_on - mod_off
-            gain_on_off = ma.where(ma.abs(denom) > threshold, (vis_on - vis_off) / denom, 0.0)
-            print(f"Period {period}, Calibrator {calibrator_name}: "
-                  f"gain_on_off at 750 MHz = {gain_on_off[idx_750]:.6f}")
+            gain_on_off = (vis_on - vis_off) / denom
+            if self.verbose:
+                print(f"Period {period}, Calibrator {calibrator_name}: "
+                      f"gain_on_off at 750 MHz = {gain_on_off[idx_750]:.6f}", flush=True)
         else:
             gain_on_off = ma.zeros(gain_per_freq.shape)
-            print(f"Period {period}: skipping gain_on_off (no on or off dumps)")
+            if self.verbose:
+                print(f"Period {period}: skipping gain_on_off (no on or off dumps)", flush=True)
 
         # Return only period and gains (other components already stored in map())
         return {
@@ -476,7 +522,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                               calibrator_validated_periods: list,
                               calibrator_dump_indices: dict,
                               calibrator_names: dict,
-                              flag_name_list: list,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):
@@ -553,12 +598,17 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         ]
         flag_report_writer.write_to_report(lines)
 
-        # Create diagnostic plot
-#        self._plot_coordinate_comparison(
-#            track_data=track_data,
-#            flag_name_list=flag_name_list,
-#            output_path=output_path
-#        )
+        if self.verbose:
+            self._plot_coordinate_comparison(
+                track_data=track_data,
+                output_path=output_path
+            )
+
+        # Save model_components to disk for later use
+        model_components_file = os.path.join(output_path, 'model_components.pkl')
+        with open(model_components_file, 'wb') as f:
+            pickle.dump(self.model_components, f)
+        print(f'Model components saved to: {model_components_file}', flush=True)
 
         # Set results
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))
@@ -573,19 +623,17 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
     def _plot_coordinate_comparison(self,
                                     track_data: TimeOrderedData,
-                                    flag_name_list: list,
                                     output_path: str):
         """
         Diagnostic plot comparing median coordinates (excluding flagged antennas)
         vs first available receiver coordinates for entire track data timeline.
 
         :param track_data: Time ordered data
-        :param flag_name_list: List of flag names
         :param output_path: Directory to save plot
         """
         # Recalculate median coordinates using existing helper function
         median_az_all, median_el_all = \
-            calculate_median_coordinates_excluding_flagged_antennas(track_data, flag_name_list)
+            calculate_median_coordinates_excluding_flagged_antennas(track_data)
 
         # Use the first available antenna in the dataset for comparison
         az_data = track_data.azimuth.squeeze  # Shape: (n_time, n_antennas)

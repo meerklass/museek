@@ -23,7 +23,8 @@ class KnownRfiPlugin(AbstractPlugin):
                  gsm_900_downlink: tuple[float, float] | None,
                  gsm_1800_uplink: tuple[float, float] | None,
                  gps: tuple[float, float] | None,
-                 extra_rfi: list[tuple[float, float]] | None = None):
+                 extra_rfi: list[tuple[float, float]] | None = None,
+                 verbose: int = 0):
         """
         Initialise the plugin
         :param gsm_900_uplink: optional lower and upper frequency [MHz] limits, usually `(890, 915)`
@@ -31,8 +32,10 @@ class KnownRfiPlugin(AbstractPlugin):
         :param gsm_1800_uplink: optional lower and upper frequency [MHz] limits, usually `(1710, 1785)`
         :param gps: optional lower and upper frequency [MHz] limits, usually `(1170, 1390)`
         :param extra_rfi: optional `list` of extra rfi frequency [MHz] limit tuples
+        :param verbose: if non-zero, diagnostic plots are saved to disc
         """
         super().__init__()
+        self.verbose = verbose
         rfi_list = [gsm_900_uplink,
                     gsm_900_downlink,
                     gsm_1800_uplink,
@@ -47,16 +50,14 @@ class KnownRfiPlugin(AbstractPlugin):
         """ Set the requirements. """
         self.requirements = [Requirement(location=ResultEnum.DATA, variable='data'),
                              Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list')]
+                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')]
 
-    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str, flag_name_list:list):
+    def run(self, data: TimeOrderedData, flag_report_writer: ReportWriter, output_path: str):
         """
         Flag all channels defined by `self.rfi_list` and save the result to the context.
         :param data: time ordered data of the entire block
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
-        :param flag_name_list: list of the name of existing flags
         """
         mega = 1e6
         data.load_visibility_flags_weights(polars='auto')
@@ -66,10 +67,9 @@ class KnownRfiPlugin(AbstractPlugin):
                 if rfi_tuple[0] <= frequency / mega <= rfi_tuple[1]:
                     new_flag[:, channel, :] = True
                     continue
-        data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory))
-        flag_name_list.append('known_rfi')
+        data.flags.add_flag(flag=FlagList.from_array(array=new_flag, element_factory=self.data_element_factory),
+                            name='known_rfi')
         self.set_result(result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list, allow_overwrite=True))
 
         receivers_list, flag_percent = flag_percent_recv(data)
         branch, commit = git_version_info()
@@ -77,8 +77,9 @@ class KnownRfiPlugin(AbstractPlugin):
         lines = ['...........................', 'Running KnownRfiPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(data.visibility.get(recv=0),
-                  data.flags.get(recv=0),
-                  cmap='gist_ncar')
-        plt.savefig(os.path.join(output_path, 'known_rfi_plugin_result_receiver_0.png'), dpi=1000)
-        plt.close()
+        if self.verbose:
+            waterfall(data.visibility.get(recv=0),
+                      data.flags.get(recv=0),
+                      cmap='gist_ncar')
+            plt.savefig(os.path.join(output_path, 'known_rfi_plugin_result_receiver_0.png'), dpi=1000)
+            plt.close()

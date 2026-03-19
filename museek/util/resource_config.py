@@ -43,7 +43,7 @@ def get_resource_config(
         if slurm_mem_mb is not None:
             memory_gb = int(slurm_mem_mb) / 1024.0
         else:
-            memory_gb = psutil.virtual_memory().available / 1e9 * 0.8
+            memory_gb = psutil.virtual_memory().available / 1e9
 
     if not on_slurm:
         available_memory_gb = psutil.virtual_memory().available / 1e9

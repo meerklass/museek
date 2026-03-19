@@ -61,7 +61,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             Requirement(location=ResultEnum.CALIBRATOR_VALIDATED_PERIODS, variable='calibrator_validated_periods'),
             Requirement(location=ResultEnum.CALIBRATOR_DUMP_INDICES, variable='calibrator_dump_indices'),
             Requirement(location=ResultEnum.CALIBRATOR_NAMES, variable='calibrator_names'),
-            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable='flag_name_list'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.BLOCK_NAME, variable='block_name'),
             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer')
@@ -72,7 +71,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             calibrator_validated_periods: list,
             calibrator_dump_indices: dict,
             calibrator_names: dict,
-            flag_name_list: list,
             flag_report_writer: ReportWriter,
             output_path: str,
             block_name: str) -> Generator[tuple, None, None]:
@@ -96,7 +94,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Combine all flags EXCEPT 'noise_diode_on' (we need ND-firing dumps for calibration)
         result_array = np.zeros(track_data.flags.shape)
-        for i, flag_name in enumerate(flag_name_list):
+        for i, flag_name in enumerate(track_data.flags.flag_names):
             if flag_name != 'noise_diode_on':
                 result_array += track_data.flags._flags[i].get_array()
         result_array[result_array < self.flag_combination_threshold] = 0
@@ -306,7 +304,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                               calibrator_validated_periods: list,
                               calibrator_dump_indices: dict,
                               calibrator_names: dict,
-                              flag_name_list: list,
                               flag_report_writer: ReportWriter,
                               output_path: str,
                               block_name: str):

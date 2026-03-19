@@ -74,6 +74,8 @@ def flag_percent_recv(data: TimeOrderedData):
     """
     return the flag percent for each receiver
     """
+    if len(data.flags) == 0:
+        return [str(r) for r in data.receivers], [0.0] * len(data.receivers)
     flag_percent = []
     receivers_list = []
     for i_receiver, receiver in enumerate(data.receivers):

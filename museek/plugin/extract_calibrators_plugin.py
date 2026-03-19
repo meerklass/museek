@@ -19,7 +19,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
                  n_pointings: int,
                  max_gap_seconds: float = 40.0,
                  min_duration_seconds: float = 20.0,
-                 ):
+                 verbose: int = 0):
         """
         Initialize with calibrator finding parameters.
         
@@ -36,6 +36,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         self.n_pointings = n_pointings
         self.max_gap_seconds = max_gap_seconds
         self.min_duration_seconds = min_duration_seconds
+        self.verbose = verbose
         
         # Validate n_calibrator_observations value
         if self.n_calibrator_observations not in [1, 2]:
@@ -101,9 +102,9 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         self.set_result(result=Result(location=ResultEnum.CALIBRATOR_NAMES,
                                     result=calibrator_names_for_periods, allow_overwrite=False))
         
-        # Plot RA, Dec positions and elevation vs time
-        self._plot_calibrator_positions(track_data, validated_periods, calibrator_results)
-        self._plot_elevation_vs_time(track_data, validated_periods, calibrator_results)
+        if self.verbose:
+            self._plot_calibrator_positions(track_data, validated_periods, calibrator_results)
+            self._plot_elevation_vs_time(track_data, validated_periods, calibrator_results)
     
     def _validate_and_report_results(self, calibrator_results):
         """Validate found calibrators against user expectations and report results.

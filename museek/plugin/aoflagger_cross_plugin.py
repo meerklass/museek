@@ -139,7 +139,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        scan_data.flags_cross.add_flag(flag=new_flag)
+        scan_data.flags_cross.add_flag(flag=new_flag, name='aoflagger_cross')
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
@@ -147,13 +147,14 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         lines = ['...........................', 'Running AoflaggerCrossPlugin with '+f"MuSEEK version: {branch} ({commit})", 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"), 'The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(scan_data.visibility_cross.get(recv=0),
-                  scan_data.flags_cross.get(recv=0),
-                  cmap='gist_ncar')
-        plt.xlabel('time stamps')
-        plt.ylabel('channels')
-        plt.savefig(os.path.join(output_path, 'rfi_cross_mitigation_result_receiver_0.png'), dpi=1000)
-        plt.close()
+        if self.verbose:
+            waterfall(scan_data.visibility_cross.get(recv=0),
+                      scan_data.flags_cross.get(recv=0),
+                      cmap='gist_ncar')
+            plt.xlabel('time stamps')
+            plt.ylabel('channels')
+            plt.savefig(os.path.join(output_path, 'rfi_cross_mitigation_result_receiver_0.png'), dpi=1000)
+            plt.close()
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
         if self.do_store_context:
