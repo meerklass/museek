@@ -1,7 +1,8 @@
 import datetime
+import gc
 import os
 from collections.abc import Generator
-import gc
+
 import healpy as hp
 import numpy as np
 import pysm3
@@ -24,7 +25,8 @@ from museek.util.tools import git_version_info, remove_outliers_zscore_mad
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them, for calibrated data"""
+    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process
+    them, for calibrated data"""
 
     def __init__(
         self,

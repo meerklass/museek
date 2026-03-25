@@ -1,6 +1,7 @@
 import datetime
-from collections.abc import Generator
 import gc
+from collections.abc import Generator
+
 import healpy as hp
 import numpy as np
 import pysm3
@@ -124,9 +125,13 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
             Requirement(location=ResultEnum.FREQ_SELECT, variable="freq_select"),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable="output_path"),
             Requirement(location=ResultEnum.BLOCK_NAME, variable="block_name"),
-            Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"),
-            Requirement(location=ResultEnum.POINT_SOURCE_FLAG, variable="point_source_flag"),
-            #Requirement(location=ResultEnum.KNOWN_RFI_LIST, variable="rfi_list"),
+            Requirement(
+                location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
+            ),
+            Requirement(
+                location=ResultEnum.POINT_SOURCE_FLAG, variable="point_source_flag"
+            ),
+            # Requirement(location=ResultEnum.KNOWN_RFI_LIST, variable="rfi_list"),
         ]
 
     def map(

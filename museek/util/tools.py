@@ -362,7 +362,7 @@ def project_2d(x, y, data, shape, weights=None):
     _weights = np.histogram2d(y, x, weights=weights, **kwargs)[0]
     _data = np.histogram2d(y, x, weights=weights * data, **kwargs)[0]
 
-    #with warnings.catch_warnings():
+    # with warnings.catch_warnings():
     #    warnings.simplefilter("ignore")
     #    output = _data / _weights
 
@@ -1020,13 +1020,15 @@ def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg
 
     for region in regions:
         i_start, i_end = region[0], region[-1]
-        valid = collect_unmasked_points_around(mask, freq, i_start, i_end, polyfit_window)
+        valid = collect_unmasked_points_around(
+            mask, freq, i_start, i_end, polyfit_window
+        )
 
         # Limit polynomial degree if not enough data
         n_valid = np.sum(valid)
         deg = min(polydeg, n_valid - 1)
         # handle the situations where valid points are too few
-        if np.sum(valid[:region[0]]) <= 5 or np.sum(valid[region[-1]:])<=5:
+        if np.sum(valid[: region[0]]) <= 5 or np.sum(valid[region[-1] :]) <= 5:
             # if the masked regions are too long (>30channels), using linear polyfit (deg=1)
             threshold_length = 30
             if len(region) >= threshold_length:
@@ -1035,10 +1037,10 @@ def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg
                 deg = min(3, n_valid - 1)
 
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', np.RankWarning)
+            warnings.simplefilter("ignore", np.exceptions.RankWarning)
             coeff = np.polyfit(freq[valid], data[valid], deg=deg)
         poly = np.poly1d(coeff)
 
-        data[i_start:i_end + 1] = poly(freq[i_start:i_end + 1])
+        data[i_start : i_end + 1] = poly(freq[i_start : i_end + 1])
 
     return data

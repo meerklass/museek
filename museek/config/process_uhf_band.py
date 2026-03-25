@@ -1,21 +1,20 @@
 from ivory.utils.config_section import ConfigSection
-import os 
 
 Pipeline = ConfigSection(
     plugins=[
-        'museek.plugin.in_plugin',
-        'museek.plugin.noise_diode_flagger_plugin',
-        'museek.plugin.known_rfi_plugin',
-        'museek.plugin.rawdata_flagger_plugin',
-        'museek.plugin.scan_track_split_plugin',
-        'museek.plugin.point_source_flagger_plugin',
-        'museek.plugin.aoflagger_plugin',
-        'museek.plugin.aoflagger_secondrun_plugin',
-        'museek.plugin.antenna_flagger_plugin',
-        'museek.plugin.noise_diode_plugin',
-        'museek.plugin.gain_calibration_plugin',
-        'museek.plugin.aoflagger_postcalibration_plugin',
-        'museek.plugin.inpainting_mapmaking_plugin',
+        "museek.plugin.in_plugin",
+        "museek.plugin.noise_diode_flagger_plugin",
+        "museek.plugin.known_rfi_plugin",
+        "museek.plugin.rawdata_flagger_plugin",
+        "museek.plugin.scan_track_split_plugin",
+        "museek.plugin.point_source_flagger_plugin",
+        "museek.plugin.aoflagger_plugin",
+        "museek.plugin.aoflagger_secondrun_plugin",
+        "museek.plugin.antenna_flagger_plugin",
+        "museek.plugin.noise_diode_plugin",
+        "museek.plugin.gain_calibration_plugin",
+        "museek.plugin.aoflagger_postcalibration_plugin",
+        "museek.plugin.inpainting_mapmaking_plugin",
         #'museek.plugin.gain_selfcalibration_plugin',
         #'museek.plugin.aoflagger_postselfcalibration_plugin',
         #'museek.plugin.inpainting_mapmaking_selfcali_plugin',
@@ -24,7 +23,6 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    # context=os.path.join('/idia/users/wkhu/calibration_results/noise_diode_2d/', '1675632179/gain_calibration_plugin.pickle')
 )
 
 InPlugin = ConfigSection(
@@ -219,17 +217,17 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
 InpaintingMapmakingPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    threshold_MHz=30., # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
-    inpainting_window=20., # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
-    inpainting_polydeg=6, # the degree of polynomials fit in inpainting
-    mask_antnum_threshold=10, # masking the pixels where <=mask_antnum_threshold antennas contributes
-    pix_reso=0.5, # map resolution [deg]
-    x_crval=165., # map center x(ra) [deg]
-    y_crval=-1.5, # map center y(dec) [deg]
-    x_range=35, # map range (+-x_range) in x(ra) [deg]
-    y_range=10, # map range (+-y_range) in y(dec) [deg]
+    threshold_MHz=30.0,  # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
+    inpainting_window=20.0,  # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
+    inpainting_polydeg=6,  # the degree of polynomials fit in inpainting
+    mask_antnum_threshold=10,  # masking the pixels where <=mask_antnum_threshold antennas contributes
+    pix_reso=0.5,  # map resolution [deg]
+    x_crval=165.0,  # map center x(ra) [deg]
+    y_crval=-1.5,  # map center y(dec) [deg]
+    x_range=35,  # map range (+-x_range) in x(ra) [deg]
+    y_range=10,  # map range (+-y_range) in y(dec) [deg]
     do_store_context=True,
-    )
+)
 
 GainSelfCalibrationPlugin = ConfigSection(
     n_jobs=13,
@@ -294,12 +292,12 @@ AoflaggerPostSelfCalibrationPlugin = ConfigSection(
 InpaintingMapmakingSelfcaliPlugin = ConfigSection(
     n_jobs=13,
     verbose=0,
-    threshold_MHz=30., # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
-    inpainting_window=20., # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
-    inpainting_polydeg=6, # the degree of polynomials fit in inpainting
-    mask_antnum_threshold=10, # masking the pixels where <=mask_antnum_threshold antennas contributes
+    threshold_MHz=30.0,  # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
+    inpainting_window=20.0,  # inpainting the masked regions by fitting a polynomial using +-inpainting_window of the unmasked data around the masked regions [MHz]
+    inpainting_polydeg=6,  # the degree of polynomials fit in inpainting
+    mask_antnum_threshold=10,  # masking the pixels where <=mask_antnum_threshold antennas contributes
     do_store_context=True,
-    )
+)
 
 ApplyExternalGainSolutionPlugin = ConfigSection(
     gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"

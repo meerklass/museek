@@ -218,7 +218,9 @@ class GainCalibrationPlugin(AbstractPlugin):
                             p_poly, np.arange(visibility_recv.shape[0])
                         )
 
-            visibility_recv = visibility_recv / (noise_excess_recv_fit / np.median(noise_excess_recv_fit))
+            visibility_recv = visibility_recv / (
+                noise_excess_recv_fit / np.median(noise_excess_recv_fit)
+            )
             del noise_excess_recv_fit
             gc.collect()
 
@@ -314,7 +316,6 @@ class GainCalibrationPlugin(AbstractPlugin):
             temperature_antennas, mask=mask_antennas
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
-
 
         if self.new_output_path is not None:
             output_path = self.new_output_path
