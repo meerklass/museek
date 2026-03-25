@@ -439,7 +439,7 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
                     pass
                 else:
                     with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", np.exeptions.RankWarning)
+                        warnings.simplefilter("ignore", np.exceptions.RankWarning)
                         delta_sigma_pixel = delta_sigma[pixel_i, pixel_j]
 
                         mask = map_antennacombine[pixel_i, pixel_j].mask
