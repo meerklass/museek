@@ -1,4 +1,5 @@
 import datetime
+import gc
 from collections.abc import Generator
 
 import healpy as hp
@@ -51,6 +52,11 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         zscore_antenatempflag_threshold: float,
         do_store_context: bool,
         do_delete_auto_data: bool,
+        gsm_900_uplink: tuple[float, float] | None,
+        gsm_900_downlink: tuple[float, float] | None,
+        gsm_1800_uplink: tuple[float, float] | None,
+        gps: tuple[float, float] | None,
+        extra_rfi: list[tuple[float, float]] | None = None,
         **kwargs,
     ):
         """
@@ -103,6 +109,12 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.map_selfcali_flag = {}
         self.map_selfcali_flag_name_list = []
 
+        ##########  mask new known RFI from cellphone frequencies
+        rfi_list = [gsm_900_uplink, gsm_900_downlink, gsm_1800_uplink, gps]
+        if extra_rfi is not None:
+            rfi_list.extend(extra_rfi)
+        self.rfi_list = [rfi for rfi in rfi_list if rfi is not None]
+
     def set_requirements(self):
         """
         Set the requirements, the scanning data `scan_data`, a path to store results and the name of the data block.
@@ -119,8 +131,7 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
             Requirement(
                 location=ResultEnum.POINT_SOURCE_FLAG, variable="point_source_flag"
             ),
-            # Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG, variable='calibrated_data_flag'),
-            # Requirement(location=ResultEnum.CALIBRATED_VIS_FLAG_NAME_LIST, variable='calibrated_data_flag_name_list'),
+            # Requirement(location=ResultEnum.KNOWN_RFI_LIST, variable="rfi_list"),
         ]
 
     def map(
@@ -128,8 +139,6 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         scan_data: TimeOrderedData,
         map_selfcali: np.ma.MaskedArray,
         point_source_flag: np.ndarray,
-        # calibrated_data_flag: dict,
-        # calibrated_data_flag_name_list: [str],
         freq_select: np.ndarray,
         flag_report_writer: ReportWriter,
         output_path: str,
@@ -154,8 +163,6 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param scan_data: time ordered data containing the scanning part of the observation
         :param map_selfcali: the TOD after self-calibration is applied
         :param point_source_flag: mask for point sources
-        :param calibrated_data_flag: dictionary of flags for the post calibration
-        :param calibrated_data_flag_name_list: name list of flag post calibration
         :param freq_select: frequency for calibrated data, in [Hz]
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
@@ -166,15 +173,14 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
 
         ##########  mask new known RFI from cellphone frequencies
-        # List of frequency intervals to mask
-        mask_intervals = [(765.0, 775.0), (801.0, 821.0), (925.0, 960.0)]
         # Start with all False (unmasked)
         mask_freq = np.zeros_like(freq_select, dtype=bool)
         # Set mask to True within each interval
-        for low, high in mask_intervals:
+        for low, high in self.rfi_list:
             mask_freq |= (freq_select / 10**6 > low) & (freq_select / 10**6 < high)
         map_selfcali.mask[:, mask_freq, :] = True
 
+        ###########  save the mask
         self.map_selfcali_flag["HH_VV_combined"] = map_selfcali.mask.copy()
         self.map_selfcali_flag_name_list.append("HH_VV_combined")
 
@@ -407,8 +413,6 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         scan_data: TimeOrderedData,
         map_selfcali: np.ma.MaskedArray,
         point_source_flag: np.ndarray,
-        # calibrated_data_flag: dict,
-        # calibrated_data_flag_name_list: [str],
         freq_select: np.ndarray,
         flag_report_writer: ReportWriter,
         output_path: str,
@@ -423,8 +427,6 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
         :param block_name: name of the observation block
-        :param calibrated_data_flag: list of the existing flags for calibrated data
-        :param calibrated_data_flag_name_list: list of the name of existing flags for calibrated data
         """
 
         result_list = np.array(result_list, dtype="object")
@@ -437,6 +439,9 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
         correlation_coefficient_antlist = [
             result_list[i][2] for i in range(np.shape(result_list)[0])
         ]
+
+        del result_list
+        gc.collect()
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [
@@ -520,6 +525,14 @@ class AoflaggerPostSelfCalibrationPlugin(AbstractParallelJoblibPlugin):
                 allow_overwrite=True,
             )
         )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.KNOWN_RFI_LIST,
+                result=self.rfi_list,
+                allow_overwrite=True,
+            )
+        )
+
         if self.do_store_context:
             context_file_name = "aoflagger_plugin_postselfcalibration.pickle"
             self.store_context_to_disc(

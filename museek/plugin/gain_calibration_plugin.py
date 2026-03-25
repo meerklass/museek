@@ -42,6 +42,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         nd_window_movingmedian: int,
         nd_gausm_sigma: int,
         do_delete_auto_data: bool,
+        new_output_path: str,
         **kwargs,
     ):
         """
@@ -64,6 +65,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param nd_window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
         :param nd_gausm_sigma: The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum.
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
+        :param new_output_path: new path to save the output
 
         """
         super().__init__(**kwargs)
@@ -83,6 +85,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.nd_window_movingmedian = nd_window_movingmedian
         self.nd_gausm_sigma = nd_gausm_sigma
         self.do_delete_auto_data = do_delete_auto_data
+        self.new_output_path = new_output_path
 
     def set_requirements(self):
         """
@@ -215,7 +218,9 @@ class GainCalibrationPlugin(AbstractPlugin):
                             p_poly, np.arange(visibility_recv.shape[0])
                         )
 
-            visibility_recv = visibility_recv / noise_excess_recv_fit
+            visibility_recv = visibility_recv / (
+                noise_excess_recv_fit / np.median(noise_excess_recv_fit)
+            )
             del noise_excess_recv_fit
             gc.collect()
 
@@ -311,6 +316,16 @@ class GainCalibrationPlugin(AbstractPlugin):
             temperature_antennas, mask=mask_antennas
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
+
+        if self.new_output_path is not None:
+            output_path = self.new_output_path
+        self.set_result(
+            result=Result(
+                location=ResultEnum.OUTPUT_PATH,
+                result=output_path,
+                allow_overwrite=True,
+            )
+        )
 
         self.set_result(
             result=Result(
