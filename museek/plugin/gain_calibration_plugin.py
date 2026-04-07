@@ -42,7 +42,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         nd_window_movingmedian: int,
         nd_gausm_sigma: int,
         do_delete_auto_data: bool,
-        new_output_path: str,
+        new_output_path: str | None = None,
         **kwargs,
     ):
         """
