@@ -362,10 +362,12 @@ def project_2d(x, y, data, shape, weights=None):
     _weights = np.histogram2d(y, x, weights=weights, **kwargs)[0]
     _data = np.histogram2d(y, x, weights=weights * data, **kwargs)[0]
 
-    # with warnings.catch_warnings():
-    #    warnings.simplefilter("ignore")
-    #    output = _data / _weights
-
+    # NOTE: `_data` contains the weighted sum of the input `data` in each bin.
+    # To obtain a normalized/mean map, callers should divide `_data` by `_weights`,
+    # taking care to handle bins where `_weights` is zero.
+    #
+    # This function therefore returns the weighted sum and corresponding weights,
+    # rather than a pre-normalized map.
     return _data, _weights, _hits.astype(int), xedges, yedges
 
 
