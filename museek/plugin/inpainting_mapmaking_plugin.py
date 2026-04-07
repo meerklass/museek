@@ -398,55 +398,24 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", np.exceptions.RankWarning)
 
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=map_antennacombine[pixel_i, pixel_j].mask,
-                            degree=18,
-                            threshold=6,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=10,
-                            threshold=6,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=8,
-                            threshold=6.5,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=6,
-                            threshold=6.5,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=6,
-                            threshold=6.5,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=6,
-                            threshold=6.5,
-                        )
-                        initial_mask, _ = polynomial_flag_outlier(
-                            freq_select,
-                            map_antennacombine.data[pixel_i, pixel_j],
-                            mask=initial_mask,
-                            degree=6,
-                            threshold=6.5,
-                        )
+                        polyfit_schedule = [
+                            (18, 6),
+                            (10, 6),
+                            (8, 6.5),
+                            (6, 6.5),
+                            (6, 6.5),
+                            (6, 6.5),
+                            (6, 6.5),
+                        ]
+                        initial_mask = map_antennacombine[pixel_i, pixel_j].mask
+                        for degree, threshold in polyfit_schedule:
+                            initial_mask, _ = polynomial_flag_outlier(
+                                freq_select,
+                                map_antennacombine.data[pixel_i, pixel_j],
+                                mask=initial_mask,
+                                degree=degree,
+                                threshold=threshold,
+                            )
 
                     ###  mask dilation
                     struct = np.ones(3, dtype=bool)
