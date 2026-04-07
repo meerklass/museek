@@ -1,7 +1,7 @@
 import datetime
 import gc
 import warnings
-
+import os
 import numpy as np
 import scipy
 from ivory.plugin.abstract_plugin import AbstractPlugin
@@ -318,7 +318,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
         if self.new_output_path is not None:
-            output_path = self.new_output_path
+            output_path = os.path.join(self.new_output_path, f"{block_name}/")
         self.set_result(
             result=Result(
                 location=ResultEnum.OUTPUT_PATH,
