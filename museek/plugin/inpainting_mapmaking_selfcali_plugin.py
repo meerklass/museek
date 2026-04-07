@@ -107,9 +107,9 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
         ##########  mask known RFI
         # Start with all False (unmasked)
         mask_freq = np.zeros_like(freq_select, dtype=bool)
-        # Set mask to True within each interval
+        # Set mask to True within each interval (inclusive bounds to match KnownRfiPlugin)
         for low, high in rfi_list:
-            mask_freq |= (freq_select / 10**6 > low) & (freq_select / 10**6 < high)
+            mask_freq |= (freq_select / 10**6 >= low) & (freq_select / 10**6 <= high)
 
         selfcalibrated_data.mask[:, mask_freq, :] = True
 
