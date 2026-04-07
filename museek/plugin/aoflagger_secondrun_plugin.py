@@ -35,7 +35,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         time_dump_flag_threshold: float,
         flag_combination_threshold: int,
         do_store_context: bool,
-        new_output_path: str,
+        new_output_path: str | None = None,
         **kwargs,
     ):
         """
