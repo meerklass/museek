@@ -154,10 +154,6 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
 
         # Assume image_shape = [ra_length, dec_length]
         ra_len, dec_len = map_shape[0], map_shape[1]
-        # Create a pixel grid (Y for Dec, X for RA)
-        y, x = np.mgrid[0:dec_len, 0:ra_len]
-        # Convert pixel coordinates to world coordinates
-        ra_map, dec_map = wcs_map.wcs_pix2world(x, y, 0)
 
         ########################################
         for i_antenna, antenna in enumerate(scan_data.antennas):
