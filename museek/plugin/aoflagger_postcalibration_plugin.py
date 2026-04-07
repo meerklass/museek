@@ -173,7 +173,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
 
         if self.new_output_path is not None:
-            output_path = self.new_output_path
+            output_path = os.path.join(self.new_output_path, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
@@ -448,7 +448,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
 
         if self.new_output_path is not None:
-            output_path = self.new_output_path
+            output_path = os.path.join(self.new_output_path, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
