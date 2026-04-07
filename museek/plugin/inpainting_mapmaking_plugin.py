@@ -24,7 +24,9 @@ from museek.util.tools import (
 
 
 class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to inapinting and mapmaking, using post calibrated data"""
+    """Plugin to inapinting and mapmaking, using post calibrated data. This plugin is used for 
+    inpainting and map making for a single block, after runing this for each block, the outputs 
+    from different blocks can be combined using an external notebook."""
 
     def __init__(
         self,
