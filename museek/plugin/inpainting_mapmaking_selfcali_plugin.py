@@ -345,7 +345,7 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
         hit_data[mask_antennacombine_sum_freqmedian <= self.mask_antnum_threshold] = 0
 
         #  iteratively running the polynomial_flag to flag the outliers
-        freq_select = freq_select / 10.0**6
+        freq_mhz = freq_select / 10.0**6
         mask_polyfit = np.ones(map_antennacombine.shape, dtype="bool")
         for pixel_i in range(map_antennacombine.shape[0]):
             for pixel_j in range(map_antennacombine.shape[1]):
@@ -368,7 +368,7 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
                         initial_mask = map_antennacombine[pixel_i, pixel_j].mask
                         for degree, threshold in fit_params:
                             initial_mask, _ = polynomial_flag_outlier(
-                                freq_select,
+                                freq_mhz,
                                 map_antennacombine.data[pixel_i, pixel_j],
                                 mask=initial_mask,
                                 degree=degree,
@@ -414,14 +414,14 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
                         mask = map_antennacombine[pixel_i, pixel_j].mask
                         map_antennacombine_interp.data[pixel_i, pixel_j] = (
                             fill_masked_regions_polyfit(
-                                freq_select,
+                                freq_mhz,
                                 map_antennacombine[pixel_i, pixel_j],
                                 polyfit_window=self.inpainting_window,
                                 polydeg=self.inpainting_polydeg,
                             )
                         )
                         map_antennacombine_interp.mask[pixel_i, pixel_j] = np.zeros(
-                            len(freq_select), dtype="bool"
+                            len(freq_mhz), dtype="bool"
                         )
                         n_mask = np.count_nonzero(mask)
                         ###  add white noise to masked regions
@@ -450,7 +450,7 @@ class InpaintingMapmakingSelfcaliPlugin(AbstractParallelJoblibPlugin):
                 "hit": hit_data,
                 "hit_nomask": hit_data_nomask,
                 "wcs": wcs_map,
-                "freq": freq_select,
+                "freq": freq_mhz,
                 "antenna_list": scan_data._antenna_name_list,
             }
 
