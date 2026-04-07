@@ -1017,7 +1017,8 @@ def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg
     """
 
     data = masked_array.data.copy()
-    mask = masked_array.mask
+    # Ensure mask is always an array (np.ma.nomask -> all-False array)
+    mask = np.ma.getmaskarray(masked_array)
     regions = find_continuous_mask_regions(mask)
 
     for region in regions:
