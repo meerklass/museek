@@ -1,4 +1,5 @@
 from ivory.utils.config_section import ConfigSection
+import os
 
 Pipeline = ConfigSection(
     plugins=[
