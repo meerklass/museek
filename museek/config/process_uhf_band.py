@@ -23,6 +23,7 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
+    #context=os.path.join('/idia/users/wkhu/', 'calibration_results/1678899080/aoflagger_plugin_secondrun.pickle')
 )
 
 InPlugin = ConfigSection(
