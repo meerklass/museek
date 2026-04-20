@@ -32,7 +32,7 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
         self,
         threshold_MHz: float,
         inpainting_window: float,
-        inpainting_polydeg: float,
+        inpainting_polydeg: int,
         mask_antnum_threshold: float,
         pix_reso: float,
         x_crval: float,
@@ -182,11 +182,11 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
             np.ndarray,
             np.ndarray,
         ],
-    ) -> np.ndarray:
+    ) -> tuple[np.ma.MaskedArray,np.ndarray,np.ndarray,np.ndarray,astropy.wcs.WCS]:
         """
         Run the inpainting and mapmaking. Done for one antenna at a time.
         :param anything: `tuple` of the wcs_map, map_shape, ra_ant, dec_ant, calibrated_data_ant, freq_select, mask_freq
-        :return: updated mask
+        :return: map making data for each antenna, hit map, hit map without considering mask, known rfi flag, wcs map
         """
         (
             wcs_map,
