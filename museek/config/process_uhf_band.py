@@ -28,21 +28,24 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
+    ### Parameters that are required to be changed
     block_name="1675632179",  # observation time stamp
+    data_folder="/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/",  # only relevant if `token` is `None`
+    context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
+    ### Parameters that are fixed or optional
     # receiver_list=['m000h','m000v','m012h','m012v','m024h','m024v','m036h','m036v'],
     receiver_list=None,  # receivers to be processed, `None` means all available receivers is used
-    token=None,  # archive token
-    data_folder="/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/",  # only relevant if `token` is `None`
-    # data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
+    token=None,  # archive token, not using at this state
     force_load_auto_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
     force_load_cross_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
     do_save_visibility_to_disc=False,  # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_store_context=False,
-    context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
+    
 )
 
 
 KnownRfiPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
@@ -50,15 +53,22 @@ KnownRfiPlugin = ConfigSection(
     extra_rfi=[(768, 778), (801, 811), (811, 821)],  # Vodacom  # MTN  # Telkom
 )
 
-RawdataFlaggerPlugin = ConfigSection(flag_lower_threshold=5.0, do_store_context=False)
+RawdataFlaggerPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
+    flag_lower_threshold=5.0, 
+    do_store_context=False
+)
 
 
 ScanTrackSplitPlugin = ConfigSection(
-    do_delete_unsplit_data=True, do_store_context=False
+    ### Parameters that are fixed or optional
+    do_delete_unsplit_data=True, 
+    do_store_context=False
 )
 
 
 PointSourceFlaggerPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=26,
     verbose=0,
     point_source_file_path="/idia/projects/meerklass/MEERKLASS-1/uhf_data/OT2023/radio_source_catalog/",
@@ -72,6 +82,7 @@ PointSourceFlaggerPlugin = ConfigSection(
 
 
 AoflaggerPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=26,
     verbose=0,
     mask_type="vis",  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
@@ -93,6 +104,7 @@ AoflaggerPlugin = ConfigSection(
 )
 
 AoflaggerCrossPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=26,
     verbose=0,
     mask_type="vis",  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
@@ -114,6 +126,7 @@ AoflaggerCrossPlugin = ConfigSection(
 )
 
 AoflaggerSecondRunPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     mask_type="vis",  # the data to which the flagger will be applied, ['vis', 'inverse'] for 1d aoflagger
@@ -129,11 +142,13 @@ AoflaggerSecondRunPlugin = ConfigSection(
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
     do_store_context=False,
+    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
     new_output_path=None,  # new path to save output, if `None`, using old output_path
 )
 
 
 AntennaFlaggerPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     elevation_std_threshold=1e-2,  # standard deviation threshold of individual dishes elevation in degrees
     elevation_threshold=0.1,  # time points with elevation reading deviations exceeding this threshold are flagged
     outlier_threshold=0.1,  # antenna outlier threshold [degrees]
@@ -143,6 +158,7 @@ AntennaFlaggerPlugin = ConfigSection(
 
 
 NoiseDiodePlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     flag_combination_threshold=1,
@@ -156,6 +172,7 @@ NoiseDiodePlugin = ConfigSection(
 
 
 GainCalibrationPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     cali_method="corr",  # method to do the calibration 'corr' or 'rms'
     synch_model=[
         "s1"
@@ -174,11 +191,13 @@ GainCalibrationPlugin = ConfigSection(
     nd_window_movingmedian=20,  # The size of the window for the moving median calculation for frequency spectrum of noise diode signal
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=False,  # switch that determines wether the raw auto data should be deleted after calibration
+    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
     new_output_path=None,  # new path to save output, if `None`, using old output_path
 )
 
 
 AoflaggerPostCalibrationPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     first_threshold_rms=0.1,  # First threshold value
@@ -207,6 +226,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     zscore_antenatempflag_threshold=5.0,  # threshold for flagging the antennas based on their average temperature using modified zscore method
     do_store_context=True,
     do_delete_auto_data=False,  # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
+    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
     new_output_path=None,  # new path to save output, if `None`, using old output_path
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
@@ -217,6 +237,10 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
 
 
 InpaintingMapmakingPlugin = ConfigSection(
+    ### Parameters that are required to be changed
+    x_crval=165.0,  # map center x(ra) [deg], this value is for DESI 2
+    y_crval=-1.5,  # map center y(dec) [deg], this value is for DESI 2
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     threshold_MHz=30.0,  # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
@@ -224,14 +248,16 @@ InpaintingMapmakingPlugin = ConfigSection(
     inpainting_polydeg=6,  # the degree of polynomials fit in inpainting
     mask_antnum_threshold=10,  # masking the pixels where <=mask_antnum_threshold antennas contributes
     pix_reso=0.5,  # map resolution [deg]
-    x_crval=165.0,  # map center x(ra) [deg]
-    y_crval=-1.5,  # map center y(dec) [deg]
     x_range=35,  # map range (+-x_range) in x(ra) [deg]
     y_range=10,  # map range (+-y_range) in y(dec) [deg]
     do_store_context=True,
 )
 
 GainSelfCalibrationPlugin = ConfigSection(
+    ### Parameters that are required to be changed
+    map_path="/idia/projects/meerklass/MEERKLASS-2/UHF/DESI_2/",  # directory of the input map -- update this to match your own directory.
+    map_name="map_making_DESI_2_model.pkl",  # name of the input map -- update this to match your own filename
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     frequency_high=1015.0,  # high frequency cut for the scan data [MHz]
@@ -245,8 +271,6 @@ GainSelfCalibrationPlugin = ConfigSection(
     nd_window_movingmedian=20,  # The size of the window for the moving median calculation for frequency spectrum of noise diode signal
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=True,  # switch that determines wether the raw auto data should be deleted after calibration
-    map_path="/idia/projects/meerklass/MEERKLASS-2/UHF/DESI_2/",  # directory of the input map -- update this to match your own directory.
-    map_name="map_making_DESI_2_model.pkl",  # name of the input map -- update this to match your own filename
     baseline_polyfit_deg=2,  # degree of the polynomials used for fitting time baseline in raw data
     gain_polyfit_deg=2,  # degree of the polynomials used for fitting gain
     model_polyfit_deg=6,  # degree of the polynomials used for fitting model
@@ -256,6 +280,7 @@ GainSelfCalibrationPlugin = ConfigSection(
 
 
 AoflaggerPostSelfCalibrationPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     first_threshold_rms=0.1,  # First threshold value
@@ -292,6 +317,7 @@ AoflaggerPostSelfCalibrationPlugin = ConfigSection(
 )
 
 InpaintingMapmakingSelfcaliPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     n_jobs=13,
     verbose=0,
     threshold_MHz=30.0,  # if a long continuous frequency region is masked, this timestamp will be totally masked [MHz]
@@ -302,10 +328,12 @@ InpaintingMapmakingSelfcaliPlugin = ConfigSection(
 )
 
 ApplyExternalGainSolutionPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"
 )
 
 ZebraRemoverPlugin = ConfigSection(
+    ### Parameters that are fixed or optional
     reference_channel=3000,
     zebra_channels=range(350, 498),
 )
