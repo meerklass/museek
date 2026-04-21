@@ -285,6 +285,31 @@ EXAMPLES:
 
 To access results stored by the pipeline as `pickle` files, the class `ContextLoader` can be used.
 
+### Cache Directory Configuration
+
+MuSEEK can store cached visibility, flags, and weights extracted from the raw correlator data as `npz` files to speed up the read of these data in the later steps of the pipeline.
+
+The cache directory is determined using the following three-tier priority:
+
+1. **ROOT_DIR/cache**: Uses the cache directory inside the local package installation if it is writable. This is the default for a dedicated single-user installations.
+2. **MUSEEK_CACHE_DIR environment variable**: If set, MuSEEK will use the directory specified by this environment variable.
+   ```bash
+   export MUSEEK_CACHE_DIR=/scratch/my_cache
+   museek museek.config.process_uhf_band
+   ```
+3. **XDG_CACHE_HOME/museek** (default fallback): If the above options are not available, MuSEEK will use `~/.cache/museek` (or the directory specified by `XDG_CACHE_HOME` environment variable if set). This ensures each user has their own isolated cache directory, preventing permission conflicts on shared systems.
+
+### Automatic Cache Directory Creation
+
+The cache directory is automatically created (with parent directories) when `TimeOrderedData` is first instantiated, typically during the initial data loading stage. When data caching is enabled and the cache directory is being used for the first time, MuSEEK will log:
+
+```
+Using cache directory: /path/to/cache
+Creating cache file for <block_name>...
+```
+
+This logging only appears when data processing actually involves visibility caching (i.e., not for demonstration or non-data pipelines).
+
 ## Anatomy of Pipeline and Plugins
 
 ### Configuration File

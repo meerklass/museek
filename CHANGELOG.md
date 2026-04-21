@@ -12,10 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Update the codes in `gain_calibration_plugin` and `aoflagger_postcalibration_plugin`:
   * fix the bug in mask saving, using a dictionary to save the mask for calibrated data
     save gain in the results
-
   * add do_delete_auto_data to decide whether save the raw data and flags in pickles after calibration
   * add new_output_path in aoflagger_postcalibration_plugin, then we can change the output path if needed
   * update the config file process_uhf_band.py, reorder the configsection
+* Implement intelligent cache directory fallback logic for multi-user cluster deployments
+  * Three-tier priority: ROOT_DIR/cache (if writable) → MUSEEK_CACHE_DIR env var → XDG_CACHE_HOME/museek
+  * Automatically creates cache directory on first data access
+  * Supports centralized MuSEEK installations with per-user cache isolation
+  * Refactored path operations from os module to pathlib for consistency
+  * Added logging output to display cache directory location when data is loaded
 
 ## [0.5.0] - 2026-02-03
 
