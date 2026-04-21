@@ -23,7 +23,7 @@ from museek.util.tools import (
 
 
 class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
-    """Plugin to calculate noise diode excess signal, flag receivers and calibrate raw vis based on the noise diode excess signal"""
+    """Plugin to calculate noise diode excess signal, flag receivers based on the noise diode excess signal"""
 
     def __init__(
         self,
