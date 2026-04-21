@@ -21,7 +21,7 @@ from museek.visualiser import waterfall
 
 
 class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them."""
+    """Plugin to calculate RFI flags, for flag fraction spectra, using the aoflagger algorithm and to post-process them."""
 
     def __init__(
         self,
