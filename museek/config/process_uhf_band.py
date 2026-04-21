@@ -1,5 +1,4 @@
 from ivory.utils.config_section import ConfigSection
-import os
 
 Pipeline = ConfigSection(
     plugins=[
@@ -24,9 +23,9 @@ Pipeline = ConfigSection(
         #'museek.plugin.zebra_remover_plugin',
         #'museek.plugin.apply_external_gain_solution_plugin',
     ],
-    ### If resuming MuSEEK from an intermediate step, uncomment this line and load the saved pickle file and continue running plugins 
-    ### starting from the one immediately following the plugin that generated the pickle. 
-    #context=os.path.join('/idia/users/wkhu/', 'calibration_results/1678899080/aoflagger_plugin_secondrun.pickle') 
+    ### If resuming MuSEEK from an intermediate step, uncomment this line and load the saved pickle file and continue running plugins
+    ### starting from the one immediately following the plugin that generated the pickle.
+    # context=os.path.join('/idia/users/wkhu/', 'calibration_results/1678899080/aoflagger_plugin_secondrun.pickle')
 )
 
 InPlugin = ConfigSection(
@@ -42,7 +41,6 @@ InPlugin = ConfigSection(
     force_load_cross_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
     do_save_visibility_to_disc=False,  # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_store_context=False,
-    
 )
 
 
@@ -57,15 +55,15 @@ KnownRfiPlugin = ConfigSection(
 
 RawdataFlaggerPlugin = ConfigSection(
     ### Parameters that are fixed or optional
-    flag_lower_threshold=5.0, 
-    do_store_context=False
+    flag_lower_threshold=5.0,
+    do_store_context=False,
 )
 
 
 ScanTrackSplitPlugin = ConfigSection(
     ### Parameters that are fixed or optional
-    do_delete_unsplit_data=True, 
-    do_store_context=False
+    do_delete_unsplit_data=True,
+    do_store_context=False,
 )
 
 

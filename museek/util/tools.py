@@ -1027,7 +1027,7 @@ def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg
             mask, freq, i_start, i_end, polyfit_window
         )
 
-        n_valid = np.sum(valid)        
+        n_valid = np.sum(valid)
         # === Explicit error if not enough points for a polynomial fit ===
         if n_valid < 2:
             raise ValueError(
@@ -1035,7 +1035,7 @@ def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg
                 f"[{i_start}:{i_end}] (only {n_valid} valid points found "
                 f"within ±{polyfit_window} MHz window)."
             )
-            
+
         # Limit polynomial degree if not enough data
         deg = min(polydeg, n_valid - 1)
         # handle the situations where valid points are too few

@@ -24,8 +24,8 @@ from museek.util.tools import (
 
 
 class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to inapinting and mapmaking, using post calibrated data. This plugin is used for 
-    inpainting and map making for a single block, after runing this for each block, the outputs 
+    """Plugin to inapinting and mapmaking, using post calibrated data. This plugin is used for
+    inpainting and map making for a single block, after runing this for each block, the outputs
     from different blocks can be combined using an external notebook."""
 
     def __init__(
@@ -154,9 +154,6 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
             np.round((y_max - y_min) / self.pix_reso).astype(int) + 1,
         )
 
-        # Assume image_shape = [ra_length, dec_length]
-        ra_len, dec_len = map_shape[0], map_shape[1]
-
         ########################################
         for i_antenna, antenna in enumerate(scan_data.antennas):
             right_ascension = scan_data.right_ascension.get(recv=i_antenna).squeeze
@@ -182,7 +179,7 @@ class InpaintingMapmakingPlugin(AbstractParallelJoblibPlugin):
             np.ndarray,
             np.ndarray,
         ],
-    ) -> tuple[np.ma.MaskedArray,np.ndarray,np.ndarray,np.ndarray,astropy.wcs.WCS]:
+    ) -> tuple[np.ma.MaskedArray, np.ndarray, np.ndarray, np.ndarray, astropy.wcs.WCS]:
         """
         Run the inpainting and mapmaking. Done for one antenna at a time.
         :param anything: `tuple` of the wcs_map, map_shape, ra_ant, dec_ant, calibrated_data_ant, freq_select, mask_freq
