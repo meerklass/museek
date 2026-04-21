@@ -1,6 +1,7 @@
 import os
 from copy import copy
 from datetime import datetime
+from pathlib import Path
 from typing import Any, NamedTuple
 
 import katdal
@@ -10,7 +11,7 @@ from katdal.lazy_indexer import DaskLazyIndexer
 from katpoint import Antenna, Target
 
 from museek.data_element import DataElement
-from museek.definitions import ROOT_DIR
+from museek.definitions import get_cache_dir
 from museek.enums.scan_state_enum import ScanStateEnum
 from museek.factory.data_element_factory import (
     AbstractDataElementFactory,
@@ -99,17 +100,16 @@ class TimeOrderedData:
         self.all_antennas = data.ants
         self._auto_select(data=data)
         self._data_str = str(data)
-        self._auto_cache_file_name = f"{data.name}_auto_visibility_flags_weights.npz"
-        self._cross_cache_file_name = f"{data.name}_cross_visibility_flags_weights.npz"
-        cache_file_directory = os.path.join(ROOT_DIR, "cache")
-        os.makedirs(cache_file_directory, exist_ok=True)
-        self._auto_cache_file = os.path.join(
-            cache_file_directory, self._auto_cache_file_name
-        )
-        self._cross_cache_file = os.path.join(
-            cache_file_directory, self._cross_cache_file_name
-        )
-
+        # Cache data directory and filenames
+        self.cache_file_directory = Path(get_cache_dir()).resolve()
+        self.cache_file_directory.mkdir(parents=True, exist_ok=True)
+        self._auto_cache_file = (
+            self.cache_file_directory / f"{data.name}_auto_visibility_flags_weights.npz"
+        ).as_posix()
+        self._cross_cache_file = (
+            self.cache_file_directory
+            / f"{data.name}_cross_visibility_flags_weights.npz"
+        ).as_posix()
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
         self.name = data.name
@@ -581,6 +581,7 @@ class TimeOrderedData:
                 f"cannot store visibility, flag and weight data to cache file."
             )
         print(f"Creating cache file for {self.name}...")
+        print(f"Using cache directory: {self.cache_file_directory}")
         np.savez_compressed(
             cache_file,
             visibility=visibility,
