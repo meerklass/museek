@@ -20,7 +20,7 @@ from museek.util.tools import flag_percent_recv, git_version_info
 
 
 class AntennaFlaggerPlugin(AbstractPlugin):
-    """Plugin to flag misbehaving antennas."""
+    """Plugin to flag misbehaving antennas and mispointing timestamps."""
 
     def __init__(
         self,
