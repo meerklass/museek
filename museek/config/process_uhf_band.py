@@ -155,8 +155,7 @@ AoflaggerSecondRunPlugin = ConfigSection(
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
     do_store_context=False,
-    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    context_folder=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # New path to save output, if `None`, using existing path in the input context file
 )
 
 
@@ -204,10 +203,8 @@ GainCalibrationPlugin = ConfigSection(
     nd_window_movingmedian=20,  # The size of the window for the moving median calculation for frequency spectrum of noise diode signal
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=False,  # switch that determines wether the raw auto data should be deleted after calibration
-    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    context_folder=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # New path to save output, if `None`, using existing path in the input context file
 )
-
 
 AoflaggerPostCalibrationPlugin = ConfigSection(
     # --- Parameters to change ---
@@ -240,7 +237,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     do_store_context=True,
     do_delete_auto_data=False,  # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
     ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    context_folder=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # New path to save output, if `None`, using existing path in the input context file
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
@@ -340,13 +337,14 @@ InpaintingMapmakingSelfcaliPlugin = ConfigSection(
     do_store_context=True,
 )
 
-ApplyExternalGainSolutionPlugin = ConfigSection(
-    # --- Parameters to change ---
-    gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"
-)
+# --- Current not used, incomplete or obsolete plugins
+# ApplyExternalGainSolutionPlugin = ConfigSection(
+#     # --- Parameters to change ---
+#     gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"
+# )
 
-ZebraRemoverPlugin = ConfigSection(
-    # --- Parameters to change ---
-    reference_channel=3000,
-    zebra_channels=range(350, 498),
-)
+# ZebraRemoverPlugin = ConfigSection(
+#     # --- Parameters to change ---
+#     reference_channel=3000,
+#     zebra_channels=range(350, 498),
+# )
