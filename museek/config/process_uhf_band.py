@@ -156,7 +156,7 @@ AoflaggerSecondRunPlugin = ConfigSection(
     flag_combination_threshold=1,
     do_store_context=False,
     ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    new_output_path=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # new path to save output, if `None`, using old output_path
 )
 
 
@@ -205,7 +205,7 @@ GainCalibrationPlugin = ConfigSection(
     nd_gausm_sigma=20,  # The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum
     do_delete_auto_data=False,  # switch that determines wether the raw auto data should be deleted after calibration
     ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    new_output_path=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # new path to save output, if `None`, using old output_path
 )
 
 
@@ -240,7 +240,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     do_store_context=True,
     do_delete_auto_data=False,  # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
     ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    new_output_path=None,  # new path to save output, if `None`, using old output_path
+    context_folder=None,  # new path to save output, if `None`, using old output_path
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
