@@ -35,7 +35,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         time_dump_flag_threshold: float,
         flag_combination_threshold: int,
         do_store_context: bool,
-        new_output_path: str | None = None,
+        context_folder: str | None = None,
         **kwargs,
     ):
         """
@@ -50,7 +50,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         :param time_dump_flag_threshold: if the fraction of flagged time dumps exceeds this, all time dumps are flagged
         :param flag_combination_threshold: for combining sets of flags, usually `1`
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
-        :param new_output_path: new path to save the output
+        :param context_folder: new path to save the output
         """
         super().__init__(**kwargs)
         self.mask_type = mask_type
@@ -63,7 +63,7 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         self.channel_flag_threshold = channel_flag_threshold
         self.time_dump_flag_threshold = time_dump_flag_threshold
         self.do_store_context = do_store_context
-        self.new_output_path = new_output_path
+        self.context_folder = context_folder
         self.report_file_name = "flag_report.md"
 
     def set_requirements(self):
@@ -168,8 +168,8 @@ class AoflaggerSecondRunPlugin(AbstractParallelJoblibPlugin):
         scan_data.flags.add_flag(flag=new_flag)
         flag_name_list.append("aoflagger_secondrun")
 
-        if self.new_output_path is not None:
-            output_path = os.path.join(self.new_output_path, f"{block_name}/")
+        if self.context_folder is not None:
+            output_path = os.path.join(self.context_folder, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
