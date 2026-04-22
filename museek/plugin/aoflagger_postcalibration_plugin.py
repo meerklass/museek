@@ -51,7 +51,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         zscore_antenatempflag_threshold: float,
         do_store_context: bool,
         do_delete_auto_data: bool,
-        new_output_path: str,
+        context_folder: str,
         gsm_900_uplink: tuple[float, float] | None,
         gsm_900_downlink: tuple[float, float] | None,
         gsm_1800_uplink: tuple[float, float] | None,
@@ -82,7 +82,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param zscore_antenatempflag_threshold: threshold for flagging the antennas based on their average temperature using modified zscore method
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
-        :param new_output_path: new path to save the output
+        :param context_folder: new path to save the output
         """
         super().__init__(**kwargs)
         self.first_threshold_rms = first_threshold_rms
@@ -109,7 +109,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.calibrated_data_flag = {}
         self.calibrated_data_flag_name_list = []
         self.do_delete_auto_data = do_delete_auto_data
-        self.new_output_path = new_output_path
+        self.context_folder = context_folder
 
         ##########  mask new known RFI from cellphone frequencies
         rfi_list = [gsm_900_uplink, gsm_900_downlink, gsm_1800_uplink, gps]
@@ -172,8 +172,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             f"flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used"
         )
 
-        if self.new_output_path is not None:
-            output_path = os.path.join(self.new_output_path, f"{block_name}/")
+        if self.context_folder is not None:
+            output_path = os.path.join(self.context_folder, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
