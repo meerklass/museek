@@ -43,7 +43,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         nd_window_movingmedian: int,
         nd_gausm_sigma: int,
         do_delete_auto_data: bool,
-        new_output_path: str | None = None,
+        context_folder: str | None = None,
         **kwargs,
     ):
         """
@@ -66,7 +66,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param nd_window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
         :param nd_gausm_sigma: The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum.
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
-        :param new_output_path: new path to save the output
+        :param context_folder: new path to save the output
 
         """
         super().__init__(**kwargs)
@@ -86,7 +86,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.nd_window_movingmedian = nd_window_movingmedian
         self.nd_gausm_sigma = nd_gausm_sigma
         self.do_delete_auto_data = do_delete_auto_data
-        self.new_output_path = new_output_path
+        self.context_folder = context_folder
 
     def set_requirements(self):
         """
@@ -318,8 +318,8 @@ class GainCalibrationPlugin(AbstractPlugin):
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
-        if self.new_output_path is not None:
-            output_path = os.path.join(self.new_output_path, f"{block_name}/")
+        if self.context_folder is not None:
+            output_path = os.path.join(self.context_folder, f"{block_name}/")
         self.set_result(
             result=Result(
                 location=ResultEnum.OUTPUT_PATH,
