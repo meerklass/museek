@@ -1,5 +1,6 @@
 import datetime
 import gc
+import os
 import warnings
 
 import numpy as np
@@ -42,6 +43,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         nd_window_movingmedian: int,
         nd_gausm_sigma: int,
         do_delete_auto_data: bool,
+        context_folder: str | None = None,
         **kwargs,
     ):
         """
@@ -64,6 +66,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param nd_window_movingmedian: The size of the window for the moving median calculation for frequency spectrum of noise diode signal
         :param nd_gausm_sigma: The size of the window for the Gaussian Smooth of Noise Diode Excess frequency spectrum.
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
+        :param context_folder: new path to save the output
 
         """
         super().__init__(**kwargs)
@@ -83,6 +86,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         self.nd_window_movingmedian = nd_window_movingmedian
         self.nd_gausm_sigma = nd_gausm_sigma
         self.do_delete_auto_data = do_delete_auto_data
+        self.context_folder = context_folder
 
     def set_requirements(self):
         """
@@ -215,7 +219,9 @@ class GainCalibrationPlugin(AbstractPlugin):
                             p_poly, np.arange(visibility_recv.shape[0])
                         )
 
-            visibility_recv = visibility_recv / noise_excess_recv_fit
+            visibility_recv = visibility_recv / (
+                noise_excess_recv_fit / np.median(noise_excess_recv_fit)
+            )
             del noise_excess_recv_fit
             gc.collect()
 
@@ -311,6 +317,16 @@ class GainCalibrationPlugin(AbstractPlugin):
             temperature_antennas, mask=mask_antennas
         )
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
+
+        if self.context_folder is not None:
+            output_path = os.path.join(self.context_folder, f"{block_name}/")
+        self.set_result(
+            result=Result(
+                location=ResultEnum.OUTPUT_PATH,
+                result=output_path,
+                allow_overwrite=True,
+            )
+        )
 
         self.set_result(
             result=Result(

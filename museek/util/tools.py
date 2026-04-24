@@ -362,11 +362,13 @@ def project_2d(x, y, data, shape, weights=None):
     _weights = np.histogram2d(y, x, weights=weights, **kwargs)[0]
     _data = np.histogram2d(y, x, weights=weights * data, **kwargs)[0]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        output = _data / _weights
-
-    return output, _weights, _hits.astype(int), xedges, yedges
+    # NOTE: `_data` contains the weighted sum of the input `data` in each bin.
+    # To obtain a normalized/mean map, callers should divide `_data` by `_weights`,
+    # taking care to handle bins where `_weights` is zero.
+    #
+    # This function therefore returns the weighted sum and corresponding weights,
+    # rather than a pre-normalized map.
+    return _data, _weights, _hits.astype(int), xedges, yedges
 
 
 def project_3d(x, y, z, data, shape, weights=None, weighted_output=False):
@@ -871,3 +873,185 @@ def compute_mask_mad(data, base_mask, threshold, n_iter=2, two_sided=False):
         mask = mask | new_mask  # update mask
 
     return mask
+
+
+def find_continuous_mask_regions(mask):
+    """
+    Find continuous masked regions in a 1D mask array.
+
+    The function scans a 1D mask (typically containing 0/1 or False/True values)
+    and identifies contiguous segments where the mask value equals 1. Each
+    continuous segment is returned as a list of indices belonging to that region.
+
+    Parameters
+    ----------
+    mask : array-like
+        One-dimensional mask array. Elements equal to 1 are treated as masked
+        positions, while 0 indicates unmasked positions.
+
+    Returns
+    -------
+    regions : list of lists
+        A list containing all continuous masked regions. Each element of the
+        list is itself a list of indices corresponding to a contiguous block
+        where mask == 1.
+
+    Example
+    -------
+    mask = [0, 1, 1, 0, 1, 1, 1, 0]
+
+    Output:
+    regions = [[1, 2], [4, 5, 6]]
+    """
+
+    regions = []
+    current_region = []
+
+    for i, val in enumerate(mask):
+        if val == 1:
+            current_region.append(i)
+        else:
+            if current_region:
+                regions.append(current_region)
+                current_region = []
+    # Append the last region if still present
+    if current_region:
+        regions.append(current_region)
+
+    return regions
+
+
+def collect_unmasked_points_around(mask, freq, i_start, i_end, polyfit_window):
+    """
+    Collect unmasked points extending outward on both sides of a masked region,
+    counting only unmasked points until roughly ±polyfit_window worth of channels are included.
+
+    Parameters
+    ----------
+    mask : 1D bool array
+        True where data are masked.
+    freq : 1D array
+        Frequency axis (MHz).
+    i_start, i_end : int
+        Start and end indices of the masked region.
+    polyfit_window : float
+        Approximate window size (in MHz). Converted to ~number of channels.
+
+    Returns
+    -------
+    collected : 1D bool array
+        Boolean mask of unmasked points selected for polynomial fitting.
+    """
+
+    n = len(freq)
+    collected = np.zeros(n, dtype=bool)
+
+    # Approximate how many channels correspond to ±polyfit_window
+    channel_width = np.mean(np.abs(np.diff(freq)))
+    allchannels = int(np.round(polyfit_window / channel_width))
+
+    # ---- Left side ----
+    left_i = i_start - 1
+    left_channel_count = 0
+    while left_i >= 0 and left_channel_count < allchannels:
+        if not mask[left_i]:
+            collected[left_i] = True
+            left_channel_count += 1
+        left_i -= 1
+
+    # ---- Right side ----
+    right_i = i_end + 1
+    right_channel_count = 0
+    while right_i < n and right_channel_count < allchannels:
+        if not mask[right_i]:
+            collected[right_i] = True
+            right_channel_count += 1
+        right_i += 1
+
+    return collected
+
+
+def fill_masked_regions_polyfit(freq, masked_array, polyfit_window=15.0, polydeg=5):
+    """
+    Fill masked spectral regions using polynomial interpolation.
+
+    For each contiguous masked region in the spectrum, this function performs a
+    polynomial fit to nearby *unmasked* data points within a specified frequency
+    window (±polyfit_window). The fitted polynomial is then used to replace the
+    masked values.
+
+    The fitting procedure adapts the polynomial degree depending on the number
+    and distribution of available unmasked points to avoid overfitting or
+    poorly constrained solutions.
+
+    Parameters
+    ----------
+    freq : ndarray
+        1D array of frequency values corresponding to the spectrum (typically MHz).
+
+    masked_array : numpy.ma.MaskedArray
+        Masked spectral data. Masked elements indicate flagged channels that
+        need to be reconstructed.
+
+    polyfit_window : float, optional
+        Frequency window (in MHz) around each masked region used to collect
+        unmasked points for the polynomial fit. Default is 15 MHz.
+
+    polydeg : int, optional
+        Maximum polynomial degree used for interpolation. The effective degree
+        may be reduced if insufficient valid points are available.
+
+    Returns
+    -------
+    ndarray
+        Spectrum with masked regions replaced by polynomial interpolation.
+
+    Notes
+    -----
+    - Only *unmasked* points within ±polyfit_window of the masked region are used.
+    - The polynomial degree is automatically limited to (N_valid - 1).
+    - If there are too few valid points on either side of the masked region,
+      the polynomial order is reduced for stability.
+    - For long masked regions (>30 channels), a linear fit (degree=1) is used
+      to avoid oscillatory behaviour from higher-order polynomials.
+    """
+
+    data = masked_array.data.copy()
+    # Ensure mask is always an array (np.ma.nomask -> all-False array)
+    mask = np.ma.getmaskarray(masked_array)
+    regions = find_continuous_mask_regions(mask)
+
+    for region in regions:
+        i_start, i_end = region[0], region[-1]
+        valid = collect_unmasked_points_around(
+            mask, freq, i_start, i_end, polyfit_window
+        )
+
+        n_valid = np.sum(valid)
+        # === Explicit error if not enough points for a polynomial fit ===
+        if n_valid < 2:
+            raise ValueError(
+                f"Not enough valid points to fit polynomial for masked region "
+                f"[{i_start}:{i_end}] (only {n_valid} valid points found "
+                f"within ±{polyfit_window} MHz window)."
+            )
+
+        # Limit polynomial degree if not enough data
+        deg = min(polydeg, n_valid - 1)
+        # handle the situations where valid points are too few
+        if np.sum(valid[: region[0]]) <= 5 or np.sum(valid[region[-1] :]) <= 5:
+            # if the masked regions are too long (>30channels), using linear polyfit (deg=1)
+            threshold_length = 30
+            if len(region) >= threshold_length:
+                deg = min(1, n_valid - 1)
+            else:
+                deg = min(3, n_valid - 1)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", np.exceptions.RankWarning)
+            coeff = np.polyfit(freq[valid], data[valid], deg=deg)
+        poly = np.poly1d(coeff)
+
+        data[i_start : i_end + 1] = poly(freq[i_start : i_end + 1])
+
+    return data

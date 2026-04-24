@@ -7,20 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-* Add `gain_selfcalibration_plugin` and `aoflagger_postselfcalibration_plugin`
-* Add the notebooks for pinpointing, mapmaking, and combining blocks
-* Update the codes in `gain_calibration_plugin` and `aoflagger_postcalibration_plugin`:
-  * fix the bug in mask saving, using a dictionary to save the mask for calibrated data
-    save gain in the results
-  * add do_delete_auto_data to decide whether save the raw data and flags in pickles after calibration
-  * add new_output_path in aoflagger_postcalibration_plugin, then we can change the output path if needed
-  * update the config file process_uhf_band.py, reorder the configsection
-* Implement intelligent cache directory fallback logic for multi-user cluster deployments
+### Added
+
+* `InpaintingMapmakingPlugin` and `InpaintingMapmakingSelfcaliPlugin` for inpainting masked spectral regions and mapmaking workflows
+* Spectral inpainting utilities in `museek/util/tools.py`:
+  * `fill_masked_regions_polyfit()` - fill masked spectral regions using polynomial interpolation
+  * `find_continuous_mask_regions()` - identify contiguous masked regions in 1D mask arrays
+  * `collect_unmasked_points_around()` - collect unmasked points around masked regions for polynomial fitting
+* `parangle` (parallactic angle) as a loaded sky coordinate in `TimeOrderedData`
+* `KNOWN_RFI_LIST` to `ResultEnum` for persisting known RFI frequency ranges through the pipeline
+* `context_folder` parameter to `AoflaggerSecondRunPlugin`, `GainCalibrationPlugin`, `AoflaggerPostCalibrationPlugin`, and `AoflaggerPostSelfCalibrationPlugin` for output path override capability
+* Extended known-RFI support to `AoflaggerPostCalibrationPlugin` and `AoflaggerPostSelfCalibrationPlugin` with GSM and GPS frequency band parameters
+* Improved configuration documentation in `process_uhf_band.py` with parameter categorization and inline usage instructions
+* `gain_selfcalibration_plugin` and `aoflagger_postselfcalibration_plugin`
+* Notebooks for pinpointing, mapmaking, and combining blocks
+* Intelligent cache directory fallback logic for multi-user cluster deployments:
   * Three-tier priority: ROOT_DIR/cache (if writable) → MUSEEK_CACHE_DIR env var → XDG_CACHE_HOME/museek
   * Automatically creates cache directory on first data access
   * Supports centralized MuSEEK installations with per-user cache isolation
-  * Refactored path operations from os module to pathlib for consistency
-  * Added logging output to display cache directory location when data is loaded
+
+### Changed
+
+* `project_2d()` now returns the weighted sum of data instead of the normalized/mean map; callers must divide by weights to get normalized output
+* Updated `project_2d()` docstring to clarify return value semantics
+* Renamed `new_output_path` to `context_folder` in relevant plugins for clarity
+* Updated docstrings in `AntennaFlaggerPlugin`, `AoflaggerSecondRunPlugin`, `AoflaggerTrackingPlugin`, and `NoiseDiodePlugin` for improved clarity
+* Enhanced RFI masking to use inclusive bounds (matching `KnownRfiPlugin` behavior) in mapmaking plugins
+* Added memory cleanup with `gc.collect()` in `AoflaggerPostCalibrationPlugin` and `AoflaggerPostSelfCalibrationPlugin` for improved efficiency
+* Refactored path operations from os module to pathlib for consistency in cache directory handling
+* Updated `gain_calibration_plugin` and `aoflagger_postcalibration_plugin`:
+  * Fixed bug in mask saving, using a dictionary to save the mask for calibrated data and save gain in the results
+  * Added `do_delete_auto_data` to decide whether to save the raw data and flags in pickles after calibration
+  * Reordered config sections in `process_uhf_band.py`
+
+### Fixed
+
+* Fixed `np.exceptions.RankWarning` typo in `InpaintingMapmakingSelfcaliPlugin` (was `np.exeptions.RankWarning`)
+* Fixed mask array handling in `fill_masked_regions_polyfit()` to properly handle unmasked arrays
+* Added proper error handling for polynomial fitting when insufficient valid points are available in `fill_masked_regions_polyfit()`
+* Corrected type hints for `context_folder` parameter as optional (`str | None = None`)
+* Corrected return type hints in `InpaintingMapmakingSelfcaliPlugin.run_job()`
+* Added logging output to display cache directory location when data is loaded
 
 ## [0.5.0] - 2026-02-03
 

@@ -21,7 +21,7 @@ from museek.util.tools import consecutive_subsets, flag_percent_recv, git_versio
 
 
 class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them."""
+    """Plugin to calculate RFI flags, for tracking data, using the aoflagger algorithm and to post-process them."""
 
     def __init__(
         self,

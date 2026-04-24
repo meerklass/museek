@@ -1,4 +1,5 @@
 import datetime
+import gc
 import os
 from collections.abc import Generator
 
@@ -24,7 +25,8 @@ from museek.util.tools import git_version_info, remove_outliers_zscore_mad
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
-    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process them, for calibrated data"""
+    """Plugin to calculate RFI flags using the aoflagger algorithm and to post-process
+    them, for calibrated data"""
 
     def __init__(
         self,
@@ -49,7 +51,12 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         zscore_antenatempflag_threshold: float,
         do_store_context: bool,
         do_delete_auto_data: bool,
-        new_output_path: str,
+        context_folder: str,
+        gsm_900_uplink: tuple[float, float] | None,
+        gsm_900_downlink: tuple[float, float] | None,
+        gsm_1800_uplink: tuple[float, float] | None,
+        gps: tuple[float, float] | None,
+        extra_rfi: list[tuple[float, float]] | None = None,
         **kwargs,
     ):
         """
@@ -75,7 +82,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param zscore_antenatempflag_threshold: threshold for flagging the antennas based on their average temperature using modified zscore method
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         :param do_delete_auto_data: switch that determines wether the raw auto data should be deleted after calibration
-        :param new_output_path: new path to save the output
+        :param context_folder: new path to save the output
         """
         super().__init__(**kwargs)
         self.first_threshold_rms = first_threshold_rms
@@ -102,7 +109,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.calibrated_data_flag = {}
         self.calibrated_data_flag_name_list = []
         self.do_delete_auto_data = do_delete_auto_data
-        self.new_output_path = new_output_path
+        self.context_folder = context_folder
+
+        ##########  mask new known RFI from cellphone frequencies
+        rfi_list = [gsm_900_uplink, gsm_900_downlink, gsm_1800_uplink, gps]
+        if extra_rfi is not None:
+            rfi_list.extend(extra_rfi)
+        self.rfi_list = [rfi for rfi in rfi_list if rfi is not None]
 
     def set_requirements(self):
         """
@@ -159,8 +172,8 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             f"flag frequency and antennas using correlation with synch model: Producing synch sky: synch model {self.synch_model} used"
         )
 
-        if self.new_output_path is not None:
-            output_path = self.new_output_path
+        if self.context_folder is not None:
+            output_path = os.path.join(self.context_folder, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
@@ -171,12 +184,10 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 print(f"Directory '{output_path}' already exists.")
 
         ##########  mask new known RFI from cellphone frequencies
-        # List of frequency intervals to mask
-        mask_intervals = [(765.0, 775.0), (801.0, 821.0), (925.0, 960.0)]
         # Start with all False (unmasked)
         mask_freq = np.zeros_like(freq_select, dtype=bool)
         # Set mask to True within each interval
-        for low, high in mask_intervals:
+        for low, high in self.rfi_list:
             mask_freq |= (freq_select / 10**6 > low) & (freq_select / 10**6 < high)
         calibrated_data.mask[:, mask_freq, :] = True
 
@@ -437,7 +448,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         """
 
         if self.new_output_path is not None:
-            output_path = self.new_output_path
+            output_path = os.path.join(self.new_output_path, f"{block_name}/")
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
@@ -452,6 +463,9 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         correlation_coefficient_antlist = [
             result_list[i][2] for i in range(np.shape(result_list)[0])
         ]
+
+        del result_list
+        gc.collect()
 
         ##########  if a certain fraction of a frequency channel is flagged at any timestamp and antennas, the remainder is flagged as well
         good_antennas = [
@@ -546,6 +560,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
             result=Result(
                 location=ResultEnum.FLAG_REPORT_WRITER,
                 result=flag_report_writer,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.KNOWN_RFI_LIST,
+                result=self.rfi_list,
                 allow_overwrite=True,
             )
         )
