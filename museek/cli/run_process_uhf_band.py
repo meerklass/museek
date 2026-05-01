@@ -37,7 +37,7 @@ def generate_sbatch_script(
         f"--job-name=MuSEEK-Process-UHF-{block_name}",
         "--ntasks=1",
         "--cpus-per-task=24",
-        "--mem=256GB",
+        "--mem=256G",
         "--time=36:00:00",
         f"--output=slurm-museek-process-uhf-{block_name}-%j.log",
     ]
