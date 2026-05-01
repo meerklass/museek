@@ -42,7 +42,7 @@ Pipeline = ConfigSection(
 InPlugin = ConfigSection(
     # --- Parameters to change ---
     block_name="1675632179",  # Block number of the observation
-    data_folder="/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/",  # Directory containing MVF4 correlator data
+    data_folder="/idia/raw/meerklass/SCI-20220822-MS-01/",  # Directory containing MVF4 correlator data
     # --- Optional and fixed parameters ---
     receiver_list=None,  # Set to `None` to use all receivers or provide a list, e.g.
     # receiver_list=['m000h','m000v','m012h','m012v',...],
@@ -50,7 +50,7 @@ InPlugin = ConfigSection(
     force_load_auto_from_correlator_data=True,  # If `True`, ignore local cache folder and read from correlator data
     force_load_cross_from_correlator_data=True,  # If `True`, ignore local cache folder and read from correlator data
     do_save_visibility_to_disc=False,  # If `True`, extracted save visibilities, flags and weights to local cache folder
-    do_store_context=False,  # If `True`, Save the context pickle file from this step
+    do_store_context=True,  # If `True`, Save the context pickle file from this step
     context_folder=None,  # Directory to store the context files "./results" is used if `None`
 )
 
@@ -75,7 +75,7 @@ RawdataFlaggerPlugin = ConfigSection(
 ScanTrackSplitPlugin = ConfigSection(
     # --- Parameters to change ---
     do_delete_unsplit_data=True,  # Delete original data after splitting
-    do_store_context=False,
+    do_store_context=True,
 )
 
 # Flag point source using a catalog
@@ -83,7 +83,7 @@ PointSourceFlaggerPlugin = ConfigSection(
     # --- Parameters to change ---
     n_jobs=26,
     verbose=0,
-    point_source_file_path="/idia/projects/meerklass/MEERKLASS-1/uhf_data/OT2023/radio_source_catalog/",
+    point_source_file_path="/idia/projects/meerklass/MEERKLASS-1/museek/radio_source_catalog/",
     beam_threshold=1.0,  # Times of the beam size around the point source to be masked
     point_sources_match_flux=5.0,  # Flux threshold above which the point sources are selected, [Jy]
     point_sources_match_raregion=30.0,  # The ra distance to the median of observed ra to select the point sources, [deg]
@@ -154,7 +154,7 @@ AoflaggerSecondRunPlugin = ConfigSection(
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
-    do_store_context=False,
+    do_store_context=True,
     context_folder=None,  # New path to save output, if `None`, using existing path in the input context file
 )
 
@@ -195,8 +195,8 @@ GainCalibrationPlugin = ConfigSection(
     frequency_high=1015.0,  # high frequency cut for the scan data [MHz]
     frequency_low=580.0,  # low frequency cut for the scan data [MHz]
     flag_combination_threshold=1,
-    do_store_context=True,
     nd_zscoreflag_threshold=5.0,  # threshold for flagging noise diode excess using modified zscore method
+    do_store_context=True,
     nd_polyflag_deg=5,  # degree of the polynomials used for fitting and flagging noise diode excess
     nd_polyflag_threshold=3.0,  # threshold for flagging noise diode excess using polynomials fit
     nd_polyfit_deg=5,  # degree of the polynomials used for fitting flagged noise diode excess
