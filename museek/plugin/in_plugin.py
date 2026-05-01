@@ -9,7 +9,7 @@ from museek.enums.result_enum import ResultEnum
 from museek.receiver import Receiver
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import git_version_info
+from museek.util.tools import git_version_info, resolve_context_folder
 
 
 class InPlugin(AbstractPlugin):
@@ -86,7 +86,7 @@ class InPlugin(AbstractPlugin):
 
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split("_")[0]))
-        context_directory = os.path.join(self.context_folder, f"{self.block_name}/")
+        context_directory = resolve_context_folder(self.context_folder, self.block_name)
         os.makedirs(context_directory, exist_ok=True)
 
         flag_report_writer = ReportWriter(

@@ -21,7 +21,11 @@ from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import git_version_info, remove_outliers_zscore_mad
+from museek.util.tools import (
+    git_version_info,
+    remove_outliers_zscore_mad,
+    resolve_context_folder,
+)
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
@@ -173,7 +177,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
 
         if self.context_folder is not None:
-            output_path = os.path.join(self.context_folder, f"{block_name}/")
+            output_path = resolve_context_folder(self.context_folder, block_name)
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )

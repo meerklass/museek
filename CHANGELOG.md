@@ -25,9 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Three-tier priority: ROOT_DIR/cache (if writable) → MUSEEK_CACHE_DIR env var → XDG_CACHE_HOME/museek
   * Automatically creates cache directory on first data access
   * Supports centralized MuSEEK installations with per-user cache isolation
+* Intelligent `context_folder` path resolution via `resolve_context_folder()` utility:
+  * Automatically detects if `block_name` is already in the path
+  * Base paths (e.g., `/path/to/output`) are appended with `/<block_name>/`
+  * Complete paths (e.g., `/path/to/output/<block_name>/context`) are used as-is
+  * Provides flexible configuration for both relative and absolute paths
 
 ### Changed
 
+* `context_folder` parameter now supports intelligent path resolution:
+  * Automatically detects if `block_name` is already present in the path (e.g., `/path/<block_name>/context`)
+  * If not present, appends `<block_name>/` to the provided path for organized output structure
+  * Enables flexible configuration for both base paths and complete paths without modification
 * `project_2d()` now returns the weighted sum of data instead of the normalized/mean map; callers must divide by weights to get normalized output
 * Updated `project_2d()` docstring to clarify return value semantics
 * Renamed `new_output_path` to `context_folder` in relevant plugins for clarity
