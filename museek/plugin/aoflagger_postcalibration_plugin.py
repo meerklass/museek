@@ -675,15 +675,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 * ((self.beam_frequency * u.MHz) / (freq_median * u.Hz))
                 .decompose()
                 .value,
-            )
+            ).value
 
             #########   map the smoothed synch model to the same sky covered by ra,dec of calibrated data
             c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
-            theta = 90.0 - (c.galactic.b / u.degree).value
-            phi = (c.galactic.l / u.degree).value
-            synch_I = hp.pixelfunc.get_interp_val(
-                map_reference_smoothed[0], theta / 180.0 * np.pi, phi / 180.0 * np.pi
-            )
+            theta = np.pi / 2 - c.galactic.b.rad
+            phi = c.galactic.l.rad
+            synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta, phi)
 
             map_freqmedian = np.ma.median(
                 np.ma.masked_array(
