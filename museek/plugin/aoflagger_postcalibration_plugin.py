@@ -450,13 +450,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
-
-        if self.new_output_path is not None:
-            output_path = os.path.join(self.new_output_path, f"{block_name}/")
-            flag_report_writer.file_name = os.path.join(
-                output_path, self.report_file_name
-            )
-
         result_list = np.array(result_list, dtype="object")
         calibrated_data.mask = np.array(
             [result_list[i][0] for i in range(np.shape(result_list)[0])]

@@ -236,8 +236,7 @@ AoflaggerPostCalibrationPlugin = ConfigSection(
     zscore_antenatempflag_threshold=5.0,  # threshold for flagging the antennas based on their average temperature using modified zscore method
     do_store_context=True,
     do_delete_auto_data=False,  # switch that determines wether the raw auto data, flags and weights should be deleted after calibration
-    ### change the new_output_path if the output_path that was saved in the loaded plugin (pickle) is not existing or not what you want
-    context_folder=None,  # New path to save output, if `None`, using existing path in the input context file
+    context_folder=None,  # Output directory for context. Override existing if set. If `None`, using existing path in the input context file
     gsm_900_uplink=None,
     gsm_900_downlink=(925, 960),
     gsm_1800_uplink=None,
