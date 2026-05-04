@@ -36,9 +36,9 @@ def generate_sbatch_script(
     default_slurm_options = [
         f"--job-name=MuSEEK-Process-UHF-{block_name}",
         "--ntasks=1",
-        "--cpus-per-task=24",
-        "--mem=200G",
-        "--time=36:00:00",
+        "--cpus-per-task=16",
+        "--mem=220G",
+        "--time=20:00:00",
         f"--output=slurm-museek-process-uhf-{block_name}-%j.log",
     ]
 
@@ -118,7 +118,7 @@ def main(
       Job name:       MuSEEK-Process-UHF-<block_name>
       Tasks:          1
       CPUs per task:  24
-      Memory:         200GB
+      Memory:         220GB
       Max time:       36 hours
       Log output:     museek-process-uhf-<block_name>.log
 
