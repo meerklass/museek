@@ -30,15 +30,15 @@ def generate_sbatch_script(
     slurm_options: list[str],
 ) -> str:
     """Generate the sbatch script content."""
-    context_folder = Path(base_context_folder) / f"BOX{box}" / block_name
+    context_folder = Path(base_context_folder) / f"box{box}" / block_name / "context"
 
     # Define default SLURM options
     default_slurm_options = [
         f"--job-name=MuSEEK-Process-UHF-{block_name}",
         "--ntasks=1",
-        "--cpus-per-task=32",
-        "--mem=248GB",
-        "--time=48:00:00",
+        "--cpus-per-task=24",
+        "--mem=200G",
+        "--time=36:00:00",
         f"--output=slurm-museek-process-uhf-{block_name}-%j.log",
     ]
 
@@ -80,15 +80,15 @@ def generate_sbatch_script(
     type=click.Path(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
-    default="/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline",
-    help="Base directory for context/output. Final output: <base-context-folder>/BOX<box>/<block-name>",
+    default="/idia/projects/meerklass/MEERKLASS-1/museek/XLP2025/pipeline",
+    help="Base directory for context/output. Final output: <base-context-folder>/box<box>/<block-name>/context",
     show_default=True,
 )
 @click.option(
     "-d",
     "--data-folder",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, resolve_path=True),
-    default="/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/raw",
+    default="/idia/raw/meerklass/SCI-20230907-MS-01",
     help="Path to raw data folder",
     show_default=True,
 )
@@ -117,9 +117,9 @@ def main(
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-Process-UHF-<block_name>
       Tasks:          1
-      CPUs per task:  32
-      Memory:         248GB
-      Max time:       48 hours
+      CPUs per task:  24
+      Memory:         200GB
+      Max time:       36 hours
       Log output:     museek-process-uhf-<block_name>.log
 
     \b

@@ -21,7 +21,11 @@ from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.rfi_mitigation.rfi_post_process import RfiPostProcess
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import git_version_info, remove_outliers_zscore_mad
+from museek.util.tools import (
+    git_version_info,
+    remove_outliers_zscore_mad,
+    resolve_context_folder,
+)
 
 
 class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
@@ -173,7 +177,7 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         )
 
         if self.context_folder is not None:
-            output_path = os.path.join(self.context_folder, f"{block_name}/")
+            output_path = resolve_context_folder(self.context_folder, block_name)
             flag_report_writer.file_name = os.path.join(
                 output_path, self.report_file_name
             )
@@ -446,13 +450,6 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the observation block
         """
-
-        if self.new_output_path is not None:
-            output_path = os.path.join(self.new_output_path, f"{block_name}/")
-            flag_report_writer.file_name = os.path.join(
-                output_path, self.report_file_name
-            )
-
         result_list = np.array(result_list, dtype="object")
         calibrated_data.mask = np.array(
             [result_list[i][0] for i in range(np.shape(result_list)[0])]
@@ -671,15 +668,13 @@ class AoflaggerPostCalibrationPlugin(AbstractParallelJoblibPlugin):
                 * ((self.beam_frequency * u.MHz) / (freq_median * u.Hz))
                 .decompose()
                 .value,
-            )
+            ).value
 
             #########   map the smoothed synch model to the same sky covered by ra,dec of calibrated data
             c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
-            theta = 90.0 - (c.galactic.b / u.degree).value
-            phi = (c.galactic.l / u.degree).value
-            synch_I = hp.pixelfunc.get_interp_val(
-                map_reference_smoothed[0], theta / 180.0 * np.pi, phi / 180.0 * np.pi
-            )
+            theta = np.pi / 2 - c.galactic.b.rad
+            phi = c.galactic.l.rad
+            synch_I = hp.pixelfunc.get_interp_val(map_reference_smoothed[0], theta, phi)
 
             map_freqmedian = np.ma.median(
                 np.ma.masked_array(

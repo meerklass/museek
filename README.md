@@ -347,6 +347,16 @@ DemoJoblibPlugin = ConfigSection(n_iter=10, n_jobs=2, verbose=0)
 
 Here, the `DemoLoadPlugin`, `DemoFlipPlugin`, `DemoPlotPlugin`, and `DemoJoblibPlugin` will be run in that order.
 
+**Note on `context_folder` parameter:** The `context_folder` parameter is intelligently resolved to handle both base and complete paths:
+
+- **Base path** (default): If the path does not contain the `block_name`, it is automatically appended.
+  - Example: `context_folder="/idia/pipeline"` with `block_name="1675632179"`
+  - Result: `/idia/pipeline/1675632179/`
+
+- **Complete path**: If the path already contains the `block_name`, it is used as-is.
+  - Example: `context_folder="/idia/pipeline/1675632179/context"`
+  - Result: `/idia/pipeline/1675632179/context` (no changes)
+
 ### Plugins
 
 Plugins can be implemented by creating a class inheriting from the Ivory's `AbstractPlugin` abstract class. The inherited class must override the

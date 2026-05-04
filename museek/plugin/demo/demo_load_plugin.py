@@ -1,5 +1,5 @@
-import os
 from io import BytesIO
+from pathlib import Path
 
 import requests
 from ivory.plugin.abstract_plugin import AbstractPlugin
@@ -16,7 +16,8 @@ class DemoLoadPlugin(AbstractPlugin):
         super().__init__()
         self.url = url
         self.context_file_name = context_file_name
-        self.context_folder = context_folder
+        self.context_folder = Path(context_folder).resolve().as_posix()
+        Path(self.context_folder).mkdir(parents=True, exist_ok=True)
 
     def run(self, **kwargs):
         response = requests.get(self.url)
@@ -30,7 +31,7 @@ class DemoLoadPlugin(AbstractPlugin):
             )
         )
         # setting the paths and names for context to disc storage
-        context_storage_directory = os.path.abspath(self.context_folder)
+        context_storage_directory = self.context_folder
         self.set_result(
             result=Result(
                 location=DemoEnum.CONTEXT_STORAGE_DIRECTORY,

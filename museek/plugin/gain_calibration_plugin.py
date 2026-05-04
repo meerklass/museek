@@ -1,6 +1,5 @@
 import datetime
 import gc
-import os
 import warnings
 
 import numpy as np
@@ -19,6 +18,7 @@ from museek.util.tools import (
     moving_median_masked,
     polynomial_flag_outlier,
     remove_outliers_zscore_mad,
+    resolve_context_folder,
 )
 
 
@@ -319,7 +319,7 @@ class GainCalibrationPlugin(AbstractPlugin):
         temperature_antennas = temperature_antennas.transpose(1, 2, 0)
 
         if self.context_folder is not None:
-            output_path = os.path.join(self.context_folder, f"{block_name}/")
+            output_path = resolve_context_folder(self.context_folder, block_name)
         self.set_result(
             result=Result(
                 location=ResultEnum.OUTPUT_PATH,

@@ -74,6 +74,38 @@ def git_version_info(directory=None):
         os.chdir(original_dir)
 
 
+def resolve_context_folder(context_folder: str, block_name: str) -> str:
+    """Resolve the context folder path intelligently.
+
+    If block_name is already present as a directory component in the context_folder path,
+    return the context_folder as-is (it's already the full path).
+    Otherwise, append block_name/ to the context_folder.
+
+    This allows users to provide either:
+    - A base path like '/idia/projects/meerklass/MEERKLASS-1/museek/XLP2025/pipeline'
+      which will become '/idia/projects/meerklass/MEERKLASS-1/museek/XLP2025/pipeline/<block_name>/'
+    - A complete path like '/idia/projects/meerklass/MEERKLASS-1/museek/XLP2025/pipeline/<block_name>/context'
+      which will be used as-is
+
+    Args:
+        context_folder: Base or complete context folder path
+        block_name: The observation block name (e.g., timestamp string)
+
+    Returns:
+        The resolved context folder path with block_name included if not already present
+    """
+    from pathlib import Path
+
+    # Check if block_name is already a directory component in the path
+    path_parts = Path(context_folder).parts
+    if block_name in path_parts:
+        # block_name is already in the path, use as-is
+        return context_folder
+    else:
+        # block_name is not in the path, append it
+        return os.path.join(context_folder, f"{block_name}/")
+
+
 def flag_percent_recv(data: TimeOrderedData):
     """
     return the flag percent for each receiver
