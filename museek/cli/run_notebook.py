@@ -292,8 +292,8 @@ def generate_sbatch_script(
     default_slurm_options = [
         f"--job-name='MuSEEK-Notebook-{block_name}'",
         "--ntasks=1",
-        "--cpus-per-task=32",
-        "--mem=248GB",
+        "--cpus-per-task=16",
+        "--mem=220GB",
         "--time=01:00:00",
         f"--output=slurm-{Path(notebook_name).stem}-{block_name}-%j.out",
     ]
@@ -306,7 +306,7 @@ def generate_sbatch_script(
         'echo "=========================================="',
         'echo "Executing MuSEEK Notebook"',
         'echo "=========================================="',
-        f'echo "Notebook:      "{notebook_path}""',
+        f'echo "Notebook template:      "{notebook_path}""',
         f'echo "Block name:    {block_name}"',
         f'echo "Box:           {box}"',
         f'echo "Kernel:        {kernel}"',
@@ -366,14 +366,14 @@ def generate_sbatch_script(
 @add_box_option()
 @click.option(
     "-d",
-    "--data-path",
+    "--base-data-path",
     type=click.Path(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
-    default="/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline",
+    default="/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs",
     help=(
-        "Base path of the data for the notebook. Same as `data_path` parameter in "
-        "calibrated_data_check*.ipynb notebooks."
+        "Base path of the requied data for the notebook. The notebook will search for "
+        "pickle files in <base-data-path>/box<box>/<block-name>/"
     ),
     show_default=True,
 )
@@ -386,7 +386,7 @@ def generate_sbatch_script(
     default=None,
     help=(
         "Directory for notebook output. If not specify, output will be saved to "
-        "<data-path>/BOX<box>/<block-name>/"
+        "<base-data-path>/box<box>/<block-name>/"
     ),
     show_default=True,
 )
@@ -416,7 +416,7 @@ def main(
     notebook: str,
     block_name: str,
     box: str,
-    data_path: Path,
+    base_data_path: Path,
     output_dir: Path | None,
     venv: Path,
     kernel: str | None,
@@ -447,10 +447,10 @@ def main(
       # Dry run to show the generated sbatch script without submitting:
       museek_run_notebook --notebook calibrated_data_check-postcali \\
         --block-name 1708972386 --box 6 --dry-run
-      # Passing additional parameters to the notebook (e.g., data_path):
+      # Passing additional parameters to the notebook:
       museek_run_notebook --notebook calibrated_data_check-postcali \\
-        --block-name 1708972386 --box 6 --parameters data_path \\
-        /custom/path/
+        --block-name 1708972386 --box 6 --parameters random_var \\
+        random_var_value
       # Passing additional SLURM options (e.g., email notification):
       museek_run_notebook --notebook calibrated_data_check-postcali \\
         --block-name 1708972386 --box 6 \\
@@ -464,10 +464,10 @@ def main(
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-Notebook-<block_name>
       Tasks:          1
-      CPUs per task:  32
-      Memory:         248GB
+      CPUs per task:  16
+      Memory:         220GB
       Max time:       1 hour
-      Log output:     <notebook_name>-<block_name>.log
+      Log output:     slrum-<notebook_name>-<block_name>.log
 
     """
     # Validate notebook exists
@@ -476,9 +476,12 @@ def main(
     # Determine kernel (always, as detection is read-only with no side effects)
     kernel_to_use = determine_kernel(venv, kernel)
 
+    # Default data_path
+    data_path = base_data_path / f"box{box}" / block_name
+
     # Default output_dir based on data_path if not specified
     if output_dir is None:
-        output_dir = data_path / f"BOX{box}" / block_name
+        output_dir = data_path
         click.echo(f"Output directory not specified, using: {output_dir}")
 
     # Generate the sbatch script

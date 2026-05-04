@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Base paths (e.g., `/path/to/output`) are appended with `/<block_name>/`
   * Complete paths (e.g., `/path/to/output/<block_name>/context`) are used as-is
   * Provides flexible configuration for both relative and absolute paths
+* `museek_run_process_uhf` now print Python, MuSEEK and Ivory versions in SLURM log 
 
 ### Changed
 
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Fixed bug in mask saving, using a dictionary to save the mask for calibrated data and save gain in the results
   * Added `do_delete_auto_data` to decide whether to save the raw data and flags in pickles after calibration
   * Reordered config sections in `process_uhf_band.py`
+* Update default resource allocation in `museek_run_process_uhf` to 16 CPUs, 220G mem and 20 hours time
 
 ### Fixed
 
