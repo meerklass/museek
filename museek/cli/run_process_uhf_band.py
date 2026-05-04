@@ -30,7 +30,7 @@ def generate_sbatch_script(
     slurm_options: list[str],
 ) -> str:
     """Generate the sbatch script content."""
-    context_folder = Path(base_context_folder) / f"box{box}" / block_name / "context"
+    context_folder = Path(base_context_folder) / f"box{box}" / block_name
 
     # Define default SLURM options
     default_slurm_options = [
@@ -80,8 +80,8 @@ def generate_sbatch_script(
     type=click.Path(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
-    default="/idia/projects/meerklass/MEERKLASS-1/museek/XLP2025/pipeline",
-    help="Base directory for context/output. Final output: <base-context-folder>/box<box>/<block-name>/context",
+    default="/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs",
+    help="Base directory for context outputs. Final output directory: <base-context-folder>/box<box>/<block-name>",
     show_default=True,
 )
 @click.option(
@@ -106,6 +106,8 @@ def main(
 ) -> None:
     """Generate and submit a Slurm job to process UHF band data using the MuSEEK pipeline.
 
+    This command should only be run on Ilifu.
+
     \b
     EXAMPLES:
       museek_run_process_uhf_band --block-name 1675632179 --box 6
@@ -117,16 +119,15 @@ def main(
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-Process-UHF-<block_name>
       Tasks:          1
-      CPUs per task:  24
+      CPUs per task:  16
       Memory:         220GB
-      Max time:       36 hours
-      Log output:     museek-process-uhf-<block_name>.log
+      Max time:       20 hours
+      Log output:     slurm-museek-process-uhf-<block_name>-<job_id>.log
 
     \b
     REQUIREMENTS:
       - Access to Ilifu
       - meerklass-1 group permission for raw data access
-      - sbatch command available (Slurm)
     """
     # Generate the sbatch script
     script_content = generate_sbatch_script(
