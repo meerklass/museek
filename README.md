@@ -238,7 +238,7 @@ This script generates and submits a Slurm job to process UHF band data using
 the MuSEEK pipeline.
 
 USAGE:
-  museek_run_process_uhf_band --block-name <block_name> --box <box_number> 
+  museek_run_process_uhf_band --block-name <block_name> --patch <patch_name> 
                             [--base-context-folder <path>] [--data-folder <path>]
                             [--slurm-options <options>] [--dry-run]
 
@@ -246,17 +246,17 @@ OPTIONS:
   --block-name <block_name>
       (required) Block name or observation ID (e.g., 1675632179)
 
-  --box <box_number>
-      (required) Box number of this block name (e.g., 6)
+  --patch <patch_name>
+      (required) Patch name string (e.g., box6, desi1)
+      The final context folder will be <base-context-folder>/<patch_name>/<block-name>
 
   --base-context-folder <path>
       (optional) Path to the base context/output folder
-      The final context folder will be <base-context-folder>/BOX<box>/<block-name>
-      Default: /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline
+      Default: /idia/projects/meerklass/MEERKLASS-1/museek/latest_runs
 
   --data-folder <path>
       (optional) Path to raw data folder
-      Default: /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/raw
+      Default: /idia/raw/meerklass/SCI-20230907-MS-01
 
   --slurm-options <options>
       (optional) Additional SLURM options to pass to sbatch
@@ -274,10 +274,11 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  museek_run_process_uhf_band --block-name 1675632179 --box 6
-  museek_run_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
-  museek_run_process_uhf_band --block-name 1675632179 --box 6 --dry-run
-  museek_run_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
+  museek_run_process_uhf_band --block-name 1675632179 --patch box6
+  museek_run_process_uhf_band --block-name 1675632179 --patch desi1
+  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --base-context-folder /custom/pipeline
+  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --dry-run
+  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
 ```
 
 

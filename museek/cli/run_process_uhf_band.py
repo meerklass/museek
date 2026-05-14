@@ -13,8 +13,8 @@ import click
 
 from museek.cli.common import (
     add_block_name_option,
-    add_box_option,
     add_dry_run_option,
+    add_patch_option,
     add_slurm_options,
     add_venv_option,
 )
@@ -23,14 +23,14 @@ from museek.cli.slurm_utils import build_sbatch_script, submit_sbatch_script
 
 def generate_sbatch_script(
     block_name: str,
-    box: str,
+    patch: str,
     base_context_folder: Path,
     data_folder: Path,
     venv_path: Path,
     slurm_options: list[str],
 ) -> str:
     """Generate the sbatch script content."""
-    context_folder = Path(base_context_folder) / f"box{box}" / block_name
+    context_folder = Path(base_context_folder) / patch / block_name
 
     # Define default SLURM options
     default_slurm_options = [
@@ -49,7 +49,7 @@ def generate_sbatch_script(
         'echo "Executing MuSEEK UHF Band Processing"',
         'echo "=========================================="',
         f'echo "Block name:    {block_name}"',
-        f'echo "Box:           {box}"',
+        f'echo "Patch:         {patch}"',
         f'echo "Data folder:   "{data_folder}""',
         f'echo "Context folder: "{context_folder}""',
         'echo "=========================================="',
@@ -73,7 +73,7 @@ def generate_sbatch_script(
     context_settings=dict(help_option_names=["-h", "--help"], max_content_width=100)
 )
 @add_block_name_option()
-@add_box_option()
+@add_patch_option()
 @click.option(
     "-c",
     "--base-context-folder",
@@ -81,7 +81,7 @@ def generate_sbatch_script(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
     default="/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs",
-    help="Base directory for context outputs. Final output directory: <base-context-folder>/box<box>/<block-name>",
+    help="Base directory for context outputs. Final output directory: <base-context-folder>/<patch>/<block-name>",
     show_default=True,
 )
 @click.option(
@@ -97,7 +97,7 @@ def generate_sbatch_script(
 @add_dry_run_option()
 def main(
     block_name: str,
-    box: str,
+    patch: str,
     base_context_folder: Path,
     data_folder: Path,
     venv: Path,
@@ -110,10 +110,11 @@ def main(
 
     \b
     EXAMPLES:
-      museek_run_process_uhf_band --block-name 1675632179 --box 6
-      museek_run_process_uhf_band --block-name 1675632179 --box 6 --base-context-folder /custom/pipeline
-      museek_run_process_uhf_band --block-name 1675632179 --box 6 --dry-run
-      museek_run_process_uhf_band --block-name 1675632179 --box 6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+      museek_run_process_uhf_band --block-name 1675632179 --patch box6
+      museek_run_process_uhf_band --block-name 1675632179 --patch desi1
+      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --base-context-folder /custom/pipeline
+      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --dry-run
+      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
 
     \b
     DEFAULT SLURM PARAMETERS:
@@ -129,10 +130,30 @@ def main(
       - Access to Ilifu
       - meerklass-1 group permission for raw data access
     """
+    # Validate input data directory
+    data_block_folder = Path(data_folder) / block_name
+    if not data_block_folder.exists():
+        click.echo(
+            f"Error: Data directory does not exist: {data_block_folder}", err=True
+        )
+        raise click.Abort()
+
+    if not any(data_block_folder.iterdir()):
+        click.echo(f"Error: Data directory is empty: {data_block_folder}", err=True)
+        raise click.Abort()
+
+    # Create context output directory if it does not exist
+    context_folder = Path(base_context_folder) / patch / block_name
+    if not context_folder.exists():
+        click.secho(
+            f"Warning: Creating context directory: {context_folder}", fg="yellow"
+        )
+        context_folder.mkdir(parents=True, exist_ok=True)
+
     # Generate the sbatch script
     script_content = generate_sbatch_script(
         block_name=block_name,
-        box=box,
+        patch=patch,
         base_context_folder=base_context_folder,
         data_folder=data_folder,
         venv_path=venv,
