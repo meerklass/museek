@@ -29,6 +29,17 @@ def add_box_option():
     )
 
 
+def add_patch_option():
+    """Decorator for adding --patch / -p option."""
+    return click.option(
+        "-p",
+        "--patch",
+        type=str,
+        required=True,
+        help="Patch name string (e.g., box6, desi1)",
+    )
+
+
 def add_slurm_options():
     """Decorator for adding --slurm-options / -s option."""
     return click.option(

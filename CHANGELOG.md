@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-05-14
+
+### Changed
+
+* Renamed `--box` / `-x` option to `--patch` / `-p` option in `museek_run_process_uhf_band` CLI
+  * The option now accepts patch name strings (e.g., `box6`, `desi1`) without automatic prefix
+  * Output directory structure changed from `<base-context-folder>/box<box>/<block-name>` to `<base-context-folder>/<patch>/<block-name>`
+  * Resolves issue #219: prefixing non-numeric box names with "box"
+
+### Added
+
+* Input validation in `museek_run_process_uhf_band`:
+  * Checks that `<data-folder>/<block-name>` directory exists before submission
+  * Checks that the data directory is not empty
+  * Raises error and terminates if validation fails
+* Automatic context directory creation in `museek_run_process_uhf_band`:
+  * Creates `<base-context-folder>/<patch>/<block-name>` directory if it does not exist
+  * Displays yellow warning message when creating the directory
+
 ## [0.6.0] - 2026-05-04
 
 ### Added
