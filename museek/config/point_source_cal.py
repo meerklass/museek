@@ -12,15 +12,12 @@ Pipeline = ConfigSection(
         'museek.plugin.scan_track_split_plugin',
         'museek.plugin.extract_calibrators_plugin',
         'museek.plugin.antenna_flagger_plugin',
-        ###'museek.plugin.noise_diode_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
         'museek.plugin.noise_diode_excess_plugin',
-        ###'museek.plugin.gain_solution_flagger_plugin',
         'museek.plugin.point_source_calibration_plugin',
         'museek.plugin.read_calibrator_gains_plugin',
     ],
     #context=os.path.join('/idia/users/geoffmurphy/1675632179/1675632179/noise_diode_excess_plugin.pickle'),
-    #context=os.path.join('/idia/users/geoffmurphy/aoflagger_param_test/1675632179/aoflagger_tracking_plugin.pickle'),
 )
 
 
