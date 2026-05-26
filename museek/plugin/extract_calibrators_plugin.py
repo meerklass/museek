@@ -4,7 +4,7 @@ from ivory.utils.result import Result
 
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
-from museek.util.calibrator_finder import find_calibrators
+from museek.util.calibrator_finder import find_calibrators, detect_calibrator_names
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -14,18 +14,18 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
     """ Plugin to extract and validate single-dish calibrator scans using simple calibrator finding functions. """
     
     def __init__(self,
-                 n_calibrator_observations: int,
-                 calibrator_names: list[str],
                  n_pointings: int,
+                 n_calibrator_observations: int = 2,
+                 calibrator_names: list[str] | None = None,
                  max_gap_seconds: float = 40.0,
                  min_duration_seconds: float = 20.0,
                  verbose: int = 0):
         """
         Initialize with calibrator finding parameters.
-        
-        :param n_calibrator_observations: Number of calibrator observations (typically 2: before/after scan)
-        :param calibrator_names: Expected calibrator names (must match n_calibrator_observations length)
+
         :param n_pointings: Exact number of scans required for each calibrator
+        :param n_calibrator_observations: Number of calibrator observations (typically 2: before/after scan)
+        :param calibrator_names: Calibrator names [before, after]. If None, auto-detected from track data.
         :param max_gap_seconds: Maximum allowed time gap between calibrator track scans in seconds
         :param min_duration_seconds: Minimum scan duration in seconds to be considered valid
         """
@@ -37,15 +37,15 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         self.max_gap_seconds = max_gap_seconds
         self.min_duration_seconds = min_duration_seconds
         self.verbose = verbose
-        
+
         # Validate n_calibrator_observations value
         if self.n_calibrator_observations not in [1, 2]:
             raise ValueError(f"n_calibrator_observations must be 1 or 2, got {self.n_calibrator_observations}")
-        
-        # Validate calibrator_names length
-        if self.calibrator_names and len(self.calibrator_names) != self.n_calibrator_observations:
-            raise ValueError(f"calibrator_names length ({len(self.calibrator_names)}) must match "
-                           f"n_calibrator_observations ({self.n_calibrator_observations})")
+
+        # calibrator_names maps to periods as: [0] -> before_scan, [-1] -> after_scan.
+        # Use 2 entries for different calibrators, or 1 entry if the same source is used for both.
+        if self.calibrator_names is not None and (len(self.calibrator_names) == 0 or len(self.calibrator_names) > 2):
+            raise ValueError(f"calibrator_names must have 1 or 2 entries, got {len(self.calibrator_names)}")
 
     def set_requirements(self):
         """ Define the plugin requirements """
@@ -63,6 +63,18 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         :param scan_start: time dump [s] of scan observation start
         :param scan_end: time dump [s] of scan observation end
         """
+        # Auto-detect calibrator names if not provided
+        if self.calibrator_names is None:
+            self.calibrator_names = detect_calibrator_names(
+                track_data=track_data,
+                scan_start=scan_start,
+                scan_end=scan_end,
+            )
+            if not self.calibrator_names:
+                print('ERROR: No known calibrators detected in track data.')
+                sys.exit(1)
+            print(f'Auto-detected calibrators: {self.calibrator_names}')
+
         # Find single dish calibrators in the track data
         calibrator_results = find_calibrators(
             track_data=track_data,
@@ -135,36 +147,24 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
             else:
                 print(f'{period}: No valid "{calibrator_name}" tracks found')
         
-        # Validate overall results based on n_calibrator_observations
-        validation_success = False
-        if self.n_calibrator_observations == 1:
-            if len(validated_periods) == 0:
-                print(f'ERROR: No valid calibrator periods found')
-            elif len(validated_periods) == 2:
-                print(f'ERROR: Found valid calibrators in both periods ({", ".join(validated_periods)}), expected exactly one')
-            elif len(validated_periods) == 1:
-                period = validated_periods[0]
-                dump_indices, scan_count, total_duration = calibrator_results[period]
-                print(f'SUCCESS: Calibrator "{self.calibrator_names[0]}" validated in {period} period')
-                print(f'SUCCESS: {period} calibrator validated with {len(dump_indices)} dumps')
-                validation_success = True
-        
-        elif self.n_calibrator_observations == 2:
-            if len(validated_periods) != 2:
-                print(f'ERROR: Found {len(validated_periods)} valid periods, expected exactly 2')
-            else:
-                for period in validated_periods:
-                    # Get correct calibrator name for this period
-                    if period == 'before_scan':
-                        calibrator_name = self.calibrator_names[0]
-                    else:  # after_scan
-                        calibrator_name = self.calibrator_names[-1]
-                    
-                    dump_indices, scan_count, total_duration = calibrator_results[period]
-                    print(f'SUCCESS: {period} calibrator "{calibrator_name}" validated with {len(dump_indices)} dumps')
-                validation_success = True
-        
-        return validation_success, validated_periods
+        # Validate: at least one calibrator period must be found
+        if len(validated_periods) == 0:
+            print(f'ERROR: No valid calibrator periods found')
+            return False, validated_periods
+
+        if len(validated_periods) < self.n_calibrator_observations:
+            print(f'WARNING: Found {len(validated_periods)} valid period(s), '
+                  f'expected {self.n_calibrator_observations}. Continuing with what is available.')
+
+        for period in validated_periods:
+            if period == 'before_scan':
+                calibrator_name = self.calibrator_names[0]
+            else:  # after_scan
+                calibrator_name = self.calibrator_names[-1]
+            dump_indices, scan_count, total_duration = calibrator_results[period]
+            print(f'SUCCESS: {period} calibrator "{calibrator_name}" validated with {len(dump_indices)} dumps')
+
+        return True, validated_periods
     
     def _plot_calibrator_positions(self, track_data, validated_periods, calibrator_results):
         """Plot RA, Dec positions for validated calibrator tracks (first receiver only)."""

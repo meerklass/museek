@@ -5,18 +5,18 @@ from ivory.utils.config_section import ConfigSection
 
 Pipeline = ConfigSection(
     plugins=[
-        'museek.plugin.in_plugin',
+        'museek.plugin.in_plugin',  # required: loads the data
         'museek.plugin.noise_diode_flagger_plugin',
-        'museek.plugin.known_rfi_plugin',
-        'museek.plugin.rawdata_flagger_plugin',
-        'museek.plugin.scan_track_split_plugin',
-        'museek.plugin.point_source_flagger_plugin',
-        'museek.plugin.aoflagger_plugin',
-        'museek.plugin.aoflagger_secondrun_plugin',
-        'museek.plugin.antenna_flagger_plugin',
-        'museek.plugin.noise_diode_plugin',
-        'museek.plugin.gain_calibration_plugin',
-        'museek.plugin.aoflagger_postcalibration_plugin',
+        'museek.plugin.known_rfi_plugin',  # RFI flagger (known bands)
+        'museek.plugin.rawdata_flagger_plugin',  # RFI flagger (raw outliers)
+        'museek.plugin.scan_track_split_plugin',  # kept: aoflagger plugins require SCAN_DATA
+        'museek.plugin.point_source_flagger_plugin',  # kept: aoflagger_plugin requires POINT_SOURCE_FLAG
+        'museek.plugin.aoflagger_plugin',  # RFI flagger
+        'museek.plugin.aoflagger_secondrun_plugin',  # RFI flagger
+        #'museek.plugin.antenna_flagger_plugin',
+        #'museek.plugin.noise_diode_plugin',
+        #'museek.plugin.gain_calibration_plugin',
+        #'museek.plugin.aoflagger_postcalibration_plugin',  # RFI flagger, but requires gain_calibration_plugin output
         #'museek.plugin.aoflagger_cross_plugin',
         #'museek.plugin.single_dish_calibrator_plugin',
         #'museek.plugin.zebra_remover_plugin',
@@ -27,17 +27,23 @@ Pipeline = ConfigSection(
 )
 
 InPlugin = ConfigSection(
-    block_name='1675632179',  # observation time stamp
-    #receiver_list=['m000h','m000v','m012h','m012v','m024h','m024v','m036h','m036v'],
-    receiver_list=None,      # receivers to be processed, `None` means all available receivers is used
+    block_name="1685641589",  # observation time stamp
+#    receiver_list=['m000h','m000v'],
+    receiver_list=['m000h','m000v','m001h','m001v','m002h','m002v','m003h','m003v','m004h','m004v','m005h','m005v'],
+    # receiver_list=None,  # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
-    data_folder='/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
-    #data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
+    #data_folder='/idia/projects/meerklass/MEERKLASS-1/SCI-20220822-MS-01/',  # only relevant if `token` is `None`
+    data_folder='/idia/projects/meerklass/MEERKLASS-1/raw_data/SCI-20220822-MS-01/',
+    # data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_auto_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
     force_load_cross_from_correlator_data=True,  # if `True`, the local `cache` folder is ignored
-    do_save_visibility_to_disc=True, # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
-    do_store_context=True,
-    context_folder=None,  # directory to store results, if `None`, 'results/' is chosen
+    do_save_visibility_to_disc=True,  # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
+    do_store_context=False,
+    context_folder="/idia/users/geoffmurphy/momentrfi/",  # directory to store results, if `None`, 'results/' is chosen
+    load_visibilities_auto=True,  # if `True`, auto-correlation visibilities are loaded in InPlugin
+    load_visibilities_cross=True,  # if `True`, cross-correlation visibilities are loaded in InPlugin
+    cache_folder="/idia/users/geoffmurphy/momentrfi/",  # directory for cache files; defaults to ROOT_DIR/cache
+    suppress_katpoint_warnings=True,  # if `True`, suppress noisy katpoint catalogue warnings
 )
 
 
@@ -53,7 +59,7 @@ AntennaFlaggerPlugin = ConfigSection(
 PointSourceFlaggerPlugin = ConfigSection(
     n_jobs=26,
     verbose=0,
-    point_source_file_path='/idia/projects/meerklass/MEERKLASS-1/uhf_data/OT2023/radio_source_catalog/',
+    point_source_file_path='/idia/projects/meerklass/MEERKLASS-1/museek/radio_source_catalog/',
     beam_threshold=1., # times of the beam size around the point source to be masked 
     point_sources_match_flux=5.,  # flux threshold above which the point sources are selected, [Jy]
     point_sources_match_raregion=30., # the ra distance to the median of observed ra to select the point sources, [deg]

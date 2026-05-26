@@ -245,7 +245,9 @@ More information on these are included in their class documentations.
 
 15. `SanityCheckObservationPlugin`
 
-16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+16. `NoiseDiodeExcessPlugin`
+
+17. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
 
 
 

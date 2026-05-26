@@ -137,6 +137,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                  receiver_models_dir: str,
                  spillover_model_file: str,
                  do_store_context: bool,
+                 output_path_override: str | None = None,
                  on_source_separation_threshold_deg: float = 0.3,
                  synch_model: str = 's1',
                  synch_nside: int = 128,
@@ -173,6 +174,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.receiver_models_dir = receiver_models_dir
         self.spillover_model_file = spillover_model_file
         self.do_store_context = do_store_context
+        self.output_path_override = output_path_override
         self.on_source_separation_threshold_deg = on_source_separation_threshold_deg
         self.synch_model = synch_model
         self.synch_nside = synch_nside
@@ -541,6 +543,10 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param block_name: Block name
         """
 
+        if self.output_path_override is not None:
+            output_path = self.output_path_override
+            os.makedirs(output_path, exist_ok=True)
+
         n_receivers = len(track_data.receivers)
 
         # Append gain solutions from result_list to self.model_components (already populated in map())
@@ -606,6 +612,10 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Store receiver labels for use by ReadCalibratorGainsPlugin
         self.model_components['receivers'] = [str(r) for r in track_data.receivers]
+
+        # Store the true frequency axis (Hz) so gain plots use the correct axis
+        # instead of an assumed linspace. Matches the gain's channel dimension.
+        self.model_components['frequencies'] = np.asarray(track_data.frequencies.squeeze)
 
         # Save model_components to disk for later use
         model_components_file = os.path.join(output_path, 'model_components.pkl')

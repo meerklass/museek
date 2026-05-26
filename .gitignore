@@ -60,3 +60,6 @@ museek.code-workspace
 # others
 claude.md
 CLAUDE.md
+
+# vendored MomentRFI clone (installed editable for RFI flagger testing)
+MomentRFI/

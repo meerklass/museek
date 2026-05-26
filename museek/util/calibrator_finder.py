@@ -4,11 +4,78 @@ import numpy as np
 
 from museek.time_ordered_data import TimeOrderedData
 from museek.enums.scan_state_enum import ScanStateEnum
+from museek.model.point_sources import get_point_source_model
+
+
+# Known calibrator names from point source models
+KNOWN_CALIBRATORS = list(get_point_source_model.__code__.co_consts)  # not reliable, use explicit list
+KNOWN_CALIBRATORS = [
+    'HydraA', 'PictorA', 'CenA', 'HerculesA',
+    '3C161', '3C353', '3C273', '3C237', 'PKS1932', 'PKS1934',
+]
 
 
 def _matches_calibrator_name(target_name: str, expected_calibrator: str) -> bool:
     """Check if a target name matches the expected calibrator (case-insensitive prefix match)."""
     return target_name.lower().startswith(expected_calibrator.lower())
+
+
+def _match_known_calibrator(target_name: str) -> str | None:
+    """Return the known calibrator name matching `target_name`, or None."""
+    for known in KNOWN_CALIBRATORS:
+        if _matches_calibrator_name(target_name, known):
+            return known
+    return None
+
+
+def detect_calibrator_names(track_data: TimeOrderedData,
+                            scan_start: float,
+                            scan_end: float) -> list[str]:
+    """
+    Auto-detect calibrator names from track data by matching target names
+    against known point source models.
+
+    :param track_data: Time ordered track data
+    :param scan_start: Scan start time boundary
+    :param scan_end: Scan end time boundary
+    :return: List of calibrator names [before_scan_calibrator, after_scan_calibrator].
+             Duplicates are kept if the same calibrator appears in both periods.
+    """
+    original_timestamps = track_data.original_timestamps.squeeze
+    before_names = set()
+    after_names = set()
+
+    for scan_tuple in track_data._scan_tuple_list:
+        if scan_tuple.state != ScanStateEnum.TRACK or len(scan_tuple.dumps) < 3:
+            continue
+        scan_end_time = original_timestamps[scan_tuple.dumps[-1]]
+        scan_start_time = original_timestamps[scan_tuple.dumps[0]]
+
+        matched = _match_known_calibrator(scan_tuple.target.name)
+        if matched is None:
+            continue
+
+        if scan_end_time < scan_start:
+            before_names.add(matched)
+        elif scan_start_time > scan_end:
+            after_names.add(matched)
+
+    calibrator_names = []
+    if len(before_names) == 1:
+        calibrator_names.append(before_names.pop())
+    elif len(before_names) > 1:
+        print(f'WARNING: Multiple calibrators found before scan: {before_names}. '
+              f'Using first alphabetically.')
+        calibrator_names.append(sorted(before_names)[0])
+
+    if len(after_names) == 1:
+        calibrator_names.append(after_names.pop())
+    elif len(after_names) > 1:
+        print(f'WARNING: Multiple calibrators found after scan: {after_names}. '
+              f'Using first alphabetically.')
+        calibrator_names.append(sorted(after_names)[0])
+
+    return calibrator_names
 
 
 def _find_calibrator_scans_in_period(track_data: TimeOrderedData, calibrator_name: str, period: str, 
