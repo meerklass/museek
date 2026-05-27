@@ -23,6 +23,7 @@ class ResultEnum(Enum):
     CORRELATION_COEFFICIENT_VIS_SYNCH_ANT = auto()
     POINT_SOURCE_FLAG = auto()
     NOISE_DIODE_EXCESS = auto()
+    NOISE_DIODE_EXCESS_AVERAGE = auto()
     NOISE_ON_INDEX = auto()
     NOISE_ON_TIMESTAMP = auto()
     FLAG_NAME_LIST = auto()
@@ -41,3 +42,5 @@ class ResultEnum(Enum):
     MAP_SELFCALI_FLAG = auto()
     MAP_SELFCALI_FLAG_NAME_LIST = auto()
     KNOWN_RFI_LIST = auto()
+    CALIBRATOR_NAMES = auto()
+    MODEL_COMPONENTS = auto()

@@ -74,7 +74,10 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         new_mask = np.ones(data.shape, dtype=bool)
         for i in noise_diode_off_dumps:
             new_mask[i] = False
-        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask))
+        data.flags.add_flag(
+            flag=self.data_element_factory.create(array=new_mask),
+            name="noise_diode_on",
+        )
         flag_name_list.append("noise_diode_on")
         self.set_result(
             result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True)

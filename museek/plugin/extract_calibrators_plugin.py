@@ -93,9 +93,16 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
 
         # Store results for downstream plugins
         validated_dump_indices = {}
+        calibrator_names_for_periods = {}
         for period in validated_periods:
             dump_indices, scan_count, total_duration = calibrator_results[period]
             validated_dump_indices[period] = dump_indices
+
+            # Store calibrator name for this period
+            if period == 'before_scan':
+                calibrator_names_for_periods[period] = self.calibrator_names[0]
+            else:  # after_scan
+                calibrator_names_for_periods[period] = self.calibrator_names[-1]
 
         self.set_result(
             result=Result(
@@ -108,6 +115,13 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
             result=Result(
                 location=ResultEnum.CALIBRATOR_DUMP_INDICES,
                 result=validated_dump_indices,
+                allow_overwrite=False,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.CALIBRATOR_NAMES,
+                result=calibrator_names_for_periods,
                 allow_overwrite=False,
             )
         )
@@ -264,7 +278,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
 
         # Get elevation and timestamp data for first receiver
         elevation_data = track_data.elevation.get(recv=antenna_index)
-        timestamp_data = track_data.original_timestamps.get(recv=antenna_index)
+        timestamp_data = track_data.timestamps.get(recv=antenna_index)
 
         plt.figure(figsize=(12, 6))
 

@@ -398,7 +398,10 @@ More information on these are included in their class documentations.
 13. `GainCalibrationPlugin`
 14. `AoflaggerPostCalibrationPlugin`
 15. `SanityCheckObservationPlugin`
-16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+16. `NoiseDiodeExcessPlugin`
+17. `PointSourceCalibrationPlugin`
+18. `ReadCalibratorGainsPlugin`
+19. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
 
 
 ## Notebooks

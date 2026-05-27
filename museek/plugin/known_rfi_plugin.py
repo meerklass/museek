@@ -79,7 +79,8 @@ class KnownRfiPlugin(AbstractPlugin):
         data.flags.add_flag(
             flag=FlagList.from_array(
                 array=new_flag, element_factory=self.data_element_factory
-            )
+            ),
+            name="known_rfi",
         )
         flag_name_list.append("known_rfi")
         self.set_result(

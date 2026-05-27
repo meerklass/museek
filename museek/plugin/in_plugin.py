@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -26,6 +27,9 @@ class InPlugin(AbstractPlugin):
         do_save_visibility_to_disc: bool,
         do_store_context: bool,
         context_folder: str | None,
+        load_visibilities_auto: bool = False,
+        load_visibilities_cross: bool = False,
+        suppress_katpoint_warnings: bool = True,
     ):
         """
         Initialise the plugin.
@@ -40,6 +44,9 @@ class InPlugin(AbstractPlugin):
                                  if `True` it is recommended to also have `do_save_visibility_to_disc` set to `True`
         :param context_folder: the context is stored to this directory after finishing the plugin, if `None`, a
                                   default directory is chosen
+        :param load_visibilities_auto: if `True` auto-correlation visibilities are loaded immediately
+        :param load_visibilities_cross: if `True` cross-correlation visibilities are loaded immediately
+        :param suppress_katpoint_warnings: if `True` suppress noisy katpoint catalogue warnings
         """
         super().__init__()
         self.block_name = block_name
@@ -52,6 +59,9 @@ class InPlugin(AbstractPlugin):
         )
         self.do_save_visibility_to_disc = do_save_visibility_to_disc
         self.do_store_context = do_store_context
+        self.load_visibilities_auto = load_visibilities_auto
+        self.load_visibilities_cross = load_visibilities_cross
+        self.suppress_katpoint_warnings = suppress_katpoint_warnings
         self.report_file_name = "flag_report.md"
 
         self.context_folder = context_folder
@@ -68,6 +78,9 @@ class InPlugin(AbstractPlugin):
         Loads the complete data and the scanning part as `TimeOrderedData` and sets it as a result.
         Depending on the config, will store the context to hard disc with visibility loaded.
         """
+        if self.suppress_katpoint_warnings:
+            logging.getLogger("katpoint.catalogue").setLevel(logging.ERROR)
+
         receivers = None
         if self.receiver_list is not None:
             receivers = [
@@ -83,6 +96,13 @@ class InPlugin(AbstractPlugin):
             force_load_cross_from_correlator_data=self.force_load_cross_from_correlator_data,
             do_create_cache=self.do_save_visibility_to_disc,
         )
+
+        if self.load_visibilities_auto:
+            print("Loading auto-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="auto")
+        if self.load_visibilities_cross:
+            print("Loading cross-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="cross")
 
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split("_")[0]))

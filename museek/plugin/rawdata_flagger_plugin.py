@@ -60,7 +60,8 @@ class RawdataFlaggerPlugin(AbstractPlugin):
         data.flags.add_flag(
             flag=FlagList.from_array(
                 array=new_flag, element_factory=self.data_element_factory
-            )
+            ),
+            name="rawdata_low_value",
         )
         flag_name_list.append("rawdata_low_value")
         self.set_result(

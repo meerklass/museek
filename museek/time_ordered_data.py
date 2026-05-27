@@ -136,6 +136,7 @@ class TimeOrderedData:
         self.temperature: DataElement | None = None
         self.humidity: DataElement | None = None
         self.pressure: DataElement | None = None
+        self.site_elevation_km: float | None = None
 
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
@@ -246,7 +247,8 @@ class TimeOrderedData:
         """Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`."""
         self.gain_solution = self._element_factory.create(array=gain_solution_array)
         self.flags.add_flag(
-            flag=self._element_factory.create(array=gain_solution_mask_array)
+            flag=self._flag_element_factory.create(array=gain_solution_mask_array),
+            name="gain_solution_mask",
         )
 
     def corrected_visibility(self) -> DataElement | None:
@@ -324,6 +326,8 @@ class TimeOrderedData:
         self.pressure = self._element_factory.create(
             array=data.pressure[:, np.newaxis, np.newaxis]
         )
+        # site elevation above sea level [km], from antenna observer
+        self.site_elevation_km = data.ants[0].observer.elevation / 1000.0
 
     def _set_data_elements_from_self(self, scan_state: ScanStateEnum | None):
         """
@@ -364,7 +368,10 @@ class TimeOrderedData:
         if self.visibility is not None:
             self.visibility = self._element_factory.create(array=self.visibility.array)
             self.flags = FlagList.from_array(
-                array=self.flags.array, element_factory=self._flag_element_factory
+                array=self.flags.array,
+                element_factory=self._flag_element_factory,
+                names=self.flags.flag_names,
+                descriptions=self.flags.flag_descriptions,
             )
             self.weights = self._element_factory.create(array=self.weights.array)
 
@@ -373,7 +380,10 @@ class TimeOrderedData:
                 array=self.visibility_cross.array
             )
             self.flags_cross = FlagList.from_array(
-                array=self.flags_cross.array, element_factory=self._flag_element_factory
+                array=self.flags_cross.array,
+                element_factory=self._flag_element_factory,
+                names=self.flags_cross.flag_names,
+                descriptions=self.flags_cross.flag_descriptions,
             )
             self.weights_cross = self._element_factory.create(
                 array=self.weights_cross.array
@@ -709,17 +719,28 @@ class TimeOrderedData:
         """
         Returns a `list` of the `Receiver`s in `requested_receivers` that are available in `data`.
         If `requested_receivers` is `None`, all available receivers are returned.
+        Receiver IDs are populated from data.receivers when available.
         """
         all_receiver_names = np.unique(data.corr_products.flatten())
         if requested_receivers is not None:
-            return [
+            receivers = [
                 receiver
                 for receiver in requested_receivers
                 if receiver.name in all_receiver_names
             ]
-        return [
-            Receiver.from_string(receiver_string=name) for name in all_receiver_names
-        ]
+        else:
+            receivers = [
+                Receiver.from_string(receiver_string=name)
+                for name in all_receiver_names
+            ]
+
+        # Populate receiver_id from katdal data.receivers for all receivers
+        if hasattr(data, "receivers"):
+            for receiver in receivers:
+                if receiver.antenna_name in data.receivers:
+                    receiver.receiver_id = data.receivers[receiver.antenna_name]
+
+        return receivers
 
     @staticmethod
     def _get_scan_tuple_list(data: DataSet) -> list[ScanTuple]:
