@@ -240,16 +240,14 @@ class TestTimeOrderedData(unittest.TestCase):
         mock_gain_solution_mask_array = MagicMock()
         mock_flags = MagicMock()
         self.time_ordered_data.flags = mock_flags
+        self.mock_get_data_element_factory.reset_mock()  # clear calls from __init__
         self.time_ordered_data.set_gain_solution(
             gain_solution_array=mock_gain_solution_array,
             gain_solution_mask_array=mock_gain_solution_mask_array,
         )
         self.assertEqual(
-            [
-                call(array=mock_gain_solution_array),
-                call(array=mock_gain_solution_mask_array),
-            ],
-            self.mock_get_data_element_factory.return_value.create.call_args_list[-2:],
+            [call(array=mock_gain_solution_array)],
+            self.mock_get_data_element_factory.return_value.create.call_args_list,
         )
         self.assertIsNotNone(self.time_ordered_data.gain_solution)
         mock_flags.add_flag.assert_called_once()
