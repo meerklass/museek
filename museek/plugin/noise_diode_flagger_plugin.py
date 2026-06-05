@@ -19,9 +19,13 @@ from museek.visualiser import waterfall
 class NoiseDiodeFlaggerPlugin(AbstractPlugin):
     """Plugin to flag the noise diode firings."""
 
-    def __init__(self):
-        """Initialise."""
+    def __init__(self, verbose: int = 0):
+        """
+        Initialise.
+        :param verbose: if non-zero, diagnostic plots are saved to disc
+        """
         super().__init__()
+        self.verbose = verbose
         self.data_element_factory = FlagElementFactory()
         self.output_path = None
         self.report_file_name = "flag_report.md"
@@ -34,7 +38,6 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
             Requirement(
                 location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
             ),
-            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable="flag_name_list"),
         ]
 
     def run(
@@ -42,16 +45,13 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         data: TimeOrderedData,
         flag_report_writer: ReportWriter,
         output_path: str,
-        flag_name_list: list,
     ):
         """
-        Run the plugin, i.e. flag the noise diode firings
+        Run the plugin, i.e. find the noise diode firings
         :param data: containing the entire data
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
-        :param flag_name_list: list of the name of existing flags
         """
-        data.load_visibility_flags_weights(polars="auto")
 
         receivers_list, flag_percent = flag_percent_recv(data)
         branch, commit = git_version_info()
@@ -72,19 +72,10 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
             timestamps=data.original_timestamps
         )
         new_mask = np.ones(data.shape, dtype=bool)
-        for i in noise_diode_off_dumps:
-            new_mask[i] = False
-        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask))
-        flag_name_list.append("noise_diode_on")
+        new_mask[noise_diode_off_dumps] = False
+        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask), name="noise_diode_on")
         self.set_result(
             result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True)
-        )
-        self.set_result(
-            result=Result(
-                location=ResultEnum.FLAG_NAME_LIST,
-                result=flag_name_list,
-                allow_overwrite=True,
-            )
         )
 
         receivers_list, flag_percent = flag_percent_recv(data)
@@ -99,9 +90,10 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar")
-        plt.savefig(
-            os.path.join(output_path, "noise_diode_flagger_result_receiver_0.png"),
-            dpi=1000,
-        )
-        plt.close()
+        if self.verbose:
+            waterfall(data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar")
+            plt.savefig(
+                os.path.join(output_path, "noise_diode_flagger_result_receiver_0.png"),
+                dpi=1000,
+            )
+            plt.close()

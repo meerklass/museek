@@ -96,7 +96,6 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-        scan_data.load_visibility_flags_weights(polars="cross")
         initial_flags_cross = scan_data.flags_cross.combine(
             threshold=self.flag_combination_threshold
         )

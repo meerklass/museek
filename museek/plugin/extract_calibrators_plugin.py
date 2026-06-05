@@ -20,6 +20,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         n_pointings: int,
         max_gap_seconds: float = 40.0,
         min_duration_seconds: float = 20.0,
+        verbose: int = 0,
     ):
         """
         Initialize with calibrator finding parameters.
@@ -29,8 +30,10 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         :param n_pointings: Exact number of scans required for each calibrator
         :param max_gap_seconds: Maximum allowed time gap between calibrator track scans in seconds
         :param min_duration_seconds: Minimum scan duration in seconds to be considered valid
+        :param verbose: if non-zero, diagnostic plots are saved to disc
         """
         super().__init__()
+        self.verbose = verbose
         self.n_calibrator_observations = n_calibrator_observations
         self.calibrator_observation_labels = ["before_scan", "after_scan"]
         self.calibrator_names = calibrator_names
@@ -93,9 +96,14 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
 
         # Store results for downstream plugins
         validated_dump_indices = {}
+        calibrator_names_for_periods = {}
         for period in validated_periods:
             dump_indices, scan_count, total_duration = calibrator_results[period]
             validated_dump_indices[period] = dump_indices
+            if period == 'before_scan':
+                calibrator_names_for_periods[period] = self.calibrator_names[0]
+            else:
+                calibrator_names_for_periods[period] = self.calibrator_names[-1]
 
         self.set_result(
             result=Result(
@@ -111,12 +119,19 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
                 allow_overwrite=False,
             )
         )
-
-        # Plot RA, Dec positions and elevation vs time
-        self._plot_calibrator_positions(
-            track_data, validated_periods, calibrator_results
+        self.set_result(
+            result=Result(
+                location=ResultEnum.CALIBRATOR_NAMES,
+                result=calibrator_names_for_periods,
+                allow_overwrite=False,
+            )
         )
-        self._plot_elevation_vs_time(track_data, validated_periods, calibrator_results)
+
+        if self.verbose:
+            self._plot_calibrator_positions(
+                track_data, validated_periods, calibrator_results
+            )
+            self._plot_elevation_vs_time(track_data, validated_periods, calibrator_results)
 
     def _validate_and_report_results(self, calibrator_results):
         """Validate found calibrators against user expectations and report results.
@@ -200,7 +215,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         """Plot RA, Dec positions for validated calibrator tracks (first receiver only)."""
         # Use first receiver only
         first_receiver = track_data.receivers[0]
-        antenna_index = first_receiver.antenna_index(receivers=track_data.receivers)
+        antenna_index = track_data.antenna_index_of_receiver(receiver=first_receiver)
 
         # Get RA, Dec data for first receiver
         ra_data = track_data.right_ascension.get(recv=antenna_index)
@@ -260,11 +275,11 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         """Plot elevation vs time for validated calibrator tracks (first receiver only)."""
         # Use first receiver only
         first_receiver = track_data.receivers[0]
-        antenna_index = first_receiver.antenna_index(receivers=track_data.receivers)
+        antenna_index = track_data.antenna_index_of_receiver(receiver=first_receiver)
 
         # Get elevation and timestamp data for first receiver
         elevation_data = track_data.elevation.get(recv=antenna_index)
-        timestamp_data = track_data.original_timestamps.get(recv=antenna_index)
+        timestamp_data = track_data.timestamps.get(recv=antenna_index)
 
         plt.figure(figsize=(12, 6))
 

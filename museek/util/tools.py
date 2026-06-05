@@ -110,6 +110,8 @@ def flag_percent_recv(data: TimeOrderedData):
     """
     return the flag percent for each receiver
     """
+    if len(data.flags) == 0:
+        return [str(r) for r in data.receivers], [0.0] * len(data.receivers)
     flag_percent = []
     receivers_list = []
     for i_receiver, receiver in enumerate(data.receivers):
@@ -500,7 +502,7 @@ def point_sources_coordinate(
     """
 
     ps_info = np.genfromtxt(
-        point_source_file_path + "/1jy_scat-V0_new.txt", delimiter="|"
+        point_source_file_path + "/1jy_cat.txt", delimiter="|"
     )
     ra_sources = ps_info[:, 1]
     dec_sources = ps_info[:, 2]

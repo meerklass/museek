@@ -17,6 +17,7 @@ Pipeline = ConfigSection(
         "museek.plugin.aoflagger_secondrun_plugin",
         "museek.plugin.antenna_flagger_plugin",
         "museek.plugin.noise_diode_plugin",
+#        'museek.plugin.read_calibrator_gains_plugin',
         "museek.plugin.gain_calibration_plugin",
         "museek.plugin.aoflagger_postcalibration_plugin",
         "museek.plugin.inpainting_mapmaking_plugin",
@@ -336,14 +337,9 @@ InpaintingMapmakingSelfcaliPlugin = ConfigSection(
     do_store_context=True,
 )
 
-# --- Current not used, incomplete or obsolete plugins
-# ApplyExternalGainSolutionPlugin = ConfigSection(
-#     # --- Parameters to change ---
-#     gain_file_path="/home/amadeus/Documents/fix/postdoc_UWC/work/MeerKLASS/calibration/download/level2/"
-# )
-
-# ZebraRemoverPlugin = ConfigSection(
-#     # --- Parameters to change ---
-#     reference_channel=3000,
-#     zebra_channels=range(350, 498),
-# )
+ReadCalibratorGainsPlugin = ConfigSection(
+    model_components_files=[
+        '/home/mgrsantos/projects/data/context/1675021905/model_components.pkl',
+    ],
+    verbose=1,
+)

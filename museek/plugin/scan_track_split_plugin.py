@@ -18,16 +18,21 @@ class ScanTrackSplitPlugin(AbstractPlugin):
     For the scanning part and calibrator tracking parts new `TimeOrderedData` objects are created.
     """
 
-    def __init__(self, do_delete_unsplit_data: bool, do_store_context: bool):
+    def __init__(self, do_delete_unsplit_data: bool, do_store_context: bool,
+                 keep_scan: bool = True, keep_track: bool = True):
         """
         Initialise with `do_delete_unsplit_data`, a switch that determines wether the object containing the entire
         data should be deleted to save memory.
         :param do_delete_unsplit_data: switch that determines wether the data should be deleted after split
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
+        :param keep_scan: if `False`, scan data is not created (saves memory when only track data is needed)
+        :param keep_track: if `False`, track data is not created (saves memory when only scan data is needed)
         """
         super().__init__()
         self.do_delete_unsplit_data = do_delete_unsplit_data
         self.do_store_context = do_store_context
+        self.keep_scan = keep_scan
+        self.keep_track = keep_track
 
     def set_requirements(self):
         """Only requirement is the data."""
@@ -54,15 +59,23 @@ class ScanTrackSplitPlugin(AbstractPlugin):
         :param block_name: name of the observation block
         :param flag_report_writer: report of the flagged fraction
         """
-        scan_data = deepcopy(data)
-        scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
+        scan_observation_start, scan_observation_end = self._scan_observation_start_end(data=data)
 
-        scan_observation_start, scan_observation_end = self._observation_start_end(
-            data=scan_data
-        )
+        # TODO: deepcopy() is called once per output (scan and track), so when both are kept
+        # the full dataset is held in memory three times simultaneously (original + two copies)
+        # before do_delete_unsplit_data frees the original. For large observations this is a
+        # significant peak-memory cost. A lazy or view-based split would avoid the duplication.
+        if self.keep_scan:
+            scan_data = deepcopy(data)
+            scan_data.set_data_elements(scan_state=ScanStateEnum.SCAN)
+        else:
+            scan_data = None
 
-        track_data = deepcopy(data)
-        track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
+        if self.keep_track:
+            track_data = deepcopy(data)
+            track_data.set_data_elements(scan_state=ScanStateEnum.TRACK)
+        else:
+            track_data = None
 
         if self.do_delete_unsplit_data:
             data = None
@@ -97,19 +110,24 @@ class ScanTrackSplitPlugin(AbstractPlugin):
             )
         )
 
-        # Make flagging report if the data has been flagged
-        if scan_data.flags is not None:
+        branch, commit = git_version_info()
+        current_datetime = datetime.datetime.now()
+        lines = [
+            '...........................',
+            f'Running ScanTrackSplitPlugin with MuSEEK version: {branch} ({commit})',
+            f'Finished at {current_datetime.strftime("%Y-%m-%d %H:%M:%S")}',
+        ]
+        if scan_data is not None:
             receivers_list, flag_percent = flag_percent_recv(scan_data)
-            branch, commit = git_version_info()
-            current_datetime = datetime.datetime.now()
-            lines = [
-                "...........................",
-                "Running ScanTrackSplitPlugin with "
-                + f"MuSEEK version: {branch} ({commit})",
-                "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-                "The flag fraction for each receiver: ",
-            ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
-            flag_report_writer.write_to_report(lines)
+            lines += ['Scan data flag fraction per receiver:'] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        else:
+            lines += ['Scan data not kept.']
+        if track_data is not None:
+            receivers_list, flag_percent = flag_percent_recv(track_data)
+            lines += ['Track data flag fraction per receiver:'] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        else:
+            lines += ['Track data not kept.']
+        flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
             context_file_name = "scan_track_split_plugin.pickle"
@@ -118,6 +136,9 @@ class ScanTrackSplitPlugin(AbstractPlugin):
             )
 
     @staticmethod
-    def _observation_start_end(data: TimeOrderedData) -> tuple[float, float]:
-        """Return first and last timestamp in `data` as a `tuple`."""
-        return data.timestamps.get(time=0).squeeze, data.timestamps.get(time=-1).squeeze
+    def _scan_observation_start_end(data: TimeOrderedData) -> tuple[float, float]:
+        """Return first and last scan timestamp from `data` without deepcopying."""
+        scan_dumps = [d for t in data._scan_tuple_list if t.state == ScanStateEnum.SCAN for d in t.dumps]
+        assert data.timestamps is not None
+        all_timestamps = data.timestamps.squeeze
+        return all_timestamps[scan_dumps[0]], all_timestamps[scan_dumps[-1]]

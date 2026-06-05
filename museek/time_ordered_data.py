@@ -1,4 +1,7 @@
+import ctypes
+import gc
 import os
+import sys
 from copy import copy
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +16,7 @@ from katpoint import Antenna, Target
 from museek.data_element import DataElement
 from museek.definitions import get_cache_dir
 from museek.enums.scan_state_enum import ScanStateEnum
+from museek.util.resource_config import get_resource_config
 from museek.factory.data_element_factory import (
     AbstractDataElementFactory,
     DataElementFactory,
@@ -39,6 +43,38 @@ class ScanTuple(NamedTuple):
 class TimeOrderedData:
     """
     Class for handling time ordered data coming from `katdal`.
+
+    ## Time indexing — three distinct spaces
+
+    Working with time in this class involves three distinct index spaces that must
+    not be confused:
+
+    **1. Absolute dump indices** (`_scan_tuple_list[i].dumps`)
+        Row numbers in the original katdal HDF5 file, starting at 0 for the first
+        time step of the full observation. These never change regardless of scan-state
+        filtering. Used to identify which dumps belong to each scan or calibrator
+        period. Methods that work in this space: `_dumps()`, `dump_mask()`.
+
+    **2. Current-state timestamps** (`self.timestamps`)
+        A `DataElement` of actual epoch-second values, shaped `(n_current_dumps, 1, 1)`,
+        covering only the dumps of the current `scan_state`. After a split into TRACK
+        state, index 0 is the first TRACK dump — NOT the first dump of the observation.
+        Use `.get(time=i)` or `.squeeze[i]` to access by relative position.
+
+    **3. Original timestamps** (`self.original_timestamps`)
+        Set once when the data is first created (before any scan-state filtering) and
+        never updated. After a `deepcopy` + `set_data_elements(TRACK)`, this still
+        holds the pre-split timestamps. Used when you need timing relative to the
+        full observation (e.g. noise diode detection across the entire timeline).
+
+    ## Converting between spaces
+
+    To go from absolute dump indices to a boolean mask over the current state use
+    `dump_mask(absolute_dump_indices)`. This lets you index into `timestamps`,
+    `visibility`, `azimuth`, etc. which are all in current-state space:
+
+        select = track_data.dump_mask(calibrator_dump_indices)
+        az_calibrator = track_data.azimuth.squeeze[select]
     """
 
     def __init__(
@@ -51,6 +87,8 @@ class TimeOrderedData:
         force_load_auto_from_correlator_data: bool = False,
         force_load_cross_from_correlator_data: bool = False,
         do_create_cache: bool = True,
+        memory_gb: float | None = None,
+        cache_folder: str | None = None,
     ):
         """
         Initialise
@@ -64,14 +102,16 @@ class TimeOrderedData:
         :param force_load_cross_from_correlator_data: if `True` ignores local cache files of visibility, flag or weights
         :param do_create_cache: if `True` a cache file of visibility, flag and weight data is created if it is not
                                 already present
+        :param memory_gb: memory budget in GB for loading visibility data in batches; if `None`, auto-detected
+        :param cache_folder: directory to store and read cache files; defaults to `get_cache_dir()`
         """
         # these can consume a lot of memory, so they are only loaded when needed
         self.visibility: DataElement | None = None
-        self.flags: FlagList | None = None
+        self.flags: FlagList = FlagList(flags=[])
         self.weights: DataElement | None = None
 
         self.visibility_cross: DataElement | None = None
-        self.flags_cross: FlagList | None = None
+        self.flags_cross: FlagList = FlagList(flags=[])
         self.weights_cross: DataElement | None = None
 
         self._block_name = block_name
@@ -98,20 +138,26 @@ class TimeOrderedData:
         self.auto_correlator_products = self._get_auto_correlator_products()
         self.cross_correlator_products = self._get_cross_correlator_products()
         self.all_antennas = data.ants
+        self._n_all_products = len(data.corr_products)
         self._auto_select(data=data)
         self._data_str = str(data)
         # Cache data directory and filenames
-        self.cache_file_directory = Path(get_cache_dir()).resolve()
-        self.cache_file_directory.mkdir(parents=True, exist_ok=True)
+        cache_dir = (
+            Path(cache_folder).resolve()
+            if cache_folder is not None
+            else Path(get_cache_dir()).resolve()
+        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_file_directory = cache_dir
         self._auto_cache_file = (
-            self.cache_file_directory / f"{data.name}_auto_visibility_flags_weights.npz"
+            cache_dir / f"{data.name}_auto_visibility_flags_weights.npz"
         ).as_posix()
         self._cross_cache_file = (
-            self.cache_file_directory
-            / f"{data.name}_cross_visibility_flags_weights.npz"
+            cache_dir / f"{data.name}_cross_visibility_flags_weights.npz"
         ).as_posix()
         self.obs_script_log = data.obs_script_log
         self.shape = data.shape
+        self._requested_memory_gb = memory_gb
         self.name = data.name
         self.dump_period = data.dump_period
         self.antennas = data.ants
@@ -136,6 +182,7 @@ class TimeOrderedData:
         self.temperature: DataElement | None = None
         self.humidity: DataElement | None = None
         self.pressure: DataElement | None = None
+        self.site_elevation_km: float | None = None
 
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
@@ -162,41 +209,31 @@ class TimeOrderedData:
     def load_visibility_flags_weights(self, polars: str):
         """Load visibility, flag and weights and set them as attributes to `self`."""
         if polars == "auto":
-            if (
-                self.flags is not None
-                and self.weights is not None
-                and self.visibility is not None
-            ):
+            if self.visibility is not None:
                 print("Auto Visibility, flag and weight data is already loaded.")
                 return
             visibility_array, flag_array, weight_array = self._visibility_flags_weights(
                 polars
             )
             self.visibility = self._element_factory.create(array=visibility_array)
-            if self.flags is not None:
-                print("Overwriting existing auto flags.")
-            self.flags = FlagList.from_array(
-                array=flag_array, element_factory=self._flag_element_factory
+            self.flags.add_flag(
+                FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory),
+                name="SARAO",
             )
             if self.weights is not None:
                 print("Overwriting existing auto weights.")
             self.weights = self._element_factory.create(array=weight_array)
         elif polars == "cross":
-            if (
-                self.flags_cross is not None
-                and self.weights_cross is not None
-                and self.visibility_cross is not None
-            ):
+            if self.visibility_cross is not None:
                 print("Cross Visibility, flag and weight data is already loaded.")
                 return
             visibility_array, flag_array, weight_array = self._visibility_flags_weights(
                 polars
             )
             self.visibility_cross = self._element_factory.create(array=visibility_array)
-            if self.flags_cross is not None:
-                print("Overwriting existing cross flags.")
-            self.flags_cross = FlagList.from_array(
-                array=flag_array, element_factory=self._flag_element_factory
+            self.flags_cross.add_flag(
+                FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory),
+                name="SARAO",
             )
             if self.weights_cross is not None:
                 print("Overwriting existing cross weights.")
@@ -210,11 +247,11 @@ class TimeOrderedData:
         """Delete large arrays from memory, i.e. replace them with `None`."""
         if polars == "auto":
             self.visibility = None
-            self.flags = None
+            self.flags = FlagList(flags=[])
             self.weights = None
         elif polars == "cross":
             self.visibility_cross = None
-            self.flags_cross = None
+            self.flags_cross = FlagList(flags=[])
             self.weights_cross = None
         else:
             raise ValueError(
@@ -246,7 +283,8 @@ class TimeOrderedData:
         """Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`."""
         self.gain_solution = self._element_factory.create(array=gain_solution_array)
         self.flags.add_flag(
-            flag=self._element_factory.create(array=gain_solution_mask_array)
+            flag=self._flag_element_factory.create(array=gain_solution_mask_array),
+            name="gain_solution_mask",
         )
 
     def corrected_visibility(self) -> DataElement | None:
@@ -325,6 +363,8 @@ class TimeOrderedData:
             array=data.pressure[:, np.newaxis, np.newaxis]
         )
 
+        self.site_elevation_km = data.ants[0].observer.elevation / 1000.0
+
     def _set_data_elements_from_self(self, scan_state: ScanStateEnum | None):
         """
         Re-initialises all `DataElement`s for `scan_state` using the element factory. Sets the elements as attributes.
@@ -361,19 +401,27 @@ class TimeOrderedData:
         self.pressure = self._element_factory.create(array=self.pressure.array)
 
         # visibility, flags and weights
+        if len(self.flags) > 0:
+            self.flags = FlagList.from_array(
+                array=self.flags.array,
+                element_factory=self._flag_element_factory,
+                names=self.flags.flag_names,
+                descriptions=self.flags.flag_descriptions,
+            )
         if self.visibility is not None:
             self.visibility = self._element_factory.create(array=self.visibility.array)
-            self.flags = FlagList.from_array(
-                array=self.flags.array, element_factory=self._flag_element_factory
-            )
             self.weights = self._element_factory.create(array=self.weights.array)
 
+        if len(self.flags_cross) > 0:
+            self.flags_cross = FlagList.from_array(
+                array=self.flags_cross.array,
+                element_factory=self._flag_element_factory,
+                names=self.flags_cross.flag_names,
+                descriptions=self.flags_cross.flag_descriptions,
+            )
         if self.visibility_cross is not None:
             self.visibility_cross = self._element_factory.create(
                 array=self.visibility_cross.array
-            )
-            self.flags_cross = FlagList.from_array(
-                array=self.flags_cross.array, element_factory=self._flag_element_factory
             )
             self.weights_cross = self._element_factory.create(
                 array=self.weights_cross.array
@@ -410,6 +458,11 @@ class TimeOrderedData:
         return result
 
     def _dumps(self) -> list[int]:
+        # TODO: _dumps() returns absolute dump indices from the original correlator file, but
+        # DataElement arrays are indexed relatively (0..n_current_dumps-1). Any code that needs
+        # to cross-reference between these two spaces must use np.isin() or an explicit mapping;
+        # direct indexing with dump values will silently produce wrong results. Consider
+        # exposing a helper that converts absolute dump IDs to local positional indices.
         return self._dumps_of_scan_state()
 
     def _get_data_element_factory(self) -> AbstractDataElementFactory:
@@ -498,6 +551,8 @@ class TimeOrderedData:
                 self._do_create_cache = True
                 return self._visibility_flags_weights(data=data, polars=polars)
 
+            self._check_cache_receivers(correlator_products=correlator_products, polars=polars)
+
             visibility = data_from_cache["visibility"]
             flags = data_from_cache["flags"]
             weights = data_from_cache["weights"]
@@ -541,20 +596,50 @@ class TimeOrderedData:
         self, data: DataSet
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Loads and returns the visibility, flags and weights from katdal lazy indexer.
-        Note: this consumes a lot of memory depending on the selection of `data`.
+        Loads and returns the visibility, flags and weights from katdal lazy indexer in time batches.
         :param data: a `katdal` `DataSet`
         :return: a tuple of visibility, flags and weights as `np.ndarray` each, with the visibility and weights
                  3-dimensional and the flags 4-dimensional
         """
-        visibility = np.zeros(shape=self.shape, dtype=complex)
-        flags = np.zeros(shape=self.shape, dtype=bool)
-        weights = np.zeros(shape=self.shape, dtype=float)
-        DaskLazyIndexer.get(
-            arrays=[data.vis, data.flags, data.weights],
-            keep=...,
-            out=[visibility, flags, weights],
+        load_shape = data.shape  # shape after polars-specific select, may differ from self.shape
+        n_time = load_shape[0]
+        visibility = np.zeros(shape=load_shape, dtype=complex)
+        flags = np.zeros(shape=load_shape, dtype=bool)
+        weights = np.zeros(shape=load_shape, dtype=float)
+        bytes_per_element = (
+            data.vis.dtype.itemsize + data.flags.dtype.itemsize + data.weights.dtype.itemsize
         )
+        _, memory_gb = get_resource_config(memory_gb=self._requested_memory_gb)
+        available_for_batching = memory_gb * 0.9  # 10% buffer
+        if available_for_batching < 0.5:
+            raise MemoryError("Insufficient memory to load visibility data.")
+        batch_size = max(
+            1,
+            int(available_for_batching * 1e9 / (load_shape[1] * self._n_all_products * bytes_per_element)),
+        )
+        n_batches = np.ceil(n_time / batch_size)
+        print(
+            f"Loading visibilities using {n_batches:g} batches. "
+            f"Total memory available for batching: {available_for_batching:.1f} GB.",
+            flush=True,
+        )
+        for start in range(0, n_time, batch_size):
+            end = min(start + batch_size, n_time)
+            DaskLazyIndexer.get(
+                arrays=[data.vis, data.flags, data.weights],
+                keep=slice(start, end),
+                out=[visibility[start:end], flags[start:end], weights[start:end]],
+            )
+
+        # Return batch-loading intermediates to OS — Python's allocator retains freed
+        # heap pages by default; malloc_trim forces glibc to release them immediately.
+        gc.collect()
+        if sys.platform == "linux":
+            try:
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except OSError:
+                pass
+
         flags = flags[np.newaxis]  # necessary for compatibility
         return visibility, flags, weights
 
@@ -589,6 +674,31 @@ class TimeOrderedData:
             weights=weights,
             correlator_products=np.asarray(correlator_products),
         )
+
+    def _check_cache_receivers(self, correlator_products: np.ndarray, polars: str):
+        """
+        Raise `ValueError` if the cache file is missing any of the currently requested receivers.
+        :param correlator_products: the correlator products stored in the cache file
+        :param polars: 'auto' or 'cross'
+        """
+        auto_subset, cross_subset = self._split_cross_and_auto_products(
+            all_correlator_products=correlator_products
+        )
+        if polars == "auto":
+            cached = {tuple(pair) for pair in auto_subset}
+            requested = [tuple(pair) for pair in self.auto_correlator_products]
+        else:
+            cached = {tuple(pair) for pair in cross_subset}
+            requested = [tuple(pair) for pair in self.cross_correlator_products]
+
+        missing = [pair for pair in requested if pair not in cached]
+        if missing:
+            missing_receivers = [pair[0] for pair in missing]
+            raise ValueError(
+                f"Cache file for '{self.name}' is missing {polars}-correlation data for "
+                f"receivers {missing_receivers}. Delete the cache file or set "
+                f"force_load_{polars}_from_correlator_data=True to regenerate it."
+            )
 
     def _split_cross_and_auto_products(
         self, all_correlator_products: np.ndarray
@@ -709,17 +819,26 @@ class TimeOrderedData:
         """
         Returns a `list` of the `Receiver`s in `requested_receivers` that are available in `data`.
         If `requested_receivers` is `None`, all available receivers are returned.
+        Receiver IDs are populated from data.receivers when available.
         """
         all_receiver_names = np.unique(data.corr_products.flatten())
         if requested_receivers is not None:
-            return [
+            receivers = [
                 receiver
                 for receiver in requested_receivers
                 if receiver.name in all_receiver_names
             ]
-        return [
-            Receiver.from_string(receiver_string=name) for name in all_receiver_names
-        ]
+        else:
+            receivers = [
+                Receiver.from_string(receiver_string=name) for name in all_receiver_names
+            ]
+
+        if hasattr(data, "receivers"):
+            for receiver in receivers:
+                if receiver.antenna_name in data.receivers:
+                    receiver.receiver_id = data.receivers[receiver.antenna_name]
+
+        return receivers
 
     @staticmethod
     def _get_scan_tuple_list(data: DataSet) -> list[ScanTuple]:

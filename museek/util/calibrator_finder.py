@@ -29,7 +29,9 @@ def _find_calibrator_scans_in_period(
     :return: Tuple of (dump indices list, scan count) or None if no valid sequence found
     """
     matching_scans = []
-    original_timestamps = track_data.original_timestamps.squeeze
+    if track_data.timestamps is None:
+        raise ValueError("track_data.timestamps is not set — call set_data_elements first.")
+    dump_to_time = dict(zip(track_data._dumps(), track_data.timestamps.squeeze))
 
     # Find matching scans in the specified period
     for scan_tuple in track_data._scan_tuple_list:
@@ -42,8 +44,8 @@ def _find_calibrator_scans_in_period(
             trimmed_dumps = scan_tuple.dumps[1:-1]
 
             # Recalculate timestamps based on trimmed dumps
-            scan_start_time = original_timestamps[trimmed_dumps[0]]
-            scan_end_time = original_timestamps[trimmed_dumps[-1]]
+            scan_start_time = dump_to_time[trimmed_dumps[0]]
+            scan_end_time = dump_to_time[trimmed_dumps[-1]]
             scan_duration = scan_end_time - scan_start_time
 
             # Time-based filtering for period
@@ -126,12 +128,13 @@ def find_calibrators(
         min_duration_seconds,
         max_gap_seconds,
     )
+    if track_data.timestamps is None:
+        raise ValueError("track_data.timestamps is not set — call set_data_elements first.")
+    dump_to_time = dict(zip(track_data._dumps(), track_data.timestamps.squeeze))
+
     if before_result is not None:
         dump_indices, scan_count = before_result
-        original_timestamps = track_data.original_timestamps.squeeze
-        total_duration = (
-            original_timestamps[dump_indices[-1]] - original_timestamps[dump_indices[0]]
-        )
+        total_duration = dump_to_time[dump_indices[-1]] - dump_to_time[dump_indices[0]]
         results["before_scan"] = (dump_indices, scan_count, total_duration)
 
     # After scan: use last calibrator name
@@ -146,10 +149,7 @@ def find_calibrators(
     )
     if after_result is not None:
         dump_indices, scan_count = after_result
-        original_timestamps = track_data.original_timestamps.squeeze
-        total_duration = (
-            original_timestamps[dump_indices[-1]] - original_timestamps[dump_indices[0]]
-        )
+        total_duration = dump_to_time[dump_indices[-1]] - dump_to_time[dump_indices[0]]
         results["after_scan"] = (dump_indices, scan_count, total_duration)
 
     return results
