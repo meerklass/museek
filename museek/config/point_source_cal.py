@@ -13,6 +13,7 @@ Pipeline = ConfigSection(
         'museek.plugin.extract_calibrators_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
+        'museek.plugin.noise_diode_excess_plugin',
         'museek.plugin.point_source_calibration_plugin',
     ],
 #    context=os.path.join('/home/mgrsantos/projects/data/context/', '1675021905/point_source_calibration_plugin.pickle')
@@ -46,7 +47,7 @@ NoiseDiodeFlaggerPlugin = ConfigSection(
 
 KnownRfiPlugin = ConfigSection(
     gsm_900_uplink=None,
-    gsm_900_downlink=(925, 960),
+    gsm_900_downlink=(922, 966),  # widened guard channels to catch 963 MHz band-edge residual
     gsm_1800_uplink=None,
     #gps=(1170, 1390),
     #extra_rfi=[(1524, 1630)],
@@ -56,7 +57,8 @@ KnownRfiPlugin = ConfigSection(
     (1015, 1088), # band edges
     (765, 778),   # Vodacom
     (801, 811),   # MTN
-    (811, 821)    # Telkom
+    (811, 821),   # Telkom
+    (864, 873)    # 869 MHz persistent feature (real-axis gain dip)
     ],
     verbose=0,
 )
@@ -109,6 +111,22 @@ AoflaggerTrackingPlugin = ConfigSection(
     time_dump_flag_threshold=0.6,
     flag_combination_threshold=1,
     do_store_context=True
+)
+
+NoiseDiodeExcessPlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    flag_combination_threshold=1,
+    zscoreflag_threshold=5.,
+    polyflag_deg=5,
+    polyflag_threshold=3.,
+    polyfit_deg=5,
+    zscore_antenaflag_threshold=10,
+    noise_diode_excess_lowlim=5.,
+    nd_dump_good_fraction=0.5,
+    nd_excess_failure_fraction=0.5,
+    nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking'),
+    do_store_context=True,
 )
 
 PointSourceCalibrationPlugin = ConfigSection(

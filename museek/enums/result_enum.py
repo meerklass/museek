@@ -23,6 +23,7 @@ class ResultEnum(Enum):
     CORRELATION_COEFFICIENT_VIS_SYNCH_ANT = auto()
     POINT_SOURCE_FLAG = auto()
     NOISE_DIODE_EXCESS = auto()
+    NOISE_DIODE_EXCESS_AVERAGE = auto()
     NOISE_ON_INDEX = auto()
     NOISE_ON_TIMESTAMP = auto()
     CALIBRATED_VIS_FLAG = auto()
