@@ -125,7 +125,8 @@ NoiseDiodeExcessPlugin = ConfigSection(
     noise_diode_excess_lowlim=5.,
     nd_dump_good_fraction=0.5,
     nd_excess_failure_fraction=0.5,
-    nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking'),
+    #nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking'),
+    nd_excluded_flag_names=('noise_diode_on'),
     do_store_context=True,
 )
 
