@@ -63,6 +63,7 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
                  nd_dump_good_fraction: float = 0.5,
                  nd_excess_failure_fraction: float = 0.5,
                  nd_excluded_flag_names: tuple[str, ...] = ('noise_diode_on', 'aoflagger_tracking'),
+                 aoflagger_flag_name: str = 'aoflagger_tracking',
                  do_store_context: bool = False,
                  **kwargs):
         """
@@ -83,6 +84,10 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         :param nd_excluded_flag_names: flag layers NOT leaked onto the ND dumps. `noise_diode_on` masks
                                        every firing by definition; `aoflagger_tracking` mistakes the ND burst
                                        for RFI. All other flag layers ARE applied to the ND dumps.
+        :param aoflagger_flag_name: name of the aoflagger flag layer to leak asymmetrically (onto the
+                                    noise-diode OFF/baseline dumps only, never the ON/firing dumps). If
+                                    this name is also present in `nd_excluded_flag_names` the layer is
+                                    fully excluded and no asymmetric leak happens.
         :param do_store_context: if `True` the context is stored to disc after finishing the plugin
         """
         super().__init__(**kwargs)
@@ -96,6 +101,7 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         self.nd_dump_good_fraction = nd_dump_good_fraction
         self.nd_excess_failure_fraction = nd_excess_failure_fraction
         self.nd_excluded_flag_names = set(nd_excluded_flag_names)
+        self.aoflagger_flag_name = aoflagger_flag_name
         self.do_store_context = do_store_context
         self.report_file_name = 'flag_report.md'
 
@@ -118,27 +124,45 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
 
         track_data.load_visibility_flags_weights(polars='auto')
 
-        # Leak the flagging to the noise diode dumps: combine every flag layer
-        # EXCEPT the ones in `nd_excluded_flag_names`. Keeping `noise_diode_on`
-        # out means the ND-firing dumps are no longer auto-masked just for being
-        # firings; keeping `aoflagger_tracking` out means the amplitude-based aoflagger
-        # does not mask the ND burst itself. The ND dumps DO keep any real RFI /
-        # antenna / elevation / low-value flags.
-        result_array = np.zeros(track_data.flags.shape)
-        for i, name in enumerate(track_data.flags.flag_names):
-            if name not in self.nd_excluded_flag_names:
-                result_array += track_data.flags._flags[i].get_array()
-        result_array[result_array < self.flag_combination_threshold] = 0
-        initial_flags = track_data.flags._flag_element_factory.create(
-            array=np.asarray(result_array, dtype=bool)
-        )
-
+        # The noise-diode off (baseline) dumps must be known BEFORE the mask is
+        # built so the aoflagger layer can be leaked asymmetrically (off dumps only).
         noise_diode = NoiseDiode(dump_period=track_data.dump_period, observation_log=track_data.obs_script_log)
         noise_diode_off_dumps = noise_diode.get_noise_diode_off_scan_dumps(timestamps=track_data.timestamps)
         noise_diode_cycle_start_times = noise_diode._get_noise_diode_cycle_start_times(timestamps=track_data.timestamps)
         noise_diode_ratios = noise_diode._get_noise_diode_ratios(timestamps=track_data.timestamps,
                                                                  noise_diode_cycle_starts=noise_diode_cycle_start_times,
                                                                  dump_period=noise_diode._dump_period)
+
+        # Leak the flagging to the noise diode dumps: combine every flag layer
+        # EXCEPT the ones in `nd_excluded_flag_names`. Keeping `noise_diode_on`
+        # out means the ND-firing dumps are no longer auto-masked just for being
+        # firings. The aoflagger layer (`aoflagger_flag_name`) is handled
+        # asymmetrically: it is leaked onto the noise-diode OFF (baseline) dumps
+        # only and zeroed on the ON (firing) dumps. That excludes a contaminated
+        # off-baseline dump from the excess while preventing the amplitude-based
+        # aoflagger from mistaking the ND burst itself for RFI. The ND dumps DO
+        # keep any real RFI / antenna / elevation / low-value flags.
+        result_array = np.zeros(track_data.flags.shape)
+        aoflagger_array = None
+        for i, name in enumerate(track_data.flags.flag_names):
+            if name == self.aoflagger_flag_name:
+                aoflagger_array = track_data.flags._flags[i].get_array()
+                continue
+            if name not in self.nd_excluded_flag_names:
+                result_array += track_data.flags._flags[i].get_array()
+
+        if aoflagger_array is not None:
+            # leak aoflagger onto the OFF (baseline) dumps only; zero on firings
+            is_noise_on = np.ones(track_data.flags.shape[0], dtype=bool)
+            is_noise_on[noise_diode_off_dumps] = False
+            aoflagger_array = aoflagger_array.copy()
+            aoflagger_array[is_noise_on, ...] = 0
+            result_array += aoflagger_array
+
+        result_array[result_array < self.flag_combination_threshold] = 0
+        initial_flags = track_data.flags._flag_element_factory.create(
+            array=np.asarray(result_array, dtype=bool)
+        )
 
         for i_receiver, receiver in enumerate(track_data.receivers):
             visibility = track_data.visibility.get(recv=i_receiver).squeeze

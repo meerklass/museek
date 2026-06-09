@@ -250,7 +250,8 @@ class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
         track_data.flags.add_flag(
             flag=FlagList.from_array(
                 array=result_list, element_factory=self.data_element_factory
-            )
+            ),
+            name='aoflagger_tracking',
         )
 
         branch, commit = git_version_info()
