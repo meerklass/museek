@@ -156,6 +156,8 @@ class TimeOrderedData:
             cache_dir / f"{data.name}_cross_visibility_flags_weights.npz"
         ).as_posix()
         self.obs_script_log = data.obs_script_log
+        # Full-observation shape. NOT updated by a scan/track split — for the current scan-state
+        # time axis use `self.timestamps.shape[0]` (or `.visibility`/`.flags` shape).
         self.shape = data.shape
         self._requested_memory_gb = memory_gb
         self.name = data.name

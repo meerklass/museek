@@ -18,6 +18,10 @@ from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
 from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
+from museek.factory.data_element_factory import FlagElementFactory
+from museek.flag_element import FlagElement
+from museek.flag_list import FlagList
+from museek.rfi_mitigation.aoflagger_1d import get_rfi_mask_1d
 from museek.model.atmospheric_opacity import AtmosphericModel
 from museek.model.point_sources import get_point_source_model
 from museek.model.primary_beam import PrimaryBeam
@@ -138,11 +142,16 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                  spillover_model_file: str,
                  do_store_context: bool,
                  on_source_separation_threshold_deg: float = 0.3,
+                 n_on_pointings: int | None = None,
                  synch_model: str = 's1',
                  synch_nside: int = 128,
                  synch_fwhm_ref_deg: float = 1.68,
                  synch_fwhm_ref_freq_MHz: float = 850.0,
                  synch_freq_step_MHz: float = 20.0,
+                 gain_first_threshold: float = 1.0,
+                 gain_threshold_scales: list | None = None,
+                 gain_smoothing_window_size: int = 100,
+                 gain_smoothing_sigma: float = 30.0,
                  prefer: str = 'threads',
                  **kwargs):
         """
@@ -156,6 +165,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param on_source_separation_threshold_deg: Angular separation threshold in degrees to
             classify a time dump as on-source. Dumps with telescope-to-source separation below
             this value are considered on-source; all others are off-source.
+        :param n_on_pointings: expected number of on-source pointings per period. If set, the plugin
+            raises if the number of on-source pointing groups found differs (a guard against a wrong
+            calibrator position or on_source_separation_threshold_deg). `None` disables the check.
         :param synch_model: pysm3 preset string for synchrotron model, e.g. 's1'
         :param synch_nside: HEALPix nside resolution for synchrotron map
         :param synch_fwhm_ref_deg: Reference Gaussian FWHM in degrees for beam smoothing
@@ -168,17 +180,23 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 #        print(f'Available memory 1 = {psutil.virtual_memory().available / 1e9:.2f} GB', flush=True)
 
         super().__init__(prefer=prefer, **kwargs)
+        self.data_element_factory = FlagElementFactory()
         self.flag_combination_threshold = flag_combination_threshold
         self.beam_file_path = beam_file_path
         self.receiver_models_dir = receiver_models_dir
         self.spillover_model_file = spillover_model_file
         self.do_store_context = do_store_context
         self.on_source_separation_threshold_deg = on_source_separation_threshold_deg
+        self.n_on_pointings = n_on_pointings
         self.synch_model = synch_model
         self.synch_nside = synch_nside
         self.synch_fwhm_ref_deg = synch_fwhm_ref_deg
         self.synch_fwhm_ref_freq_MHz = synch_fwhm_ref_freq_MHz
         self.synch_freq_step_MHz = synch_freq_step_MHz
+        self.gain_first_threshold = gain_first_threshold
+        self.gain_threshold_scales = gain_threshold_scales if gain_threshold_scales is not None else [1.0]
+        self.gain_smoothing_window_size = gain_smoothing_window_size
+        self.gain_smoothing_sigma = gain_smoothing_sigma
 
     def set_requirements(self):
         """Set the requirements for the plugin."""
@@ -385,19 +403,33 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 conversion_factor * point_source_flux * beam_gain_VV / beam_solid_angle_VV
             )  # Shape: (n_dumps_period, n_freq)
 
-            # Classify each time dump as on-source or off-source using angular separation
-            d_az = (az_median_period - az_source_period) * np.cos(np.deg2rad(el_source_period))
-            d_el = el_median_period - el_source_period
-            on_mask = np.sqrt(d_az**2 + d_el**2) < self.on_source_separation_threshold_deg
-            print(f"Period {period}: {on_mask.sum()} on-source dumps, {(~on_mask).sum()} off-source dumps", flush=True)
+            # Classify each time dump as on-source or off-source via the true angular separation.
+            # Using astropy's separation (not a raw az/el difference) handles the azimuth 0/360 wrap
+            # and the cos(el) projection — northern / near-transit sources like 3C273 sit near az 0
+            # and would otherwise read as all-off-source.
+            on_mask = source_altaz.separation(median_pointing).deg < self.on_source_separation_threshold_deg
+
+            # Count on-source pointings = contiguous on-source dump groups (rising edges of on_mask).
+            n_on_found = int((np.diff(np.concatenate(([0], on_mask.astype(int), [0]))) == 1).sum())
+            print(f"Period {period}: {on_mask.sum()} on-source dumps in {n_on_found} pointing(s), "
+                  f"{(~on_mask).sum()} off-source dumps", flush=True)
+
+            # Guard against a wrong calibrator position / separation threshold.
+            if self.n_on_pointings is not None and n_on_found != self.n_on_pointings:
+                raise ValueError(
+                    f"Period '{period}': found {n_on_found} on-source pointing(s) but expected "
+                    f"{self.n_on_pointings} (n_on_pointings). Check the calibrator position, the "
+                    f"pointing pattern, or on_source_separation_threshold_deg "
+                    f"(= {self.on_source_separation_threshold_deg})."
+                )
 
             # Initialize model_components for this period (once, outside receiver loop)
             self.model_components[period] = {
                 'calibrator': calibrator_name,
                 'dump_indices': dump_indices_period,
                 'on_mask': on_mask,
-                'gain': [],  # Will be filled in gather_and_set_result
-                'gain_on_off': [],  # Will be filled in gather_and_set_result
+                'gain': [],        # Will be filled in gather_and_set_result
+                'gain_on_off': [], # Will be filled in gather_and_set_result
                 'beam_gain_HH': beam_gain_HH,  # (n_dumps, n_freq) - same for all receivers
                 'beam_gain_VV': beam_gain_VV,  # (n_dumps, n_freq) - same for all receivers
                 'temperatures': {
@@ -508,11 +540,31 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             if self.verbose:
                 print(f"Period {period}: skipping gain_on_off (no on or off dumps)", flush=True)
 
+        # Flag gain solutions using 1D AOFlagger.
+        # Use the gain's own mask as the initial mask — channels where the gain couldn't
+        # be computed (all times flagged, e.g. known RFI) are already masked there.
+        # get_rfi_mask_1d returns a mask that already includes the initial mask, so use it directly.
+        def _flag_gain_1d(gain: np.ma.MaskedArray) -> np.ma.MaskedArray:
+            initial_mask = np.ma.getmaskarray(gain)
+            rfi_mask = get_rfi_mask_1d(
+                time_ordered=DataElement(array=np.ma.filled(gain, 0.0)[:, np.newaxis, np.newaxis]),
+                mask=FlagElement(array=initial_mask[:, np.newaxis, np.newaxis]),
+                mask_type='vis',
+                first_threshold=self.gain_first_threshold,
+                threshold_scales=self.gain_threshold_scales,
+                smoothing_window_size=self.gain_smoothing_window_size,
+                smoothing_sigma=self.gain_smoothing_sigma,
+            ).squeeze  # Shape: (n_freq,), already includes initial_mask
+            return ma.array(gain.data, mask=rfi_mask)
+
+        gain_per_freq = _flag_gain_1d(gain_per_freq)
+        gain_on_off   = _flag_gain_1d(gain_on_off)
+
         # Return only period and gains (other components already stored in map())
         return {
             'period': period,
-            'gain': gain_per_freq,      # Shape: (n_freq,) - constant in time
-            'gain_on_off': gain_on_off  # Shape: (n_freq,) - constant in time
+            'gain': gain_per_freq,      # Shape: (n_freq,), mask includes computation + RFI flags
+            'gain_on_off': gain_on_off, # Shape: (n_freq,), mask includes computation + RFI flags
         }
 
     def gather_and_set_result(self,
@@ -556,7 +608,8 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             self.model_components[period]['gain_on_off'].append(result_dict['gain_on_off'])
 
         # Stack receiver-specific components along receiver axis
-        for period in self.model_components:
+        period_keys_stack = [p for p in self.model_components if isinstance(self.model_components[p], dict)]
+        for period in period_keys_stack:
             # Stack gain: list of (n_freq,) -> (n_freq, n_receivers)
             self.model_components[period]['gain'] = np.ma.stack(
                 self.model_components[period]['gain'],
@@ -584,7 +637,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Count calibrators processed (from model_components)
         calibrators_processed = set([self.model_components[period]['calibrator']
-                                     for period in self.model_components])
+                                     for period in period_keys_stack])
 
         lines = [
             '...........................',
@@ -611,6 +664,21 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         with open(model_components_file, 'wb') as f:
             pickle.dump(self.model_components, f)
         print(f'Model components saved to: {model_components_file}', flush=True)
+
+        # Add gain RFI flags to track_data — one named flag per period per gain type.
+        # Use the flags' (track-split) time axis, not track_data.shape which is the full-obs shape.
+        period_keys = [p for p in self.model_components if isinstance(self.model_components[p], dict)]
+        n_time = track_data.flags.shape[0]
+        for period in period_keys:
+            for gain_key in ('gain', 'gain_on_off'):
+                mask = np.ma.getmaskarray(self.model_components[period][gain_key])  # (n_freq, n_receivers)
+                flag_array = np.tile(mask[np.newaxis, :, :], (n_time, 1, 1))
+                track_data.flags.add_flag(
+                    flag=FlagList.from_array(
+                        array=flag_array, element_factory=self.data_element_factory
+                    ),
+                    name=f"{period}_{gain_key}_rfi_mask",
+                )
 
         # Set results
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))

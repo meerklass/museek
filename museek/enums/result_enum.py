@@ -43,3 +43,6 @@ class ResultEnum(Enum):
     MAP_SELFCALI_FLAG = auto()
     MAP_SELFCALI_FLAG_NAME_LIST = auto()
     KNOWN_RFI_LIST = auto()
+    # Append new members here only — ResultEnum values are auto() and get pickled by value, so
+    # inserting in the middle shifts every later value and breaks existing context pickles.
+    NOISE_DIODE_DUTY_CYCLE = auto()

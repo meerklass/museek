@@ -274,7 +274,23 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
                 rmsnorm_poly_fit_list.append(np.std(np.polyval(p_poly, noise_on_timestamp) / np.median(np.polyval(p_poly, noise_on_timestamp))))
 
         rmsnorm_poly_fit_list = np.array(rmsnorm_poly_fit_list)
-        receiver_mask_poly_fit = remove_outliers_zscore_mad(rmsnorm_poly_fit_list, np.isnan(rmsnorm_poly_fit_list), self.zscore_antenaflag_threshold)
+
+        # A `nan` rms means the receiver's time-median excess was mostly masked, so its
+        # poly-flatness could not be assessed: that is "no opinion", NOT "bad behaviour".
+        # Feeding the nan-mask straight into `remove_outliers_zscore_mad` is wrong, because
+        # its `mean(mask) > 0.6 -> mask everything` rule then flags EVERY receiver (including
+        # ones with a perfectly healthy excess) as soon as most receivers are nan. Assess the
+        # outliers only among receivers we could actually fit; leave nan receivers for the
+        # lowlim check below (a receiver with genuinely no usable data has a masked median
+        # excess and is caught there).
+        finite = ~np.isnan(rmsnorm_poly_fit_list)
+        receiver_mask_poly_fit = np.zeros(len(rmsnorm_poly_fit_list), dtype=bool)
+        if finite.any():
+            receiver_mask_poly_fit[finite] = remove_outliers_zscore_mad(
+                rmsnorm_poly_fit_list[finite],
+                np.zeros(int(finite.sum()), dtype=bool),
+                self.zscore_antenaflag_threshold,
+            )
 
         shape = track_data.visibility.shape
         new_flag = FlagList(flags=[FlagFactory().empty_flag(shape=shape)])

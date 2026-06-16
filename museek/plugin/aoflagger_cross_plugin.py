@@ -171,7 +171,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        scan_data.flags_cross.add_flag(flag=new_flag)
+        scan_data.flags_cross.add_flag(flag=new_flag, name="aoflagger_cross")
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()

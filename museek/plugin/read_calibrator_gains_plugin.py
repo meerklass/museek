@@ -89,8 +89,9 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
             gain_matched[:, i] = recv_avg.data
             mask_matched[:, i] = recv_avg.mask if np.ma.is_masked(recv_avg) else False
 
-        # Tile to (n_time, n_freq, n_receivers)
-        n_time = track_data.shape[0]
+        # Tile to (n_time, n_freq, n_receivers). Use the current scan-state time axis, not
+        # track_data.shape which is the full-observation shape (unchanged by the scan/track split).
+        n_time = track_data.timestamps.shape[0]
         gain_solution = np.tile(gain_matched[np.newaxis, :, :], (n_time, 1, 1))
         gain_mask = np.tile(mask_matched[np.newaxis, :, :], (n_time, 1, 1))
 

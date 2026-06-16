@@ -13,7 +13,8 @@ Pipeline = ConfigSection(
         'museek.plugin.extract_calibrators_plugin',
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
-        'museek.plugin.noise_diode_excess_plugin',
+#         'museek.plugin.noise_diode_excess_plugin',
+        'museek.plugin.noise_diode_signal_plugin',
         'museek.plugin.point_source_calibration_plugin',
     ],
 #    context=os.path.join('/home/mgrsantos/projects/data/context/', '1675021905/point_source_calibration_plugin.pickle')
@@ -58,7 +59,6 @@ KnownRfiPlugin = ConfigSection(
     (765, 778),   # Vodacom
     (801, 811),   # MTN
     (811, 821),   # Telkom
-    (864, 873)    # 869 MHz persistent feature (real-axis gain dip)
     ],
     verbose=0,
 )
@@ -108,7 +108,7 @@ AoflaggerTrackingPlugin = ConfigSection(
     smoothing_sigma_flag_fraction=30,  # Smoothing, kernel sigma in frequency axis
     struct_size=(1, 3),  # size of struct for dilation in time and frequency direction [pixels]
     channel_flag_threshold=0.6,
-    time_dump_flag_threshold=0.6,
+    time_dump_flag_threshold=0.6,   #warning: this includes noise diodes
     flag_combination_threshold=1,
     do_store_context=True
 )
@@ -125,15 +125,26 @@ NoiseDiodeExcessPlugin = ConfigSection(
     noise_diode_excess_lowlim=5.,
     nd_dump_good_fraction=0.5,
     nd_excess_failure_fraction=0.5,
-    nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking'),
+    nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking_flag'),
+    do_store_context=True,
+)
+
+NoiseDiodeSignalPlugin = ConfigSection(
+    n_jobs=13,
+    verbose=0,
+    flag_combination_threshold=1,
+    zscoreflag_threshold=3.5,
+    max_masked_fraction=0.6,  # mask all of a receiver's firings if more than this fraction are masked after outlier removal
+    noise_diode_excess_lowlim=5.,
     do_store_context=True,
 )
 
 PointSourceCalibrationPlugin = ConfigSection(
-    n_jobs=6,
+    n_jobs=13,
     verbose=0,
     flag_combination_threshold=1,
     on_source_separation_threshold_deg=0.1,
+    n_on_pointings=3,  # expected on-source pointings per period; raises if mismatched. None disables.
     beam_file_path='/home/mgrsantos/projects/data/MeerKAT_U_band_primary_beam_aa_highres.npz',
     receiver_models_dir=os.path.join(ROOT_DIR, 'museek/model/receiver_models'),
     spillover_model_file=os.path.join(ROOT_DIR, 'museek/model/MK_U_Tspill_AsBuilt_atm_mask.dat'),
@@ -142,6 +153,10 @@ PointSourceCalibrationPlugin = ConfigSection(
     synch_fwhm_ref_deg=1.68,
     synch_fwhm_ref_freq_MHz=850.0,
     synch_freq_step_MHz=20.0,
-    do_store_context=True
+    do_store_context=True,
+    gain_first_threshold=1.0,
+    gain_threshold_scales=[1.0],
+    gain_smoothing_window_size=100,
+    gain_smoothing_sigma=30.0,
 )
 
