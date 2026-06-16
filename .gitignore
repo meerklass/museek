@@ -65,3 +65,6 @@ CLAUDE.md
 *.log
 _*.sbatch
 context.pickle
+
+# local-only configs
+museek/config/point_source_cal_local.py
