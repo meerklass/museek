@@ -30,7 +30,7 @@ def generate_sbatch_script(
     slurm_options: list[str],
 ) -> str:
     """Generate the sbatch script content."""
-    context_folder = Path(base_context_folder) / patch / block_name
+    context_folder = Path(base_context_folder) / patch / block_name / "context"
 
     # Define default SLURM options
     default_slurm_options = [
@@ -48,10 +48,10 @@ def generate_sbatch_script(
         'echo "=========================================="',
         'echo "Executing MuSEEK UHF Band Processing"',
         'echo "=========================================="',
-        f'echo "Block name:    {block_name}"',
-        f'echo "Patch:         {patch}"',
-        f'echo "Data folder:   "{data_folder}""',
-        f'echo "Context folder: "{context_folder}""',
+        f'echo "Block name:        {block_name}"',
+        f'echo "Patch:             {patch}"',
+        f'echo "Raw data folder:   {data_folder}"',
+        f'echo "Context folder:    {context_folder}"',
         'echo "=========================================="',
         "",
         "# Execute the pipeline",
@@ -81,12 +81,12 @@ def generate_sbatch_script(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
     default="/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs",
-    help="Base directory for context outputs. Final output directory: <base-context-folder>/<patch>/<block-name>",
+    help="Base directory for context outputs. Final output directory: <base-context-folder>/<patch>/<block-name>/context",
     show_default=True,
 )
 @click.option(
     "-d",
-    "--data-folder",
+    "--raw-data-folder",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, resolve_path=True),
     default="/idia/raw/meerklass/SCI-20230907-MS-01",
     help="Path to raw data folder",
@@ -99,7 +99,7 @@ def main(
     block_name: str,
     patch: str,
     base_context_folder: Path,
-    data_folder: Path,
+    raw_data_folder: Path,
     venv: Path,
     slurm_options: tuple[str, ...],
     dry_run: bool,
@@ -110,11 +110,11 @@ def main(
 
     \b
     EXAMPLES:
-      museek_run_process_uhf_band --block-name 1675632179 --patch box6
-      museek_run_process_uhf_band --block-name 1675632179 --patch desi1
-      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --base-context-folder /custom/pipeline
-      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --dry-run
-      museek_run_process_uhf_band --block-name 1675632179 --patch box6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+      museek_run_process_uhf_band -b 1747093289 -p box6
+      museek_run_process_uhf_band -b 1747093289 -p box6 --dry-run
+      museek_run_process_uhf_band -b 1747093289 -p box6 -c /custom/output/path
+      museek_run_process_uhf_band -b 1747093289 -p box6 -s --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+      museek_run_process_uhf_band -b 1678122565 -p desi1 -d /idia/raw/meerklass/SCI-20220801-MS-01
 
     \b
     DEFAULT SLURM PARAMETERS:
@@ -131,7 +131,7 @@ def main(
       - meerklass-1 group permission for raw data access
     """
     # Validate input data directory
-    data_block_folder = Path(data_folder) / block_name
+    data_block_folder = Path(raw_data_folder) / block_name
     if not data_block_folder.exists():
         click.echo(
             f"Error: Data directory does not exist: {data_block_folder}", err=True
@@ -143,7 +143,7 @@ def main(
         raise click.Abort()
 
     # Create context output directory if it does not exist
-    context_folder = Path(base_context_folder) / patch / block_name
+    context_folder = Path(base_context_folder) / patch / block_name / "context"
     if not context_folder.exists():
         click.secho(
             f"Warning: Creating context directory: {context_folder}", fg="yellow"
@@ -155,7 +155,7 @@ def main(
         block_name=block_name,
         patch=patch,
         base_context_folder=base_context_folder,
-        data_folder=data_folder,
+        data_folder=raw_data_folder,
         venv_path=venv,
         slurm_options=list(slurm_options),
     )
