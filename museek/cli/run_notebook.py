@@ -22,8 +22,8 @@ import click
 
 from museek.cli.common import (
     add_block_name_option,
-    add_box_option,
     add_dry_run_option,
+    add_patch_option,
     add_slurm_options,
     add_venv_option,
 )
@@ -260,8 +260,8 @@ def validate_notebook(notebook_name: str) -> Path:
 def generate_sbatch_script(
     notebook_path: Path,
     block_name: str,
-    box: str,
-    data_path: Path,
+    patch: str,
+    base_context_folder: Path,
     output_dir: Path,
     kernel: str,
     notebook_name: str,
@@ -277,13 +277,15 @@ def generate_sbatch_script(
     """
     # Use the notebook name's stem (base name without suffix) for the output file
     output_notebook = output_dir / f"{Path(notebook_name).stem}_{block_name}.ipynb"
+    data_path = base_context_folder / patch / block_name
 
     # Build papermill parameters string
-    # Always include mandatory parameters: block_name, box, and data_path
+    # Always include mandatory parameters: block_name, patch, and data_path
     param_lines = []
     param_lines.append(f'    -r block_name "{block_name}" \\')
-    param_lines.append(f'    -r box "{box}" \\')
-    param_lines.append(f'    -p data_path "{data_path.as_posix()}" \\')
+    param_lines.append(f'    -r patch "{patch}" \\')
+    param_lines.append(
+        f'    -p base_context_folder "{base_context_folder.as_posix()}" \\')
     # Add any additional parameters provided by the user
     for param_name, param_value in parameters:
         param_lines.append(f'    -p {param_name} "{param_value}" \\')
@@ -308,13 +310,13 @@ def generate_sbatch_script(
         'echo "=========================================="',
         f'echo "Notebook template:      "{notebook_path}""',
         f'echo "Block name:    {block_name}"',
-        f'echo "Box:           {box}"',
+        f'echo "Patch:         {patch}"',
         f'echo "Kernel:        {kernel}"',
-        f'echo "Data path:     "{data_path}""',
-        f'echo "Output:        "{output_notebook}""',
+        f'echo "Data path:     {data_path}"',
+        f'echo "Output:        {output_notebook}"',
         'echo "=========================================="',
         "",
-        "# Create output directory",
+        "# Create output directory if not exists",
         f'mkdir -p "{output_dir}"',
         "",
         "# Execute notebook using papermill with collected parameters",
@@ -363,17 +365,18 @@ def generate_sbatch_script(
     ),
 )
 @add_block_name_option()
-@add_box_option()
+@add_patch_option()
 @click.option(
-    "-d",
-    "--base-data-path",
+    "-c",
+    "--base-context-folder",
     type=click.Path(
         file_okay=False, dir_okay=True, writable=True, path_type=Path, resolve_path=True
     ),
     default="/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs",
     help=(
-        "Base path of the requied data for the notebook. The notebook will search for "
-        "pickle files in <base-data-path>/box<box>/<block-name>/"
+        "Base directory containing input context pickle files for the notebook. "
+        "The notebook will search for files in "
+        "<base-context-folder>/<patch>/<block-name>/context"
     ),
     show_default=True,
 )
@@ -385,8 +388,8 @@ def generate_sbatch_script(
     ),
     default=None,
     help=(
-        "Directory for notebook output. If not specify, output will be saved to "
-        "<base-data-path>/box<box>/<block-name>/"
+        "Directory to save the executed notebook. Will save to"
+        "<base-context-folder>/<patch>/<block-name>/notebook if not specified"
     ),
     show_default=True,
 )
@@ -401,7 +404,7 @@ def generate_sbatch_script(
     ),
 )
 @click.option(
-    "-p",
+    "-P",
     "--parameters",
     type=(str, str),
     metavar="<NAME VALUE>...",
@@ -415,8 +418,8 @@ def generate_sbatch_script(
 def main(
     notebook: str,
     block_name: str,
-    box: str,
-    base_data_path: Path,
+    patch: str,
+    base_context_folder: Path,
     output_dir: Path | None,
     venv: Path,
     kernel: str | None,
@@ -428,7 +431,7 @@ def main(
     notebook using papermill.
 
     This command is desined specifically for post-calibration and observer notebooks,
-    thus requring --block-name and --box parameters, but in principle it can be used
+    thus requring --block-name and --patch parameters, but in principle it can be used
     to run any Jupyter notebook on a SLURM cluster. The two required parameters will
     simply be written at the top of the notebook without being used in that case.
 
@@ -440,25 +443,18 @@ def main(
     \b
     EXAMPLES:
       # Using notebook name (searches in standard locations):
-      # Standard usage for post-calibration notebook with block name
-      # and box:
-      museek_run_notebook --notebook calibrated_data_check-postcali \\
-        --block-name 1708972386 --box 6
+      # Standard usage for post-calibration notebook with block name and patch:
+      museek_run_notebook -n calibrated_data_check_observers -b 1747093289 -p box6
       # Dry run to show the generated sbatch script without submitting:
-      museek_run_notebook --notebook calibrated_data_check-postcali \\
-        --block-name 1708972386 --box 6 --dry-run
+      museek_run_notebook -n calibrated_data_check_observers -b 1747093289 -p box6 --dry-run
       # Passing additional parameters to the notebook:
-      museek_run_notebook --notebook calibrated_data_check-postcali \\
-        --block-name 1708972386 --box 6 --parameters random_var \\
-        random_var_value
+      museek_run_notebook -n calibrated_data_check_observers -b 1747093289 -p box6
+          --parameters random_var random_var_value
       # Passing additional SLURM options (e.g., email notification):
-      museek_run_notebook --notebook calibrated_data_check-postcali \\
-        --block-name 1708972386 --box 6 \\
-        --slurm-options --mail-user=user@uni.edu \\
-        --slurm-options --mail-type=ALL
+      museek_run_notebook -n calibrated_data_check_observers -b 1747093289 -p box6
+          --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
       # Using absolute path to notebook:
-      museek_run_notebook --notebook /custom/path/my_notebook.ipynb \\
-        --block-name 1708972386 --box 6
+      museek_run_notebook -n /custom/path/my_notebook.ipynb -b 1747093289 -p box6
 
     \b
     DEFAULT SLURM PARAMETERS:
@@ -477,19 +473,19 @@ def main(
     kernel_to_use = determine_kernel(venv, kernel)
 
     # Default data_path
-    data_path = base_data_path / f"box{box}" / block_name
+    data_path = base_context_folder / patch / block_name
 
     # Default output_dir based on data_path if not specified
     if output_dir is None:
-        output_dir = data_path
+        output_dir = data_path / "notebook"
         click.echo(f"Output directory not specified, using: {output_dir}")
 
     # Generate the sbatch script
     script_content = generate_sbatch_script(
         notebook_path=notebook_path,
         block_name=block_name,
-        box=box,
-        data_path=data_path,
+        patch=patch,
+        base_context_folder=base_context_folder,
         output_dir=output_dir,
         kernel=kernel_to_use,
         notebook_name=notebook,

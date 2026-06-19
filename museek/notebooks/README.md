@@ -7,7 +7,7 @@ This directory contains Jupyter notebook templates for MuSEEK data analysis work
 The `museek_run_notebook` CLI tool automatically finds notebooks from the installed package. After installing MuSEEK, simply run:
 
 ```bash
-museek_run_notebook --notebook calibrated_data_check-postcali --block-name 1708972386 --box 6
+museek_run_notebook --notebook calibrated_data_check_observers --block-name 1747093289 --patch box6
 ```
 
 ### How It Works
@@ -40,7 +40,7 @@ After any of these installations, the notebooks are accessible to `museek_run_no
 You can also provide an absolute path to any notebook file:
 
 ```bash
-museek_run_notebook --notebook /path/to/my_custom_notebook.ipynb --block-name 1234 --box 6
+museek_run_notebook --notebook /path/to/my_custom_notebook.ipynb --block-name 1747093289 --patch box6
 ```
 
 ## Available Notebooks
@@ -62,7 +62,7 @@ When creating new notebooks for use with `museek_run_notebook`, ensure they:
 Example parameter cell:
 ```python
 # Parameters (tagged with 'parameters' in notebook metadata)
-block_name = "1708972386"  # Default value
-box = "6"  # Default value
-data_path = "/idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline"
+block_name = "1747093289"  # Default value
+patch = "box6"  # Default value
+base_context_folder = "/idia/projects/meerklass/MEERKLASS-1/museek/latest_runs"
 ```
