@@ -9,25 +9,39 @@ from ivory.utils.requirement import Requirement
 from museek.enums.result_enum import ResultEnum
 from museek.time_ordered_data import TimeOrderedData
 
+PERIOD_KEYS = ('before_scan', 'after_scan')
+
 
 class ReadCalibratorGainsPlugin(AbstractPlugin):
     """
-    Loads pickled model_components file(s) from PointSourceCalibrationPlugin,
-    extracts gain_on_off, averages across periods if needed, matches receivers
-    by name, and sets the gain solution on track_data.
+    Loads pickled model_components file(s) from PointSourceCalibrationPlugin, selects the requested
+    calibrator period(s), averages their `gain_on_off`, matches receivers by name, and sets the gain
+    solution on track_data.
     """
 
     def __init__(self,
                  model_components_files: list,
+                 periods: list | str | None = None,
                  verbose: int = 0):
         """
-        :param model_components_files: List of 1 or 2 full paths to model_components pickle files.
-            Each file may contain one or both calibrator periods (before_scan, after_scan).
-            If two files are given, each must contain a different period.
-        :param verbose: If non-zero, print gain statistics after loading.
+        :param model_components_files: list of 1 or 2 full paths to model_components pickle files
+            (more than two is an error). Each file may contain one or both calibrator periods
+            ('before_scan', 'after_scan').
+        :param periods: which period(s) to use, as a flat list of period names (a bare string is
+            accepted and treated as a one-element list). Interpreted by the number of files:
+              - 1 file:  every name comes from that single file (1 or 2 names), averaged.
+                         e.g. ['before_scan'] (before only), ['before_scan', 'after_scan'] (both).
+              - 2 files: exactly 2 names, one per file by position — periods[0] from the first file,
+                         periods[1] from the second. e.g. ['before_scan', 'after_scan'].
+            Default `None`:
+              - 1 file:  use all periods present (average before + after, or the single one present);
+              - 2 files: error (you must specify the period for each file).
+            The selected gains are averaged (masked mean) and a missing period raises an error.
+        :param verbose: if non-zero, print gain statistics and save a plot after loading.
         """
         super().__init__()
         self.model_components_files = model_components_files
+        self.periods = [periods] if isinstance(periods, str) else periods
         self.verbose = verbose
 
     def set_requirements(self):
@@ -37,53 +51,68 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
         ]
 
     def run(self, track_data: TimeOrderedData, output_path: str):
-        # Load all files and collect gain_on_off per period
-        period_gains = {}    # {period: (n_freq, n_file_receivers) masked array}
-        period_receivers = {}  # {period: receiver list from that file}
+        files = self.model_components_files
+        if len(files) > 2:
+            raise ValueError(f"At most two model_components files are supported, got {len(files)}.")
 
-        for path in self.model_components_files:
+        # Load each file once: (path, model_components, receiver labels, periods present)
+        loaded = []
+        for path in files:
             with open(path, 'rb') as f:
                 mc = pickle.load(f)
-
             if 'receivers' not in mc:
                 raise ValueError(f"Pickle file {path} does not contain receiver labels. "
                                  f"Re-run PointSourceCalibrationPlugin to regenerate.")
-            file_receivers = mc['receivers']
+            available = [p for p in PERIOD_KEYS if p in mc]
+            loaded.append((path, mc, mc['receivers'], available))
 
-            for period in ('before_scan', 'after_scan'):
-                if period not in mc:
-                    continue
-                if period in period_gains:
-                    raise ValueError(f"Period '{period}' appears in more than one pickle file.")
-                period_gains[period] = mc[period]['gain_on_off']  # (n_freq, n_file_receivers)
-                period_receivers[period] = file_receivers
+        # Resolve the (file_index, period) selections from `periods` and the number of files.
+        if self.periods is None:
+            if len(files) == 2:
+                raise ValueError("Two model_components files were given; specify `periods` as one "
+                                 "period name per file, e.g. ['before_scan', 'after_scan'].")
+            chosen = [(0, p) for p in loaded[0][3]]  # one file -> all periods present
+        elif len(files) == 2:
+            if len(self.periods) != 2:
+                raise ValueError(f"Two files were given, so `periods` must have exactly two period "
+                                 f"names (one per file); got {self.periods}.")
+            chosen = [(0, self.periods[0]), (1, self.periods[1])]
+        else:
+            chosen = [(0, p) for p in self.periods]  # one file -> all listed periods come from it
 
-        if not period_gains:
-            raise ValueError("No calibrator periods found in the provided pickle files.")
+        # Resolve each selection to its gain array, validating the period exists in that file.
+        selections = []  # list of (gain_on_off (n_freq, n_recv_file), file_receivers, label)
+        for i_file, period in chosen:
+            path, mc, file_receivers, available = loaded[i_file]
+            if period not in mc:
+                raise ValueError(f"Period '{period}' not found in {path}. "
+                                 f"Available periods: {available}.")
+            selections.append((mc[period]['gain_on_off'], file_receivers,
+                               f"{os.path.basename(path)}:{period}"))
+
+        if not selections:
+            raise ValueError("No calibrator periods selected from the provided pickle files.")
 
         n_freq = len(track_data.frequencies.squeeze)
         current_receivers = [str(r) for r in track_data.receivers]
 
-        # Match receivers by name, per receiver across periods
+        # Match receivers by name and average over the selected (file, period) gains.
         gain_matched = np.zeros((n_freq, len(current_receivers)))
         mask_matched = np.ones((n_freq, len(current_receivers)), dtype=bool)  # default: fully masked
 
         for i, recv in enumerate(current_receivers):
-            # Collect this receiver's gain from each period where it exists
             recv_gains = []
-            for period, gain_period in period_gains.items():
-                receivers_in_period = period_receivers[period]
-                if recv in receivers_in_period:
-                    j = receivers_in_period.index(recv)
-                    recv_gains.append(gain_period[:, j])  # (n_freq,) masked array
+            for gain_arr, file_receivers, _label in selections:
+                if recv in file_receivers:
+                    recv_gains.append(gain_arr[:, file_receivers.index(recv)])  # (n_freq,) masked
 
             if len(recv_gains) == 0:
-                print(f"Warning: receiver {recv} not found in any gain file — masking.", flush=True)
+                print(f"Warning: receiver {recv} not found in any selected gain — masking.", flush=True)
                 continue  # gain=0, mask=True
 
-            if len(recv_gains) < len(period_gains):
-                print(f"Warning: receiver {recv} found in only {len(recv_gains)}/{len(period_gains)} "
-                      f"periods — using partial average.", flush=True)
+            if len(recv_gains) < len(selections):
+                print(f"Warning: receiver {recv} found in only {len(recv_gains)}/{len(selections)} "
+                      f"selections — using partial average.", flush=True)
 
             recv_avg = np.ma.mean(np.ma.stack(recv_gains, axis=0), axis=0)  # (n_freq,)
             gain_matched[:, i] = recv_avg.data
@@ -101,25 +130,22 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
         )
 
         if self.verbose:
-            print(f"Loaded periods: {list(period_gains.keys())}", flush=True)
+            print(f"Loaded selections: {[label for _, _, label in selections]}", flush=True)
             print(f"Gain solution shape: {gain_solution.shape}", flush=True)
             unmasked = np.where(~mask_matched[:, 0])[0]
             freq_mid = unmasked[len(unmasked) // 2] if len(unmasked) > 0 else n_freq // 2
             for i, recv in enumerate(current_receivers):
                 print(f"  {recv}: gain[mid_freq] = {gain_matched[freq_mid, i]:.4f}", flush=True)
 
-            # Plot per-period gains and average for the first receiver
+            # Plot each selection's gain and the average for the first receiver
             freq_MHz = track_data.frequencies.squeeze / 1e6
             recv0 = current_receivers[0]
-            i0 = 0
             fig, ax = plt.subplots(figsize=(10, 4))
-            for period, gain_period in period_gains.items():
-                receivers_in_period = period_receivers[period]
-                if recv0 in receivers_in_period:
-                    j = receivers_in_period.index(recv0)
-                    g = gain_period[:, j]
-                    ax.plot(freq_MHz, np.ma.filled(g, np.nan), alpha=0.7, label=period)
-            ax.plot(freq_MHz, gain_matched[:, i0], color='black', linewidth=1.5, label='average')
+            for gain_arr, file_receivers, label in selections:
+                if recv0 in file_receivers:
+                    g = gain_arr[:, file_receivers.index(recv0)]
+                    ax.plot(freq_MHz, np.ma.filled(g, np.nan), alpha=0.7, label=label)
+            ax.plot(freq_MHz, gain_matched[:, 0], color='black', linewidth=1.5, label='average')
             ax.set_xlabel('Frequency [MHz]')
             ax.set_ylabel('Gain')
             ax.set_title(f'Calibrator gains — {recv0}')

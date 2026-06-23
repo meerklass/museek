@@ -341,5 +341,11 @@ ReadCalibratorGainsPlugin = ConfigSection(
     model_components_files=[
         '/home/mgrsantos/projects/data/context/1675021905/model_components.pkl',
     ],
+    # which period(s) to use, as a flat list of period names. None = default.
+    #   1 file:  None -> average all present; ['before_scan'] -> before only;
+    #            ['after_scan'] -> after only.
+    #   2 files: one period name per file by position, e.g. ['before_scan', 'after_scan']
+    #            (before from file 1, after from file 2).
+    periods=None,
     verbose=1,
 )
