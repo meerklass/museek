@@ -6,7 +6,10 @@ import numpy as np
 
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
+from ivory.utils.result import Result
+from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
+from museek.flag_element import FlagElement
 from museek.time_ordered_data import TimeOrderedData
 
 PERIOD_KEYS = ('before_scan', 'after_scan')
@@ -16,7 +19,11 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
     """
     Loads pickled model_components file(s) from PointSourceCalibrationPlugin, selects the requested
     calibrator period(s), averages their `gain_on_off`, matches receivers by name, and sets the gain
-    solution on track_data.
+    solution on the target `scan_data`.
+
+    The gain is read from the pickle and may come from a different observation block; it is applied to
+    whatever `scan_data` is being processed, matching receivers by name and using the scan data's own
+    frequency grid and time axis. (The pickle and the target must share the same band/channelisation.)
     """
 
     def __init__(self,
@@ -46,11 +53,11 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
 
     def set_requirements(self):
         self.requirements = [
-            Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
+            Requirement(location=ResultEnum.SCAN_DATA, variable='scan_data'),
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
         ]
 
-    def run(self, track_data: TimeOrderedData, output_path: str):
+    def run(self, scan_data: TimeOrderedData, output_path: str):
         files = self.model_components_files
         if len(files) > 2:
             raise ValueError(f"At most two model_components files are supported, got {len(files)}.")
@@ -93,8 +100,14 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
         if not selections:
             raise ValueError("No calibrator periods selected from the provided pickle files.")
 
-        n_freq = len(track_data.frequencies.squeeze)
-        current_receivers = [str(r) for r in track_data.receivers]
+        n_freq = len(scan_data.frequencies.squeeze)
+        for gain_arr, _file_receivers, label in selections:
+            if gain_arr.shape[0] != n_freq:
+                raise ValueError(
+                    f"Gain '{label}' has {gain_arr.shape[0]} frequency channels but the target scan "
+                    f"data has {n_freq}; the saved gain and the target must share the same "
+                    f"band/channelisation.")
+        current_receivers = [str(r) for r in scan_data.receivers]
 
         # Match receivers by name and average over the selected (file, period) gains.
         gain_matched = np.zeros((n_freq, len(current_receivers)))
@@ -119,15 +132,17 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
             mask_matched[:, i] = recv_avg.mask if np.ma.is_masked(recv_avg) else False
 
         # Tile to (n_time, n_freq, n_receivers). Use the current scan-state time axis, not
-        # track_data.shape which is the full-observation shape (unchanged by the scan/track split).
-        n_time = track_data.timestamps.shape[0]
+        # scan_data.shape which is the full-observation shape (unchanged by the scan/track split).
+        n_time = scan_data.timestamps.shape[0]
         gain_solution = np.tile(gain_matched[np.newaxis, :, :], (n_time, 1, 1))
         gain_mask = np.tile(mask_matched[np.newaxis, :, :], (n_time, 1, 1))
 
-        track_data.set_gain_solution(
-            gain_solution_array=gain_solution,
-            gain_solution_mask_array=gain_mask
-        )
+        # Set the gain directly: the tiled array is already on the scan-state time axis. Going through
+        # scan_data.set_gain_solution() would route it through the scan-slicing element factory, which
+        # expects a full-length array indexed by absolute dumps and overruns a scan-state-length array.
+        scan_data.gain_solution = DataElement(array=gain_solution)
+        scan_data.flags.add_flag(flag=FlagElement(array=gain_mask), name='gain_solution_mask')
+        self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
 
         if self.verbose:
             print(f"Loaded selections: {[label for _, _, label in selections]}", flush=True)
@@ -138,7 +153,7 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
                 print(f"  {recv}: gain[mid_freq] = {gain_matched[freq_mid, i]:.4f}", flush=True)
 
             # Plot each selection's gain and the average for the first receiver
-            freq_MHz = track_data.frequencies.squeeze / 1e6
+            freq_MHz = scan_data.frequencies.squeeze / 1e6
             recv0 = current_receivers[0]
             fig, ax = plt.subplots(figsize=(10, 4))
             for gain_arr, file_receivers, label in selections:
