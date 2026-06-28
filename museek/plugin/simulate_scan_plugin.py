@@ -182,7 +182,7 @@ class SimulateScanPlugin(AbstractPlugin):
         times = Time(scan_data.timestamps.squeeze, format='unix', location=location)
         lst_deg = times.sidereal_time('apparent').deg  # (n_time,)
         median_az, median_el = calculate_median_coordinates_excluding_flagged_antennas(scan_data)
-        median_el = np.clip(median_el, -90.0, 90.0)  # guard against stowed-antenna artefacts
+        median_el = np.clip(median_el, 0.0, 90.0)  # guard against stowed-antenna artefacts
 
         # --- point-source catalog selection (shared by both methods) ---
         ps_catalog = None
