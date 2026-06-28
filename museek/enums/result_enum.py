@@ -46,3 +46,4 @@ class ResultEnum(Enum):
     # Append new members here only — ResultEnum values are auto() and get pickled by value, so
     # inserting in the middle shifts every later value and breaks existing context pickles.
     NOISE_DIODE_DUTY_CYCLE = auto()
+    SIMULATED_SYNTH_GAIN = auto()

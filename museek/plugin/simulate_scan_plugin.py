@@ -335,6 +335,10 @@ class SimulateScanPlugin(AbstractPlugin):
                   f'median {np.median(vis):.2f} {unit}', flush=True)
 
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
+        # Store the synthetic gain (a function of frequency only) so the antenna temperature can be
+        # recovered for inspection: T_total = vis / (read_gain x synth_gain). `None` if no synth gain.
+        self.set_result(result=Result(location=ResultEnum.SIMULATED_SYNTH_GAIN,
+                                      result=synth_gain, allow_overwrite=True))
 
         if self.do_store_context:
             self.store_context_to_disc(context_file_name='simulate_scan_plugin.pickle',
