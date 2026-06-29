@@ -13,7 +13,7 @@ foreground is beam-convolved with the real MeerKLASS primary beam using Simeer's
 the additive temperatures come from the existing museek/model temperature models. Optional components:
 point sources (catalog-driven, two methods), an HI signal (limTOD Gaussian-field mock or a user cube,
 Gaussian-beam smoothed), the gain (a saved calibrator gain via ``ReadCalibratorGainsPlugin`` and/or a
-synthetic smooth-polynomial x standing-wave term), 1/f gain noise (``limTOD.flicker_model.sim_noise``)
+synthetic smooth-polynomial x standing-wave term), 1/f gain noise (``museek.external.limtod.sim_noise``)
 and radiometer white noise. With everything off, ``vis = T_total`` (Kelvin, unity gain).
 """
 
@@ -48,7 +48,7 @@ from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
 from museek.util.tools import git_version_info
 
-from simeer import MeerKLASSBeam, integrate_tod
+from museek.external.simeer import MeerKLASSBeam, integrate_tod
 
 
 class SimulateScanPlugin(AbstractPlugin):
@@ -107,7 +107,7 @@ class SimulateScanPlugin(AbstractPlugin):
             waves, evaluated with `BandpassModel._sinus` (wavelength = 2*displacement); contributes a
             factor `(1 + sum of sinusoids)`. `None` -> no standing-wave factor (1).
         :param hi_method: HI signal source: `None` (no HI) | `'limtod'` (a Gaussian-field mock from
-            `limTOD.sky_model.generate_gaussian_field`) | `'file'` (a user-supplied HI cube .npz with
+            `museek.external.limtod.generate_gaussian_field`) | `'file'` (a user-supplied HI cube .npz with
             keys `maps` (n_freq, n_pix) HEALPix in K and `freq_MHz`). The HI is Gaussian-beam smoothed
             (not the real beam) and sampled at the pointing, then interpolated onto the scan freq grid.
         :param hi_n_freq: number of channels at which the `'limtod'` HI is generated (then interpolated
@@ -118,7 +118,7 @@ class SimulateScanPlugin(AbstractPlugin):
             `nu_ref`, `ell_ref`, `seed`); defaults to a "vaguely cosmological" field.
         :param hi_file: path to the HI cube .npz for `hi_method='file'`.
         :param oneoverf_params: if set, add 1/f gain noise as a multiplicative `(1 + delta_g(t))` per
-            receiver, with `delta_g` drawn from `limTOD.flicker_model.sim_noise`; dict of its kwargs
+            receiver, with `delta_g` drawn from `museek.external.limtod.sim_noise`; dict of its kwargs
             `f0, fc, alpha, white_n_variance` (f0/fc are angular frequencies). `None` -> no 1/f noise.
         :param include_white_noise: if True, add radiometer white noise as `(1 + N(0,1)/sqrt(dnu*tau))`
             per (time, freq, receiver), with `dnu` the channel width and `tau` the dump period.
@@ -261,7 +261,7 @@ class SimulateScanPlugin(AbstractPlugin):
             np.random.seed(self.noise_seed)
         delta_g = None  # (n_recv, n_time) fractional gain fluctuation, common-mode across frequency
         if self.oneoverf_params is not None:
-            from limTOD.flicker_model import sim_noise
+            from museek.external.limtod import sim_noise
             delta_g = sim_noise(time_list=scan_data.timestamps.squeeze, n_samples=n_recv,
                                 **self.oneoverf_params)
         radiometer = None  # fractional white-noise level 1/sqrt(dnu*tau)
@@ -369,7 +369,7 @@ class SimulateScanPlugin(AbstractPlugin):
         """
         nside = self.synch_nside
         if self.hi_method == 'limtod':
-            from limTOD.sky_model import generate_gaussian_field
+            from museek.external.limtod import generate_gaussian_field
             hi_freqs = np.linspace(freq_scan_MHz.min(), freq_scan_MHz.max(), self.hi_n_freq)
             params = {'amp': 1.0, 'alpha': -1.0, 'beta': 1.0, 'xi': 0.01}  # "vaguely cosmological"
             params.update(self.hi_gaussian_params)
