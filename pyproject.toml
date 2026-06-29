@@ -37,8 +37,8 @@ dependencies = [
     "pysm3",
     "matplotlib",
     "papermill",
-    "joblib",   # used by the vendored simeer integrate_tod when n_jobs > 1
-    "mpmath",   # used by the vendored limtod flicker_model (sim_noise)
+    "mpmath",   # used by the vendored limtod flicker_model (sim_noise); joblib for the
+                # vendored simeer comes in transitively via ivory's parallel-plugin base
     "ivory @ git+https://github.com/meerklass/ivory.git",
 ]
 classifiers = [
