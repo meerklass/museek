@@ -7,7 +7,6 @@ import numpy as np
 from ivory.plugin.abstract_plugin import AbstractPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
-from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
 from museek.flag_element import FlagElement
 from museek.time_ordered_data import TimeOrderedData
@@ -131,22 +130,21 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
             gain_matched[:, i] = recv_avg.data
             mask_matched[:, i] = recv_avg.mask if np.ma.is_masked(recv_avg) else False
 
-        # Tile to (n_time, n_freq, n_receivers). Use the current scan-state time axis, not
-        # scan_data.shape which is the full-observation shape (unchanged by the scan/track split).
+        # The gain is constant in time, so pass it as a compact (n_freq, n_receivers) Result rather
+        # than bolting it onto the TOD. The bad-channel mask is a per-channel data flag, so it is
+        # still added to scan_data.flags; flags must match the full (n_time, n_freq, n_receivers)
+        # stack, so tile the mask over the current scan-state time axis (not scan_data.shape, which
+        # is the full-observation shape unchanged by the scan/track split).
         n_time = scan_data.timestamps.shape[0]
-        gain_solution = np.tile(gain_matched[np.newaxis, :, :], (n_time, 1, 1))
         gain_mask = np.tile(mask_matched[np.newaxis, :, :], (n_time, 1, 1))
 
-        # Set the gain directly: the tiled array is already on the scan-state time axis. Going through
-        # scan_data.set_gain_solution() would route it through the scan-slicing element factory, which
-        # expects a full-length array indexed by absolute dumps and overruns a scan-state-length array.
-        scan_data.gain_solution = DataElement(array=gain_solution)
         scan_data.flags.add_flag(flag=FlagElement(array=gain_mask), name='gain_solution_mask')
         self.set_result(result=Result(location=ResultEnum.SCAN_DATA, result=scan_data, allow_overwrite=True))
+        self.set_result(result=Result(location=ResultEnum.CALIBRATOR_GAIN, result=gain_matched))
 
         if self.verbose:
             print(f"Loaded selections: {[label for _, _, label in selections]}", flush=True)
-            print(f"Gain solution shape: {gain_solution.shape}", flush=True)
+            print(f"Calibrator gain shape: {gain_matched.shape}", flush=True)
             unmasked = np.where(~mask_matched[:, 0])[0]
             freq_mid = unmasked[len(unmasked) // 2] if len(unmasked) > 0 else n_freq // 2
             for i, recv in enumerate(current_receivers):

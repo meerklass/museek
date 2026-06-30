@@ -81,6 +81,7 @@ class SimulateScanPlugin(AbstractPlugin):
                  oneoverf_params: dict | None = None,
                  include_white_noise: bool = False,
                  noise_seed: int | None = None,
+                 use_read_gain: bool = True,
                  n_jobs: int = 1,
                  do_store_context: bool = False,
                  verbose: int = 0,
@@ -123,10 +124,15 @@ class SimulateScanPlugin(AbstractPlugin):
         :param include_white_noise: if True, add radiometer white noise as `(1 + N(0,1)/sqrt(dnu*tau))`
             per (time, freq, receiver), with `dnu` the channel width and `tau` the dump period.
         :param noise_seed: base seed for the 1/f and white noise (reproducibility).
+        :param use_read_gain: if True, require and apply the read calibrator gain
+            (`ResultEnum.CALIBRATOR_GAIN` from `ReadCalibratorGainsPlugin`). Set False (and drop
+            that plugin from the pipeline) to simulate with no read gain.
         :param n_jobs: joblib workers for Simeer's `integrate_tod`
         :param do_store_context: if True, store the context to disc after running
         :param verbose: verbosity
         """
+        # set before super().__init__(), which calls set_requirements()
+        self.use_read_gain = use_read_gain
         super().__init__(**kwargs)
         self.beam_file_path = beam_file_path
         self.receiver_models_dir = receiver_models_dir
@@ -165,8 +171,12 @@ class SimulateScanPlugin(AbstractPlugin):
             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path'),
             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
         ]
+        if self.use_read_gain:
+            self.requirements.append(
+                Requirement(location=ResultEnum.CALIBRATOR_GAIN, variable='read_gain'))
 
-    def run(self, scan_data: TimeOrderedData, output_path: str, flag_report_writer: ReportWriter):
+    def run(self, scan_data: TimeOrderedData, output_path: str, flag_report_writer: ReportWriter,
+            read_gain: np.ndarray | None = None):
         if scan_data.visibility is None:
             scan_data.load_visibility_flags_weights(polars='auto')
 
@@ -250,10 +260,11 @@ class SimulateScanPlugin(AbstractPlugin):
             x = h * (freq_scan_MHz * 1e6) / (k_b * t_cmb_kelvin)
             t_cmb = t_cmb_kelvin * x / np.expm1(x)  # (n_freq,) RJ-corrected, ~2.7 K across the band
 
-        # --- gain: read calibrator gain (if ReadCalibratorGainsPlugin ran) x synthetic poly/standing-wave ---
+        # --- gain: read calibrator gain (CALIBRATOR_GAIN result, if ReadCalibratorGainsPlugin ran)
+        #     x synthetic poly/standing-wave ---
         read_gain_spectrum = None  # (n_freq, n_recv) per-receiver gain, constant in time
-        if scan_data.gain_solution is not None:
-            read_gain_spectrum = np.asarray(scan_data.gain_solution.array)[0]
+        if read_gain is not None:
+            read_gain_spectrum = np.asarray(read_gain)
         synth_gain = self._synthetic_gain(freq_scan_MHz)  # (n_freq,) or None
 
         # --- noise: 1/f gain fluctuation (limTOD) + radiometer white noise ---

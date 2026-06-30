@@ -102,9 +102,11 @@ SimulateScanPlugin = ConfigSection(
     point_source_min_flux_Jy=1.0,         # cut evaluated at point_source_flux_cut_freq_MHz
     point_source_flux_cut_freq_MHz=800.0, # band-middle frequency for the flux cut (consistent across sources)
     point_source_radius_deg=6.0,
-    # --- gain (Phase 2): vis = gain * T_total, gain = read_calibrator_gain (if the plugin ran)
+    # --- gain (Phase 2): vis = gain * T_total, gain = read_calibrator_gain (CALIBRATOR_GAIN result)
     #     x smooth_poly(f) x (1 + standing_waves). Leave both synth terms None to use the read gain
     #     alone; with no read gain and both None the gain is unity (vis stays in Kelvin). ---
+    use_read_gain=True,            # require & apply CALIBRATOR_GAIN; set False (and drop
+                                   # ReadCalibratorGainsPlugin from the Pipeline) to skip the read gain
     gain_smooth_poly=[1.0],        # unity constant: read_gain x 1 x (1 + standing_waves)
     gain_standing_waves=[(0.5, 0.01, 0.0)],  # 1% standing wave: 0.5 m path displacement, ~1.8 cycles across UHF band
     # --- HI signal (Phase 2). method: None | 'limtod' (Gaussian-field mock) | 'file' (user .npz cube) ---

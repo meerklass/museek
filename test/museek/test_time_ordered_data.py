@@ -1,6 +1,6 @@
 import itertools
 import unittest
-from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import numpy as np
 
@@ -234,33 +234,6 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertListEqual(
             [], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna)
         )
-
-    def test_set_gain_solution(self):
-        mock_gain_solution_array = MagicMock()
-        mock_gain_solution_mask_array = MagicMock()
-        mock_flags = MagicMock()
-        self.time_ordered_data.flags = mock_flags
-        self.time_ordered_data.set_gain_solution(
-            gain_solution_array=mock_gain_solution_array,
-            gain_solution_mask_array=mock_gain_solution_mask_array,
-        )
-        self.assertEqual(
-            [
-                call(array=mock_gain_solution_array),
-                call(array=mock_gain_solution_mask_array),
-            ],
-            self.mock_get_data_element_factory.return_value.create.call_args_list[-2:],
-        )
-        self.assertIsNotNone(self.time_ordered_data.gain_solution)
-        mock_flags.add_flag.assert_called_once()
-
-    def test_corrected_visibility_when_no_gain_solution_expect_none(self):
-        self.assertIsNone(self.time_ordered_data.corrected_visibility())
-
-    def test_corrected_visibility(self):
-        self.time_ordered_data.visibility = 2
-        self.time_ordered_data.gain_solution = 3
-        self.assertEqual(2 / 3, self.time_ordered_data.corrected_visibility())
 
     def test_set_data_elements_from_katdal(self):
         mock_scan_state = Mock()

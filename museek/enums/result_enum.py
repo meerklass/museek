@@ -47,3 +47,4 @@ class ResultEnum(Enum):
     # inserting in the middle shifts every later value and breaks existing context pickles.
     NOISE_DIODE_DUTY_CYCLE = auto()
     SIMULATED_SYNTH_GAIN = auto()
+    CALIBRATOR_GAIN = auto()
