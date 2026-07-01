@@ -117,7 +117,7 @@ SimulateScanPlugin = ConfigSection(
     hi_file=None,                 # path to a user HI cube .npz (keys: maps (n_freq,n_pix), freq_MHz) for 'file'
     # --- noise (Phase 2): vis = gain * (1 + 1/f gain noise) * T_total * (1 + white radiometer noise) ---
     oneoverf_params=dict(f0=1.335e-5, fc=1.099e-3, alpha=2, white_n_variance=5e-6),
-    include_white_noise=True,     # radiometer white noise N(0,1)/sqrt(dnu*tau) per (time, freq, recv)
+    white_noise_scale=1.0,        # scale on radiometer white noise N(0,1)/sqrt(dnu*tau); 0=off, 1.0=nominal, scales linearly
     noise_seed=0,                 # base seed for reproducible 1/f + white noise
     n_jobs=6,                # joblib workers for Simeer's integrate_tod
     do_store_context=True,

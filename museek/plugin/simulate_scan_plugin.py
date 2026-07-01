@@ -80,7 +80,7 @@ class SimulateScanPlugin(AbstractPlugin):
                  hi_gaussian_params: dict | None = None,
                  hi_file: str | None = None,
                  oneoverf_params: dict | None = None,
-                 include_white_noise: bool = False,
+                 white_noise_scale: float = 0.0,
                  noise_seed: int | None = None,
                  use_read_gain: bool = True,
                  n_jobs: int = 1,
@@ -122,8 +122,10 @@ class SimulateScanPlugin(AbstractPlugin):
         :param oneoverf_params: if set, add 1/f gain noise as a multiplicative `(1 + delta_g(t))` per
             receiver, with `delta_g` drawn from `museek.external.limtod.sim_noise`; dict of its kwargs
             `f0, fc, alpha, white_n_variance` (f0/fc are angular frequencies). `None` -> no 1/f noise.
-        :param include_white_noise: if True, add radiometer white noise as `(1 + N(0,1)/sqrt(dnu*tau))`
-            per (time, freq, receiver), with `dnu` the channel width and `tau` the dump period.
+        :param white_noise_scale: multiplicative scale on the radiometer white noise, added as
+            `(1 + scale * N(0,1)/sqrt(dnu*tau))` per (time, freq, receiver), with `dnu` the channel
+            width and `tau` the dump period. `0` disables it; `1.0` is the nominal radiometer level
+            and it scales linearly (e.g. `2.0` doubles the noise amplitude).
         :param noise_seed: base seed for the 1/f and white noise (reproducibility).
         :param use_read_gain: if True, require and apply the read calibrator gain
             (`ResultEnum.CALIBRATOR_GAIN` from `ReadCalibratorGainsPlugin`). Set False (and drop
@@ -156,7 +158,7 @@ class SimulateScanPlugin(AbstractPlugin):
         self.hi_gaussian_params = hi_gaussian_params or {}
         self.hi_file = hi_file
         self.oneoverf_params = oneoverf_params
-        self.include_white_noise = include_white_noise
+        self.white_noise_scale = white_noise_scale
         self.noise_seed = noise_seed
         self.point_source_min_flux_Jy = point_source_min_flux_Jy
         self.point_source_flux_cut_freq_MHz = point_source_flux_cut_freq_MHz
@@ -286,10 +288,10 @@ class SimulateScanPlugin(AbstractPlugin):
             from museek.external.limtod import sim_noise
             delta_g = sim_noise(time_list=scan_data.timestamps.squeeze, n_samples=n_recv,
                                 **self.oneoverf_params)
-        radiometer = None  # fractional white-noise level 1/sqrt(dnu*tau)
-        if self.include_white_noise:
+        radiometer = None  # per-sample white-noise level: scale / sqrt(dnu*tau)
+        if self.white_noise_scale:
             dnu_Hz = float(np.abs(np.median(np.diff(scan_data.frequencies.squeeze))))
-            radiometer = 1.0 / np.sqrt(dnu_Hz * float(scan_data.dump_period))
+            radiometer = self.white_noise_scale / np.sqrt(dnu_Hz * float(scan_data.dump_period))
 
         # --- assemble per receiver (float32 visibility to keep memory down) ---
         vis = np.zeros((n_time, n_freq, n_recv), dtype=np.float32)
@@ -348,7 +350,7 @@ class SimulateScanPlugin(AbstractPlugin):
             + ('' if hi_tod is None else f' (rms {np.std(hi_tod) * 1e3:.3f} mK at the pointing)'),
             f'Noise: 1/f gain={self.oneoverf_params is not None}'
             + ('' if delta_g is None else f' (rms {delta_g.std() * 100:.3f}%)')
-            + f', white_radiometer={self.include_white_noise}'
+            + f', white_scale={self.white_noise_scale}'
             + ('' if radiometer is None else f' ({radiometer * 100:.3f}%/sample)'),
         ])
         if self.verbose:
