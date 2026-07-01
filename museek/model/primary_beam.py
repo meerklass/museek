@@ -80,55 +80,16 @@ class PrimaryBeam:
             # For array average beam, use antenna index 0
             # Convert Jones matrices to power: |beam|²
             # Only compute HH and VV (indices 0 and 3)
-            beam_HH_jones = beam_jones[0, 0, :, :, :]  # (n_freq, n_m, n_l)
-            beam_VV_jones = beam_jones[3, 0, :, :, :]  # (n_freq, n_m, n_l)
+            beam_HH_power = np.abs(beam_jones[0, 0, :, :, :]) ** 2  # (n_freq, n_m, n_l)
+            beam_VV_power = np.abs(beam_jones[3, 0, :, :, :]) ** 2
 
-            # Calculate beam power
-            beam_HH_power = np.abs(beam_HH_jones) ** 2
-            beam_VV_power = np.abs(beam_VV_jones) ** 2
-
-            # Extract coordinate grids
-            freq_MHz = data['freq_MHz']  # (n_freq,)
-            margin_deg = data['margin_deg']  # (n_spatial,) - coordinate grid for both l and m
-
-            # Calculate beam solid angle (steradians)
-            # Pixel size in degrees (uniform square grid)
-            d_deg = margin_deg[1] - margin_deg[0]  # degrees
-            d_rad = d_deg * np.pi / 180  # radians (explicit conversion)
-            d_omega = d_rad**2  # steradians per pixel
-
-            # Beam solid angle: integrate beam power over spatial coordinates
-            # Sum over m and l axes (1, 2), leaving frequency axis (0)
-            self._beam_solid_angle_HH = d_omega * beam_HH_power.sum(axis=(1, 2))  # (n_freq,)
-            self._beam_solid_angle_VV = d_omega * beam_VV_power.sum(axis=(1, 2))  # (n_freq,)
-
-            # Store ranges for validation
-            self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
-            self.beam_extent_deg = (margin_deg.min(), margin_deg.max())
-
-            # Create 3D interpolators: f(freq, m_deg, l_deg) -> beam_gain
-            # Axes order matches array dimensions: (n_freq, n_m, n_l)
-            # Note: margin_deg is the same for both m and l coordinates (square grid)
-            self._interpolator_HH = RegularGridInterpolator(
-                (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
-                beam_HH_power,
-                method='linear',
-                bounds_error=False,
-                fill_value=0.0  # Return 0 for points outside beam
+            self._build(
+                freq_MHz=data['freq_MHz'],
+                margin_deg=data['margin_deg'],
+                beam_HH_power=beam_HH_power,
+                beam_VV_power=beam_VV_power,
+                source=beam_file,
             )
-
-            self._interpolator_VV = RegularGridInterpolator(
-                (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
-                beam_VV_power,
-                method='linear',
-                bounds_error=False,
-                fill_value=0.0
-            )
-
-            # Store for reference
-            self._beam_file = beam_file
-            self._freq_MHz = freq_MHz
-            self._margin_deg = margin_deg
 
         except KeyError as e:
             raise ValueError(
@@ -139,6 +100,84 @@ class PrimaryBeam:
             raise ValueError(
                 f"Error loading beam file {beam_file}: {e}"
             ) from e
+
+    @classmethod
+    def from_arrays(
+        cls,
+        freq_MHz: np.ndarray,
+        margin_deg: np.ndarray,
+        beam_HH_power: np.ndarray,
+        beam_VV_power: np.ndarray,
+        source: str | Path = "<in-memory>",
+    ) -> "PrimaryBeam":
+        """Construct a PrimaryBeam from already-loaded HH/VV power cubes (no file read).
+
+        Lets callers that already hold the ``(n_freq, n_m, n_l)`` ``|beam|²`` cubes (e.g. from
+        :func:`museek.util.beam_io.load_beam_power_cubes`, shared with a ``MeerKLASSBeam``) build
+        the beam without re-reading the ~8.6 GB ``.npz``. The interpolation/solid-angle maths is
+        identical to ``PrimaryBeam(beam_file)``.
+
+        :param freq_MHz: frequency grid, shape ``(n_freq,)``
+        :param margin_deg: uniform (l, m) coordinate grid in degrees, shape ``(n_spatial,)``
+        :param beam_HH_power: HH power cube ``(n_freq, n_m, n_l)`` (``|beam|²``)
+        :param beam_VV_power: VV power cube ``(n_freq, n_m, n_l)``
+        :param source: label used in ``repr`` (e.g. the originating beam file)
+        """
+        obj = cls.__new__(cls)
+        obj._build(freq_MHz=np.asarray(freq_MHz), margin_deg=np.asarray(margin_deg),
+                   beam_HH_power=beam_HH_power, beam_VV_power=beam_VV_power, source=source)
+        return obj
+
+    def _build(
+        self,
+        freq_MHz: np.ndarray,
+        margin_deg: np.ndarray,
+        beam_HH_power: np.ndarray,
+        beam_VV_power: np.ndarray,
+        source: str | Path,
+    ):
+        """Build interpolators, solid angles and ranges from HH/VV power cubes.
+
+        Shared by ``__init__`` (after loading the file) and :meth:`from_arrays`.
+        """
+        # Calculate beam solid angle (steradians)
+        # Pixel size in degrees (uniform square grid)
+        d_deg = margin_deg[1] - margin_deg[0]  # degrees
+        d_rad = d_deg * np.pi / 180  # radians (explicit conversion)
+        d_omega = d_rad**2  # steradians per pixel
+
+        # Beam solid angle: integrate beam power over spatial coordinates
+        # Sum over m and l axes (1, 2), leaving frequency axis (0)
+        self._beam_solid_angle_HH = d_omega * beam_HH_power.sum(axis=(1, 2))  # (n_freq,)
+        self._beam_solid_angle_VV = d_omega * beam_VV_power.sum(axis=(1, 2))  # (n_freq,)
+
+        # Store ranges for validation
+        self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
+        self.beam_extent_deg = (margin_deg.min(), margin_deg.max())
+
+        # Create 3D interpolators: f(freq, m_deg, l_deg) -> beam_gain
+        # Axes order matches array dimensions: (n_freq, n_m, n_l)
+        # Note: margin_deg is the same for both m and l coordinates (square grid)
+        self._interpolator_HH = RegularGridInterpolator(
+            (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
+            beam_HH_power,
+            method='linear',
+            bounds_error=False,
+            fill_value=0.0  # Return 0 for points outside beam
+        )
+
+        self._interpolator_VV = RegularGridInterpolator(
+            (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
+            beam_VV_power,
+            method='linear',
+            bounds_error=False,
+            fill_value=0.0
+        )
+
+        # Store for reference
+        self._beam_file = Path(source)
+        self._freq_MHz = freq_MHz
+        self._margin_deg = margin_deg
 
     def calculate_direction_cosines(
         self,

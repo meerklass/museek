@@ -189,8 +189,6 @@ class TimeOrderedData:
         self._scan_tuple_list = self._get_scan_tuple_list(data=data)
         self.set_data_elements(data=data, scan_state=scan_state)
 
-        self.gain_solution: DataElement | None = None
-
     def __str__(self):
         """Returns the same `str` as `katdal`."""
         return self._data_str
@@ -278,23 +276,6 @@ class TimeOrderedData:
             for i, receiver in enumerate(self.receivers)
             if receiver.antenna_name == antenna.name
         ]
-
-    def set_gain_solution(
-        self, gain_solution_array: np.ndarray, gain_solution_mask_array: np.ndarray
-    ):
-        """Sets the gain solution with data `gain_solution_array` and mask `gain_solution_mask_array`."""
-        self.gain_solution = self._element_factory.create(array=gain_solution_array)
-        self.flags.add_flag(
-            flag=self._flag_element_factory.create(array=gain_solution_mask_array),
-            name="gain_solution_mask",
-        )
-
-    def corrected_visibility(self) -> DataElement | None:
-        """Returns the gain-corrected visibility data."""
-        if self.gain_solution is None:
-            print("Gain solution not available.")
-            return
-        return self.visibility / self.gain_solution
 
     def dump_mask(self, absolute_dump_indices: list[int]) -> np.ndarray:
         """
