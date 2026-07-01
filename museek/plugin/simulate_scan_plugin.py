@@ -39,6 +39,7 @@ from museek.model.spillover_temperature import SpilloverTemperature
 from museek.model.bandpass_model import BandpassModel
 from museek.model.primary_beam import PrimaryBeam
 from museek.model import point_source_catalog as psc
+from museek.util.beam_io import load_beam_power_cubes
 from museek.data_element import DataElement
 from museek.noise_diode import NoiseDiode
 from museek.plugin.point_source_calibration_plugin import (
@@ -200,7 +201,13 @@ class SimulateScanPlugin(AbstractPlugin):
             ps_catalog = self._select_point_sources(median_az, median_el, times, location)
 
         # --- beam + foreground frequency grid (beam channels inside the scan band) ---
-        beam = MeerKLASSBeam(self.beam_file_path, antenna='array_average', polarizations=('HH', 'VV'))
+        # Read the HH/VV array-average power cubes once (memmap-sliced, ~a few GB not the full
+        # ~8.6 GB file) and build BOTH beam objects from the shared cubes: the Simeer beam for the
+        # foreground integration and the PrimaryBeam for the point sources. Avoids reading and
+        # squaring the beam file twice.
+        beam_freq_MHz, beam_margin_deg, beam_cubes = load_beam_power_cubes(self.beam_file_path)
+        beam = MeerKLASSBeam.from_arrays(freq_MHz=beam_freq_MHz, margin_deg=beam_margin_deg,
+                                         power=beam_cubes)
         in_band = (beam.freq_MHz >= freq_scan_MHz.min()) & (beam.freq_MHz <= freq_scan_MHz.max())
         band_idx = np.where(in_band)[0]
         sim_idx = band_idx[np.linspace(0, len(band_idx) - 1, self.n_sim_freq).astype(int)]
@@ -240,13 +247,17 @@ class SimulateScanPlugin(AbstractPlugin):
         # --- method B: per-pol point-source TOD via the primary beam (exact positions) ---
         point_source = {'HH': None, 'VV': None}
         if self.point_source_method == 'primary_beam' and len(ps_catalog['ra_deg']):
-            primary_beam = PrimaryBeam(self.primary_beam_file)
+            # Reuse the already-loaded cubes (no second file read); same interpolation as PrimaryBeam(file)
+            primary_beam = PrimaryBeam.from_arrays(beam_freq_MHz, beam_margin_deg,
+                                                   beam_cubes['HH'], beam_cubes['VV'],
+                                                   source=self.beam_file_path)
             valid_dumps = ~self._antenna_flagged_dumps(scan_data, n_time)  # skip stowed/flagged pointings
             for pol in ('HH', 'VV'):
                 point_source[pol] = self._point_source_tod(
                     ps_catalog, freq_scan_MHz, median_az, median_el, times, location, pol,
                     primary_beam, valid_dumps)
             del primary_beam  # free PrimaryBeam before the per-receiver loop
+        del beam_cubes  # free the shared power cubes once both beams are done with them
 
         # --- elevation-dependent components ---
         atm_emission = AtmosphericModel(scan_data).emission_temperature  # (n_time, n_freq, n_ant)
