@@ -48,21 +48,37 @@ InPlugin = ConfigSection(
     receiver_list=None,  # Set to `None` to use all receivers or provide a list, e.g.
     # receiver_list=['m000h','m000v','m012h','m012v',...],
     token=None,  # Token for loading data directly from SARAO archive
+    load_visibilities_auto=True,  # if `True`, auto-correlation visibilities are loaded in InPlugin
+    load_visibilities_cross=False,  # if `True`, cross-correlation visibilities are loaded in InPlugin
     force_load_auto_from_correlator_data=True,  # If `True`, ignore local cache folder and read from correlator data
     force_load_cross_from_correlator_data=True,  # If `True`, ignore local cache folder and read from correlator data
     do_save_visibility_to_disc=False,  # If `True`, extracted save visibilities, flags and weights to local cache folder
-    do_store_context=True,  # If `True`, Save the context pickle file from this step
+    do_store_context=False,  # If `True`, Save the context pickle file from this step
     context_folder=None,  # Directory to store the context files "./results" is used if `None`
+    suppress_katpoint_warnings=True,  # if `True`, suppress noisy katpoint catalogue warnings
 )
 
-# Flag known RFI bands
+
+NoiseDiodeFlaggerPlugin = ConfigSection(
+    verbose=0,
+)
+
+
 KnownRfiPlugin = ConfigSection(
-    # --- Parameters to change ---
     gsm_900_uplink=None,
-    gsm_900_downlink=(925, 960),
+    gsm_900_downlink=(922, 966),  # widened guard channels to catch 963 MHz band-edge residual
     gsm_1800_uplink=None,
+    #gps=(1170, 1390),
+    #extra_rfi=[(1524, 1630)],
     gps=None,
-    extra_rfi=[(768, 778), (801, 811), (811, 821)],  # Vodacom, MTN and Telkom bands
+    extra_rfi=[
+    (544, 580),   # band edges
+    (1015, 1088), # band edges
+    (765, 778),   # Vodacom
+    (801, 811),   # MTN
+    (811, 821),   # Telkom
+    ],
+    verbose=0,
 )
 
 # Flag raw data with values below a minimum threshold
@@ -72,11 +88,12 @@ RawdataFlaggerPlugin = ConfigSection(
     do_store_context=False,
 )
 
-# Split calibrator tracks and scan data
+
 ScanTrackSplitPlugin = ConfigSection(
-    # --- Parameters to change ---
-    do_delete_unsplit_data=True,  # Delete original data after splitting
-    do_store_context=True,
+    do_delete_unsplit_data=True,  # erase from memory to free it up for next plugins
+    do_store_context=False,
+    keep_scan=True,
+    keep_track=False,
 )
 
 # Flag point source using a catalog

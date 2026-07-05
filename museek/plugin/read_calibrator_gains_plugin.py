@@ -17,7 +17,7 @@ PERIOD_KEYS = ('before_scan', 'after_scan')
 class ReadCalibratorGainsPlugin(AbstractPlugin):
     """
     Loads pickled model_components file(s) from PointSourceCalibrationPlugin, selects the requested
-    calibrator period(s), averages their `gain_on_off`, matches receivers by name, and sets the gain
+    calibrator period(s), averages their `gain`, matches receivers by name, and sets the gain
     solution on the target `scan_data`.
 
     The gain is read from the pickle and may come from a different observation block; it is applied to
@@ -93,7 +93,8 @@ class ReadCalibratorGainsPlugin(AbstractPlugin):
             if period not in mc:
                 raise ValueError(f"Period '{period}' not found in {path}. "
                                  f"Available periods: {available}.")
-            selections.append((mc[period]['gain_on_off'], file_receivers,
+            gain_key = 'gain' if 'gain' in mc[period] else 'gain_on_off'  # fallback for old pickles
+            selections.append((mc[period][gain_key], file_receivers,
                                f"{os.path.basename(path)}:{period}"))
 
         if not selections:

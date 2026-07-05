@@ -19,7 +19,7 @@ class ScanTrackSplitPlugin(AbstractPlugin):
     """
 
     def __init__(self, do_delete_unsplit_data: bool, do_store_context: bool,
-                 keep_scan: bool = True, keep_track: bool = True):
+                 keep_scan: bool = True, keep_track: bool = False):
         """
         Initialise with `do_delete_unsplit_data`, a switch that determines wether the object containing the entire
         data should be deleted to save memory.

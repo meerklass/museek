@@ -14,7 +14,7 @@ Pipeline = ConfigSection(
         'museek.plugin.antenna_flagger_plugin',
         'museek.plugin.aoflagger_tracking_plugin',
 #         'museek.plugin.noise_diode_excess_plugin',
-        'museek.plugin.noise_diode_signal_plugin',
+#        'museek.plugin.noise_diode_signal_plugin',
         'museek.plugin.point_source_calibration_plugin',
     ],
 #    context=os.path.join('/home/mgrsantos/projects/data/context/', '1675021905/point_source_calibration_plugin.pickle')
@@ -28,16 +28,16 @@ InPlugin = ConfigSection(
 #    receiver_list=['m000h','m000v','m005h','m005v','m023h','m023v'],
     receiver_list=None,  # receivers to be processed, `None` means all available receivers is used
     token=None,  # archive token
-    data_folder="/home/mgrsantos/projects/data/blocks",  # only relevant if `token` is `None`
+    data_folder="/idia/projects/meerklass/MEERKLASS-1/raw_data/SCI-20230907-MS-01",  # only relevant if `token` is `None`
     # data_folder='/idia/projects/hi_im/SCI-20230907-MS-01/',  # only relevant if `token` is `None`
     force_load_auto_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     force_load_cross_from_correlator_data=False,  # if `True`, the local `cache` folder is ignored
     do_save_visibility_to_disc=True,  # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_store_context=False,
-    context_folder="/home/mgrsantos/projects/data/context/",  # directory to store results, if `None`, 'results/' is chosen
+    context_folder="/idia/projects/meerklass/MEERKLASS-1/museek/tests",  # directory to store results, if `None`, 'results/' is chosen
     load_visibilities_auto=True,  # if `True`, auto-correlation visibilities are loaded in InPlugin
     load_visibilities_cross=False,  # if `True`, cross-correlation visibilities are loaded in InPlugin
-    cache_folder="/home/mgrsantos/projects/data/cache",  # directory for cache files; defaults to ROOT_DIR/cache
+    cache_folder="/idia/users/msantos/museek/cache",  # directory for cache files; defaults to ROOT_DIR/cache
     suppress_katpoint_warnings=True,  # if `True`, suppress noisy katpoint catalogue warnings
 )
 
@@ -71,7 +71,7 @@ RawdataFlaggerPlugin = ConfigSection(
 
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=True,  # erase from memory to free it up for next plugins
-    do_store_context=True,
+    do_store_context=False,
     keep_scan=False,
     keep_track=True,
 )
@@ -96,7 +96,7 @@ AntennaFlaggerPlugin = ConfigSection(
 )
 
 AoflaggerTrackingPlugin = ConfigSection(
-    n_jobs=6,
+    n_jobs=28,
     verbose=0,
     mask_type='vis',  # the data to which the flagger will be applied, ['vis', 'flag_fraction', 'rms', 'inverse', 'inverse_timemedian']
     first_threshold=0.1,  # First threshold value
@@ -110,11 +110,11 @@ AoflaggerTrackingPlugin = ConfigSection(
     channel_flag_threshold=0.6,
     time_dump_flag_threshold=0.6,   #warning: this includes noise diodes
     flag_combination_threshold=1,
-    do_store_context=True
+    do_store_context=False
 )
 
 NoiseDiodeExcessPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=28,
     verbose=0,
     flag_combination_threshold=1,
     zscoreflag_threshold=5.,
@@ -126,26 +126,26 @@ NoiseDiodeExcessPlugin = ConfigSection(
     nd_dump_good_fraction=0.5,
     nd_excess_failure_fraction=0.5,
     nd_excluded_flag_names=('noise_diode_on', 'aoflagger_tracking_flag'),
-    do_store_context=True,
+    do_store_context=False,
 )
 
 NoiseDiodeSignalPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=28,
     verbose=0,
     flag_combination_threshold=1,
     zscoreflag_threshold=3.5,
     max_masked_fraction=0.6,  # mask all of a receiver's firings if more than this fraction are masked after outlier removal
     noise_diode_excess_lowlim=5.,
-    do_store_context=True,
+    do_store_context=False,
 )
 
 PointSourceCalibrationPlugin = ConfigSection(
-    n_jobs=13,
+    n_jobs=28,
     verbose=0,
     flag_combination_threshold=1,
     on_source_separation_threshold_deg=0.1,
     n_on_pointings=3,  # expected on-source pointings per period; raises if mismatched. None disables.
-    beam_file_path='/home/mgrsantos/projects/data/MeerKAT_U_band_primary_beam_aa_highres.npz',
+    beam_file_path='/idia/projects/meerklass/MEERKLASS-2/beams/uhf/MeerKAT_U_band_primary_beam_aa_highres.npz',
     receiver_models_dir=os.path.join(ROOT_DIR, 'museek/model/receiver_models'),
     spillover_model_file=os.path.join(ROOT_DIR, 'museek/model/MK_U_Tspill_AsBuilt_atm_mask.dat'),
     synch_model='s1',
@@ -158,5 +158,6 @@ PointSourceCalibrationPlugin = ConfigSection(
     gain_threshold_scales=[1.0],
     gain_smoothing_window_size=100,
     gain_smoothing_sigma=30.0,
+    gain_method='gain_on_off',  # this calculates on source - off source. The other option is a correlation gain: gain_corr.
 )
 

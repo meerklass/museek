@@ -152,6 +152,7 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                  gain_threshold_scales: list | None = None,
                  gain_smoothing_window_size: int = 100,
                  gain_smoothing_sigma: float = 30.0,
+                 gain_method: str = 'gain_on_off',
                  prefer: str = 'threads',
                  **kwargs):
         """
@@ -173,6 +174,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         :param synch_fwhm_ref_deg: Reference Gaussian FWHM in degrees for beam smoothing
             of synchrotron map. Approximation of the true (non-Gaussian, pol-dependent) beam.
         :param synch_fwhm_ref_freq_MHz: Reference frequency in MHz for synch_fwhm_ref_deg
+        :param gain_method: which gain estimator to compute and save as 'gain' in the output
+            pickle. 'gain_corr' = least-squares regression gain; 'gain_on_off' = on-source minus
+            off-source subtraction (default, requires both on- and off-source dumps).
         :param prefer: joblib backend preference, defaults to 'threads' to avoid process
             overhead when parallelising pure-numpy run_job calls.
         """
@@ -197,6 +201,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         self.gain_threshold_scales = gain_threshold_scales if gain_threshold_scales is not None else [1.0]
         self.gain_smoothing_window_size = gain_smoothing_window_size
         self.gain_smoothing_sigma = gain_smoothing_sigma
+        if gain_method not in ('gain_corr', 'gain_on_off'):
+            raise ValueError(f"gain_method must be 'gain_corr' or 'gain_on_off', got {gain_method!r}.")
+        self.gain_method = gain_method
 
     def set_requirements(self):
         """Set the requirements for the plugin."""
@@ -429,7 +436,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 'dump_indices': dump_indices_period,
                 'on_mask': on_mask,
                 'gain': [],        # Will be filled in gather_and_set_result
-                'gain_on_off': [], # Will be filled in gather_and_set_result
                 'beam_gain_HH': beam_gain_HH,  # (n_dumps, n_freq) - same for all receivers
                 'beam_gain_VV': beam_gain_VV,  # (n_dumps, n_freq) - same for all receivers
                 'temperatures': {
@@ -483,33 +489,11 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
          freq, atm_period, point_source_temp_period, rec_temp_recv,
          spillover_temp_period, synch_temp_period, on_mask) = anything
 
-        # Verify all temperature components are available
-        # Find frequency channel closest to 750 MHz (avoids band edges)
-        freq_MHz = freq / 1e6  # Convert Hz to MHz
+        freq_MHz = freq / 1e6
         idx_750 = np.argmin(np.abs(freq_MHz - 750.0))
 
-        # Calculate gain using masked array approach
-        # Total model temperature (rec_temp_recv broadcasts automatically)
         model_total = atm_period + point_source_temp_period + rec_temp_recv + spillover_temp_period + synch_temp_period
 
-        # Create masked arrays using flags
-        vis_masked = ma.masked_array(vis_period, mask=flag_period)
-        model_masked = ma.masked_array(model_total, mask=flag_period)
-
-        # Remove time average per frequency (axis=0 is time)
-        vis_mean = ma.mean(vis_masked, axis=0)  # Shape: (n_freq,)
-        vis_zeromean = vis_masked - vis_mean  # Broadcasting automatic
-
-        model_mean = ma.mean(model_masked, axis=0)  # Shape: (n_freq,)
-        model_zeromean = model_masked - model_mean  # Broadcasting automatic
-
-        # Calculate gain per frequency (sum over time axis=0)
-        numerator = ma.sum(vis_zeromean * model_zeromean, axis=0)  # Shape: (n_freq,)
-        denominator = ma.sum(model_zeromean**2, axis=0)  # Shape: (n_freq,)
-
-        gain_per_freq = numerator / denominator
-
-        # Print diagnostic values at 750 MHz
         if self.verbose:
             print(f"Period {period}, Calibrator {calibrator_name}: "
                   f"vis shape = {vis_period.shape}, "
@@ -518,32 +502,8 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                   f"point_source = {np.max(point_source_temp_period[:, idx_750]):.2e} K, "
                   f"synch_temp = {np.max(synch_temp_period[:, idx_750]):.2e} K, "
                   f"rec_temp = {rec_temp_recv[idx_750]:.2f} K, "
-                  f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K, "
-                  f"gain = {gain_per_freq[idx_750]:.6f}", flush=True)
+                  f"spillover = {np.max(spillover_temp_period[:, idx_750]):.2f} K", flush=True)
 
-        # On-off gain calculation
-        off_mask = ~on_mask
-        if on_mask.any() and off_mask.any():
-            vis_masked = ma.masked_array(vis_period,  mask=flag_period)
-            mod_masked = ma.masked_array(model_total, mask=flag_period)
-            vis_on  = ma.mean(vis_masked[on_mask],  axis=0)
-            vis_off = ma.mean(vis_masked[off_mask], axis=0)
-            mod_on  = ma.mean(mod_masked[on_mask],  axis=0)
-            mod_off = ma.mean(mod_masked[off_mask], axis=0)
-            denom = mod_on - mod_off
-            gain_on_off = (vis_on - vis_off) / denom
-            if self.verbose:
-                print(f"Period {period}, Calibrator {calibrator_name}: "
-                      f"gain_on_off at 750 MHz = {gain_on_off[idx_750]:.6f}", flush=True)
-        else:
-            gain_on_off = ma.zeros(gain_per_freq.shape)
-            if self.verbose:
-                print(f"Period {period}: skipping gain_on_off (no on or off dumps)", flush=True)
-
-        # Flag gain solutions using 1D AOFlagger.
-        # Use the gain's own mask as the initial mask — channels where the gain couldn't
-        # be computed (all times flagged, e.g. known RFI) are already masked there.
-        # get_rfi_mask_1d returns a mask that already includes the initial mask, so use it directly.
         def _flag_gain_1d(gain: np.ma.MaskedArray) -> np.ma.MaskedArray:
             initial_mask = np.ma.getmaskarray(gain)
             rfi_mask = get_rfi_mask_1d(
@@ -554,18 +514,38 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
                 threshold_scales=self.gain_threshold_scales,
                 smoothing_window_size=self.gain_smoothing_window_size,
                 smoothing_sigma=self.gain_smoothing_sigma,
-            ).squeeze  # Shape: (n_freq,), already includes initial_mask
+            ).squeeze
             return ma.array(gain.data, mask=rfi_mask)
 
-        gain_per_freq = _flag_gain_1d(gain_per_freq)
-        gain_on_off   = _flag_gain_1d(gain_on_off)
+        if self.gain_method == 'gain_corr':
+            vis_masked = ma.masked_array(vis_period, mask=flag_period)
+            model_masked = ma.masked_array(model_total, mask=flag_period)
+            vis_zeromean = vis_masked - ma.mean(vis_masked, axis=0)
+            model_zeromean = model_masked - ma.mean(model_masked, axis=0)
+            numerator = ma.sum(vis_zeromean * model_zeromean, axis=0)
+            denominator = ma.sum(model_zeromean**2, axis=0)
+            selected_gain = _flag_gain_1d(numerator / denominator)
 
-        # Return only period and gains (other components already stored in map())
-        return {
-            'period': period,
-            'gain': gain_per_freq,      # Shape: (n_freq,), mask includes computation + RFI flags
-            'gain_on_off': gain_on_off, # Shape: (n_freq,), mask includes computation + RFI flags
-        }
+        else:  # 'gain_on_off'
+            off_mask = ~on_mask
+            if on_mask.any() and off_mask.any():
+                vis_masked = ma.masked_array(vis_period,  mask=flag_period)
+                mod_masked = ma.masked_array(model_total, mask=flag_period)
+                vis_on  = ma.mean(vis_masked[on_mask],  axis=0)
+                vis_off = ma.mean(vis_masked[off_mask], axis=0)
+                mod_on  = ma.mean(mod_masked[on_mask],  axis=0)
+                mod_off = ma.mean(mod_masked[off_mask], axis=0)
+                selected_gain = _flag_gain_1d((vis_on - vis_off) / (mod_on - mod_off))
+            else:
+                if self.verbose:
+                    print(f"Period {period}: skipping gain_on_off (no on or off dumps)", flush=True)
+                selected_gain = ma.zeros(freq.shape[0])
+
+        if self.verbose:
+            print(f"Period {period}: gain ({self.gain_method}) at 750 MHz = "
+                  f"{selected_gain[idx_750]:.6f}", flush=True)
+
+        return {'period': period, 'gain': selected_gain}
 
     def gather_and_set_result(self,
                               result_list: list[dict],
@@ -596,16 +576,9 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
 
         # Append gain solutions from result_list to self.model_components (already populated in map())
         # result_list is ordered as: [period0_recv0, period0_recv1, period1_recv0, period1_recv1, ...]
-        for i_result, result_dict in enumerate(result_list):
-            gain_period = result_dict['gain']  # Shape: (n_freq,)
+        for result_dict in result_list:
             period = result_dict['period']
-
-            # Determine receiver index from result ordering
- #           i_receiver = i_result % n_receivers
-
-            # Append gains to model_components
-            self.model_components[period]['gain'].append(gain_period)
-            self.model_components[period]['gain_on_off'].append(result_dict['gain_on_off'])
+            self.model_components[period]['gain'].append(result_dict['gain'])
 
         # Stack receiver-specific components along receiver axis
         period_keys_stack = [p for p in self.model_components if isinstance(self.model_components[p], dict)]
@@ -613,11 +586,6 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
             # Stack gain: list of (n_freq,) -> (n_freq, n_receivers)
             self.model_components[period]['gain'] = np.ma.stack(
                 self.model_components[period]['gain'],
-                axis=1
-            )
-            # Stack gain_on_off: list of (n_freq,) -> (n_freq, n_receivers)
-            self.model_components[period]['gain_on_off'] = np.ma.stack(
-                self.model_components[period]['gain_on_off'],
                 axis=1
             )
             # Stack atmospheric: list of (n_dumps, n_freq) -> (n_dumps, n_freq, n_receivers)
@@ -670,15 +638,14 @@ class PointSourceCalibrationPlugin(AbstractParallelJoblibPlugin):
         period_keys = [p for p in self.model_components if isinstance(self.model_components[p], dict)]
         n_time = track_data.flags.shape[0]
         for period in period_keys:
-            for gain_key in ('gain', 'gain_on_off'):
-                mask = np.ma.getmaskarray(self.model_components[period][gain_key])  # (n_freq, n_receivers)
-                flag_array = np.tile(mask[np.newaxis, :, :], (n_time, 1, 1))
-                track_data.flags.add_flag(
-                    flag=FlagList.from_array(
-                        array=flag_array, element_factory=self.data_element_factory
-                    ),
-                    name=f"{period}_{gain_key}_rfi_mask",
-                )
+            mask = np.ma.getmaskarray(self.model_components[period]['gain'])  # (n_freq, n_receivers)
+            flag_array = np.tile(mask[np.newaxis, :, :], (n_time, 1, 1))
+            track_data.flags.add_flag(
+                flag=FlagList.from_array(
+                    array=flag_array, element_factory=self.data_element_factory
+                ),
+                name=f"{period}_gain_rfi_mask",
+            )
 
         # Set results
         self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))

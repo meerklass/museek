@@ -27,7 +27,7 @@ class InPlugin(AbstractPlugin):
         do_save_visibility_to_disc: bool,
         do_store_context: bool,
         context_folder: str | None,
-        load_visibilities_auto: bool = False,
+        load_visibilities_auto: bool = True,
         load_visibilities_cross: bool = False,
         cache_folder: str | None = None,
         suppress_katpoint_warnings: bool = True,
