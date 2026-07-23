@@ -4,6 +4,8 @@ import gc
 import logging
 import os
 import pickle
+from collections.abc import Callable, Sequence
+from functools import reduce
 from pathlib import Path
 from typing import Literal
 
@@ -187,6 +189,12 @@ _FLAG_UFUNCS: dict[str, np.ufunc] = {
     "xor": np.logical_xor,
 }
 
+_XR_FLAG_UFUNCS: dict[str, Callable[[xr.DataArray, xr.DataArray], xr.DataArray]] = {
+    "or": xr.ufuncs.logical_or,
+    "and": xr.ufuncs.logical_and,
+    "xor": xr.ufuncs.logical_xor,
+}
+
 
 def reduce_flags(
     flag_da: xr.DataArray,
@@ -199,6 +207,13 @@ def reduce_flags(
     applying ``operator`` uniformly along each such axis in turn (e.g. reducing
     ``"feeds"`` collapses H/V, reducing ``"polarisations"`` collapses Stokes
     parameters, exactly like reducing ``"timestamps"`` or ``"frequencies"``).
+
+    This operates *within* a single flag array, folding away its own dims — the
+    counterpart to :func:`combine_flags`, which joins *separate* flag variables
+    elementwise without touching dims. :func:`select_and_flag` chains both: first
+    :func:`combine_flags` to merge named flags into one, then this function (if
+    needed) to collapse whatever dims that merged flag has beyond the target
+    variable's own dims.
 
     Parameters
     ----------
@@ -256,6 +271,128 @@ def reduce_flags(
         result = result.transpose(*output_dims)
 
     return result
+
+
+def combine_flags(
+    ds: xr.Dataset,
+    flags: str | Sequence[str] | xr.DataArray | Sequence[xr.DataArray],
+    combine: Literal["or", "and", "xor"] = "or",
+) -> xr.DataArray:
+    """Resolve flag name(s) and/or DataArray(s) and combine them into one boolean flag.
+
+    Joins *separate* flag variables (e.g. ``SARAO``, ``known_rfi``,
+    ``rawdata_low_value``) elementwise via xarray's own broadcasting/alignment —
+    it never touches or reduces any dimension. This is the counterpart to
+    :func:`reduce_flags`, which instead collapses dims *within* a single
+    already-resolved flag array. :func:`select_and_flag` calls this first (to
+    merge named flags into one), then :func:`reduce_flags` if that merged flag
+    still has dims the target variable doesn't.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to resolve string flag names against.
+    flags : str, DataArray, or a sequence of either
+        Flags to combine. Strings are looked up as ``ds[name]``.
+    combine : {"or", "and", "xor"}
+        Logical operator applied elementwise across the resolved flags.
+
+    Returns
+    -------
+    xr.DataArray
+        A single boolean flag. If only one flag is given, it is returned unchanged.
+    """
+    if isinstance(flags, (str, xr.DataArray)):
+        flags = [flags]
+    resolved = [ds[f] if isinstance(f, str) else f for f in flags]
+    if len(resolved) == 1:
+        return resolved[0]
+    ufunc = _XR_FLAG_UFUNCS[combine]
+    return reduce(ufunc, resolved)
+
+
+def select_and_flag(
+    ds: xr.Dataset,
+    var: str,
+    flags: str | Sequence[str] | xr.DataArray | Sequence[xr.DataArray] | None = None,
+    combine: Literal["or", "and", "xor"] = "or",
+    sel: dict | None = None,
+    isel: dict | None = None,
+    nearest: dict | None = None,
+    dropna_dim: str | None = None,
+) -> xr.DataArray:
+    """Select, flag-mask, and optionally dropna a dataset variable.
+
+    This handles the common notebook pattern of slicing a variable, combining one or
+    more boolean flags, masking with those flags, and dropping flagged points — but
+    intentionally does not perform any reduction (mean, median, etc.); callers do that
+    on the returned DataArray.
+
+    Internally chains the module's two flag helpers: :func:`combine_flags` first
+    (joins the named/given flags elementwise into one), then :func:`reduce_flags`
+    only if that combined flag still carries dims absent from the (post-selection)
+    variable — e.g. masking ``ra``/``dec`` (dims ``timestamps, antennas``) with a
+    flag that still has ``frequencies``/``feeds`` collapses those away via OR
+    before the final ``.where()``.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to select from.
+    var : str
+        Name of the data variable in ``ds`` to select and mask.
+    flags : str, DataArray, or a sequence of either, optional
+        Flag(s) to combine (via :func:`combine_flags`) and apply as a mask. If the
+        combined flag has dims not present in the (post-``sel``/``isel``/``nearest``)
+        variable, those extra dims are collapsed via :func:`reduce_flags` using
+        ``combine`` as the reduction operator.
+    combine : {"or", "and", "xor"}
+        Logical operator used both to combine multiple ``flags`` and to collapse any
+        flag dims not present in ``var``.
+    sel, isel : dict, optional
+        Passed to ``.sel()``/``.isel()`` on both the variable and (for the keys
+        present in its dims) the resolved flags, so both stay aligned.
+    nearest : dict, optional
+        Like ``sel``, but applied in a separate ``.sel(..., method="nearest")`` call.
+        Kept separate from ``sel`` because xarray cannot mix an exact-match indexer
+        (e.g. a list of antenna names) with ``method="nearest"`` in a single call.
+    dropna_dim : str, optional
+        If given, drop NaNs along this dimension after masking.
+
+    Returns
+    -------
+    xr.DataArray
+    """
+
+    def _apply_selectors(da: xr.DataArray) -> xr.DataArray:
+        if isel:
+            keys = {k: v for k, v in isel.items() if k in da.dims}
+            if keys:
+                da = da.isel(**keys)
+        if sel:
+            keys = {k: v for k, v in sel.items() if k in da.dims}
+            if keys:
+                da = da.sel(**keys, drop=True)
+        if nearest:
+            keys = {k: v for k, v in nearest.items() if k in da.dims}
+            if keys:
+                da = da.sel(**keys, method="nearest", drop=True)
+        return da
+
+    da = _apply_selectors(ds[var])
+
+    if flags is not None:
+        flag_da = _apply_selectors(combine_flags(ds, flags, combine=combine))
+        extra_dims = [d for d in flag_da.dims if d not in da.dims]
+        if extra_dims:
+            output_dims = tuple(d for d in flag_da.dims if d not in extra_dims)
+            flag_da = reduce_flags(flag_da, output_dims=output_dims, operator=combine)
+        da = da.where(~flag_da)
+
+    if dropna_dim is not None:
+        da = da.dropna(dim=dropna_dim)
+
+    return da
 
 
 def load_context_to_ds(
