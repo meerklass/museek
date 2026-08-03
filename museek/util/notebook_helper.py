@@ -48,7 +48,11 @@ def ant_names_to_ant_nums(
 
 
 def read_pickle(pickle_file: str | Path):
-    """Load the strcuture data from a MuSEEK's picke file."""
+    """Load the structure data from a MuSEEK's pickle file.
+
+    ``pickle.load`` can execute arbitrary code, so ``pickle_file`` must come from a
+    trusted source (i.e. MuSEEK's own pipeline output).
+    """
     with open(pickle_file, "rb") as stream:
         struct = pickle.load(stream)
     return struct
@@ -483,7 +487,7 @@ def load_context_to_ds(
     # Extract timestamps. This is in UNIX epoch.
     timestamps = scan_data.timestamps.array.squeeze()
 
-    # Receivers are antenans with feed name, e.g. m001h, m001v, and are stored as
+    # Receivers are antennas with feed name, e.g. m001h, m001v, and are stored as
     # a list of Receiver objects, so we extract the names
     receivers = np.asarray([rec.name for rec in scan_data.receivers], dtype=str)
 
@@ -522,7 +526,7 @@ def load_context_to_ds(
     # === PROCESS CALIBRATED DATA ===
     logger.info("Extracting calibrated visibility and flags")
     # CALIBRATED_VIS is a masked array, keeping it will make the data format
-    # inconsitent since scan data store data and flags as separate Numpy arrays.
+    # inconsistent since scan data store data and flags as separate Numpy arrays.
     # Thus, we only extract the data.
     calibrated_vis_data = (
         data.get(ResultEnum.CALIBRATED_VIS).result.data[:, freq_select_slice, :] / 1e6
