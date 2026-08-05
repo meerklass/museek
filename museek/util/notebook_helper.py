@@ -98,6 +98,23 @@ def wrap_to_nearest(values: NDArray, reference: float) -> NDArray:
     return reference + (values - reference + 180.0) % 360.0 - 180.0
 
 
+def unwrap_ra_deg(ra: NDArray) -> NDArray:
+    """Unwrap a time-ordered RA track (deg) across the 360/0 branch cut.
+
+    ``np.unwrap`` alone picks whichever branch minimises the jump from the
+    first sample, which can leave the track sitting on the negative side
+    (e.g. ``(353, 355, 359, 1, 3)`` -> ``(-7, -5, -1, 1, 3)``). Shift the
+    whole (already internally-consistent) track up by a multiple of 360 so
+    it instead continues past 360 (e.g. ``(353, 355, 359, 361, 363)``),
+    which reads more naturally on a plot.
+    """
+    unwrapped = np.unwrap(ra, period=360.0)
+    min_val = unwrapped.min()
+    if min_val < 0:
+        unwrapped = unwrapped + 360.0 * np.ceil(-min_val / 360.0)
+    return unwrapped
+
+
 def load_point_sources(
     ra_center: float,
     dec_center: float,

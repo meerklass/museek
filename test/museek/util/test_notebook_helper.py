@@ -74,6 +74,33 @@ class TestWrapToNearest(unittest.TestCase):
         np.testing.assert_allclose(np.array([-7.0, -5.0, -1.0, 1.0, 3.0]), wrapped)
 
 
+class TestUnwrapRaDeg(unittest.TestCase):
+    def test_unwrap_ra_deg_no_wrap(self):
+        unwrapped = notebook_helper.unwrap_ra_deg(np.array([10.0, 20.0, 30.0]))
+        np.testing.assert_allclose(np.array([10.0, 20.0, 30.0]), unwrapped)
+
+    def test_unwrap_ra_deg_continues_past_360(self):
+        # Rather than dropping to negative values, the wrapped tail should continue
+        # past 360.
+        unwrapped = notebook_helper.unwrap_ra_deg(
+            np.array([353.0, 355.0, 359.0, 1.0, 3.0])
+        )
+        np.testing.assert_allclose(
+            np.array([353.0, 355.0, 359.0, 361.0, 363.0]), unwrapped
+        )
+
+    def test_unwrap_ra_deg_never_negative_regardless_of_order(self):
+        # Same track, time-ordered in the opposite direction: np.unwrap alone would
+        # anchor to the first (already-low) sample and produce negative values.
+        unwrapped = notebook_helper.unwrap_ra_deg(
+            np.array([1.0, 3.0, 359.0, 355.0, 353.0])
+        )
+        self.assertGreaterEqual(unwrapped.min(), 0.0)
+        np.testing.assert_allclose(
+            np.array([361.0, 363.0, 359.0, 355.0, 353.0]), unwrapped
+        )
+
+
 class TestReduceFlags(unittest.TestCase):
     def setUp(self):
         self.flag_da = xr.DataArray(
