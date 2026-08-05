@@ -39,6 +39,7 @@ dependencies = [
     "papermill",
     "ivory @ git+https://github.com/meerklass/ivory.git",
     "xarray[complete]>=2025.6.1",
+    "jupyterlab>=4.6.2",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
