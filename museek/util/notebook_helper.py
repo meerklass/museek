@@ -79,6 +79,25 @@ def trim_frequencies(
         return freq_array[freq_slice]
 
 
+def circular_mean_deg(angles: NDArray) -> float:
+    """Circular mean of angles in degrees (handles wraparound at 360/0)."""
+    radians = np.deg2rad(angles)
+    return float(
+        np.rad2deg(np.arctan2(np.mean(np.sin(radians)), np.mean(np.cos(radians))))
+        % 360.0
+    )
+
+
+def wrap_to_nearest(values: NDArray, reference: float) -> NDArray:
+    """Shift each value by a multiple of 360 deg to the branch nearest `reference`.
+
+    Unlike ``np.unwrap``, this doesn't rely on ``values`` being in any
+    particular order, so it's suitable for unordered/scattered points (e.g. a
+    catalog subset) rather than only a continuous, time-ordered sequence.
+    """
+    return reference + (values - reference + 180.0) % 360.0 - 180.0
+
+
 def load_point_sources(
     ra_center: float,
     dec_center: float,

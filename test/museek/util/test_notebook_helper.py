@@ -42,6 +42,38 @@ class TestTrimFrequencies(unittest.TestCase):
             )
 
 
+class TestCircularMeanDeg(unittest.TestCase):
+    def test_circular_mean_deg_no_wrap(self):
+        mean = notebook_helper.circular_mean_deg(np.array([10.0, 20.0, 30.0]))
+        self.assertAlmostEqual(20.0, mean)
+
+    def test_circular_mean_deg_wraps_at_360(self):
+        mean = notebook_helper.circular_mean_deg(
+            np.array([353.0, 355.0, 359.0, 1.0, 3.0])
+        )
+        # The naive arithmetic mean would be ~214.2 (badly wrong); the circular mean
+        # should land near 358 (i.e. close to 0/360), not near 180.
+        self.assertLess(min(abs(mean - 358.2), abs(mean - 358.2 + 360)), 1.0)
+
+
+class TestWrapToNearest(unittest.TestCase):
+    def test_wrap_to_nearest_no_shift_needed(self):
+        wrapped = notebook_helper.wrap_to_nearest(
+            np.array([10.0, 20.0]), reference=15.0
+        )
+        np.testing.assert_allclose(np.array([10.0, 20.0]), wrapped)
+
+    def test_wrap_to_nearest_shifts_across_branch(self):
+        wrapped = notebook_helper.wrap_to_nearest(np.array([358.0]), reference=2.0)
+        np.testing.assert_allclose(np.array([-2.0]), wrapped)
+
+    def test_wrap_to_nearest_array(self):
+        wrapped = notebook_helper.wrap_to_nearest(
+            np.array([353.0, 355.0, 359.0, 1.0, 3.0]), reference=0.0
+        )
+        np.testing.assert_allclose(np.array([-7.0, -5.0, -1.0, 1.0, 3.0]), wrapped)
+
+
 class TestReduceFlags(unittest.TestCase):
     def setUp(self):
         self.flag_da = xr.DataArray(
