@@ -220,7 +220,7 @@ def _validate_receiver_antenna_ordering(receivers: NDArray, antennas: NDArray) -
 
 
 _VALID_FLAG_DIMS = frozenset(
-    {"timestamps", "frequencies", "antennas", "feeds", "polarisations"}
+    {"timestamps", "frequencies", "antennas", "feeds", "stokes"}
 )
 
 _FLAG_UFUNCS: dict[str, np.ufunc] = {
@@ -245,7 +245,7 @@ def reduce_flags(
 
     Collapses every dimension in the input that is absent from ``output_dims``,
     applying ``operator`` uniformly along each such axis in turn (e.g. reducing
-    ``"feeds"`` collapses H/V, reducing ``"polarisations"`` collapses Stokes
+    ``"feeds"`` collapses H/V, reducing ``"stokes"`` collapses Stokes
     parameters, exactly like reducing ``"timestamps"`` or ``"frequencies"``).
 
     This operates *within* a single flag array, folding away its own dims — the
@@ -259,7 +259,7 @@ def reduce_flags(
     ----------
     flag_da : xr.DataArray
         Input boolean flag. Dims must be a subset of
-        ``{"timestamps", "frequencies", "antennas", "feeds", "polarisations"}``.
+        ``{"timestamps", "frequencies", "antennas", "feeds", "stokes"}``.
     output_dims : tuple[str, ...]
         Dimensions to retain in the output; must be a subset of the input's
         dims. The output DataArray will have its dims ordered to match this
@@ -650,39 +650,39 @@ def load_context_to_ds(
         point_source_flag[:, freq_select_slice, :],
     )
     data_vars["r_vis_synch_ant"] = (("antennas",), r_vis_synch_ant)
-    # cal_vis and every cal_flags_* variable below get a trailing size-1 "polarisations"
+    # cal_vis and every cal_flags_* variable below get a trailing size-1 "stokes"
     # dim (currently only "I") via np.expand_dims, a view not a copy, in preparation
     # for future Stokes Q/U/V support.
-    cal_dims = ("timestamps", "frequencies", "antennas", "polarisations")
+    cal_dims = ("timestamps", "frequencies", "antennas", "stokes")
     data_vars["cal_vis"] = (cal_dims, np.expand_dims(calibrated_vis_data, axis=-1))
 
     # Add calibrated flags incrementally
     # Since cal_flags is a dictionary with keys corresponding to cal_flag_names and
     # values as numpy arrays of different shapes, we need to handle each flag array
     # according to its shape. For example, some flags may have shape
-    # (timestamps, frequencies, antennas, polarisations), while others may have shape
-    # (antennas, polarisations) or (frequencies, polarisations). We will add them to the
+    # (timestamps, frequencies, antennas, stokes), while others may have shape
+    # (antennas, stokes) or (frequencies, stokes). We will add them to the
     # dataset accordingly.
     for i, name in enumerate(cal_flag_names):
         if name == "HH_VV_combined" or name == "polynomial_fit_flag":
-            cal_dims = ("timestamps", "frequencies", "antennas", "polarisations")
+            cal_dims = ("timestamps", "frequencies", "antennas", "stokes")
             cf = cal_flags[name][:, freq_select_slice, :]
         elif (
             name == "temp_outlier_flag"
             or name == "temp_fluctuation_flag"
             or name == "synch_correlation_flag"
         ):
-            cal_dims = ("antennas", "polarisations")
+            cal_dims = ("antennas", "stokes")
             cf = cal_flags[name]
         elif name == "freq_flaggedfraction_flag":
-            cal_dims = ("frequencies", "polarisations")
+            cal_dims = ("frequencies", "stokes")
             cf = cal_flags[name][freq_select_slice]
         else:
             raise ValueError(f"Unknown calibrated flag name: {name}")
         data_vars[f"cal_flags_{name}"] = (cal_dims, np.expand_dims(cf, axis=-1))
     # Add the final calibration flags
     data_vars["cal_flags_combined"] = (
-        ("timestamps", "frequencies", "antennas", "polarisations"),
+        ("timestamps", "frequencies", "antennas", "stokes"),
         np.expand_dims(cal_flags_combined, axis=-1),
     )
 
@@ -698,7 +698,7 @@ def load_context_to_ds(
             "frequencies": ("frequencies", frequencies),
             "antennas": ("antennas", antennas),
             "feeds": ("feeds", feeds),
-            "polarisations": ("polarisations", np.array(["I"], dtype=str)),
+            "stokes": ("stokes", np.array(["I"], dtype=str)),
         },
     )
 
