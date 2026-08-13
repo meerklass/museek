@@ -115,6 +115,24 @@ def unwrap_ra_deg(ra: NDArray) -> NDArray:
     return unwrapped
 
 
+def determine_scan_direction(ra: NDArray, dec: NDArray) -> Literal["rising", "setting"]:
+    """Classify a scan block as rising or setting from a single antenna's RA/Dec track.
+
+    Rising: RA decreases as Dec increases (RA and Dec anti-correlated).
+    Setting: RA increases as Dec increases (RA and Dec positively correlated).
+    ``ra``/``dec`` must be 1D, equal length, and non-empty (one antenna's track).
+    """
+    ra = np.asarray(ra, dtype=float)
+    dec = np.asarray(dec, dtype=float)
+    if ra.shape != dec.shape:
+        raise ValueError(f"ra and dec shapes must match, got {ra.shape} vs {dec.shape}")
+    if ra.size == 0:
+        raise ValueError("ra and dec must not be empty")
+    ra_unwrapped = unwrap_ra_deg(ra)
+    slope = np.polyfit(dec, ra_unwrapped, 1)[0]
+    return "rising" if slope < 0 else "setting"
+
+
 def load_point_sources(
     ra_center: float,
     dec_center: float,
@@ -603,6 +621,20 @@ def load_context_to_ds(
     ra = scan_data.right_ascension.array.squeeze()
     dec = scan_data.declination.array.squeeze()
 
+    # Determine scan direction (rising/setting) from the first antenna whose ra/dec
+    # track is valid, in case an antenna's track is degenerate (e.g. empty/mismatched).
+    scan_direction = None
+    for ant_idx in range(ra.shape[1]):
+        try:
+            scan_direction = determine_scan_direction(ra[:, ant_idx], dec[:, ant_idx])
+            break
+        except ValueError:
+            continue
+    if scan_direction is None:
+        raise ValueError(
+            "Could not determine scan direction: no antenna had a valid ra/dec track"
+        )
+
     # Delete scan_data and garbage collect to free memory.
     del scan_data
     gc.collect()
@@ -780,6 +812,7 @@ def load_context_to_ds(
             "observation_date": obs_date,
             "scan_start": scan_start,
             "scan_end": scan_end,
+            "scan_direction": scan_direction,
             "source_file": str(pickle_file),
             "raw_flag_name_list": raw_flag_name_list,
         }
