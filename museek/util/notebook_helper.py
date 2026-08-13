@@ -446,6 +446,54 @@ def load_context_to_ds(
     The returned dataset is trimmed to the requested frequency range for both
     scan and calibrated visibility data and stores the original untrimmed
     frequency axis in ``ds.attrs["original_frequencies"]``.
+
+    Flags
+    -----
+    Raw flags (``raw_flags_<name>``, dims ``timestamps, frequencies, antennas, feeds``
+    unless noted), in pipeline execution order. ``raw_flags_combined`` is the OR of all
+    of these except ``point_source``, which is a calibration-time prior rather than a
+    persistent data-quality flag:
+
+    - ``SARAO``: RFI/data-quality flags already embedded in the SARAO archive data
+      itself (loaded as-is, not computed by MuSEEK).
+    - ``noise_diode_on``: timestamps where the calibration noise diode is firing (or
+      in its on/off transition).
+    - ``known_rfi``: frequency channels within pre-defined, catalogued terrestrial RFI
+      bands (e.g. GSM/GPS), flagged for the whole observation regardless of the data.
+    - ``rawdata_low_value``: raw visibility samples below a configured minimum
+      threshold, indicating receiver dropouts or invalid correlator readings.
+    - ``point_source`` (dims ``timestamps, frequencies, antennas``, no ``feeds``):
+      samples where the beam points at or near a known bright point source; used as a
+      prior mask by ``aoflagger_plugin`` and not included in ``raw_flags_combined``.
+    - ``aoflagger``: RFI detected by AOFlagger's SumThreshold algorithm run on the raw
+      visibility, per receiver.
+    - ``aoflagger_secondrun``: a second AOFlagger pass run on the time-averaged
+      flagged-fraction spectrum, catching channels already heavily flagged.
+    - ``elevation_flag``: per-antenna timestamps where elevation deviates too far from
+      that antenna's median (mispointing/slew); antennas with unstable elevation or too
+      high a flagged fraction are flagged entirely.
+    - ``outlier_antenna_flag``: at each timestamp, antennas whose pointing is a
+      statistical outlier relative to the rest of the array.
+    - ``noise_diode_bad_behavior``: antennas/receivers whose noise-diode excess signal
+      is poorly fit over time, an outlier in fit residuals, or too low to trust for
+      diode-based calibration.
+
+    Calibrated flags (``cal_flags_<name>``, applied to ``cal_vis``), built by the
+    post-calibration AOFlagger stage. ``cal_flags_combined`` is the final mask actually
+    applied to the calibrated visibility (the OR of all of the below):
+
+    - ``HH_VV_combined``: cellphone-band RFI (GSM/GPS) masking applied at the
+      calibrated-data stage, combined with the mask carried forward from raw flagging.
+    - ``temp_outlier_flag``: antennas whose median calibrated temperature is a
+      statistical outlier relative to the other antennas.
+    - ``temp_fluctuation_flag``: antennas whose calibrated temperature standard
+      deviation is a statistical outlier (unusually noisy/unstable gain).
+    - ``polynomial_fit_flag``: per-timestamp frequency-domain outliers relative to a
+      low-order polynomial fit of the time-median-subtracted spectrum.
+    - ``synch_correlation_flag``: antennas whose calibrated sky map correlates poorly
+      with a synchrotron sky model, indicating a bad or miscalibrated antenna.
+    - ``freq_flaggedfraction_flag``: frequency channels flagged in full because their
+      already-flagged fraction (across good antennas/times) exceeds a threshold.
     """
 
     # Check first if cache file exists. If it does, open and return it skipping the rest
