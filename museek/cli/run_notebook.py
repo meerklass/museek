@@ -285,7 +285,8 @@ def generate_sbatch_script(
     param_lines.append(f'    -r block_name "{block_name}" \\')
     param_lines.append(f'    -r patch "{patch}" \\')
     param_lines.append(
-        f'    -p base_context_folder "{base_context_folder.as_posix()}" \\')
+        f'    -p base_context_folder "{base_context_folder.as_posix()}" \\'
+    )
     # Add any additional parameters provided by the user
     for param_name, param_value in parameters:
         param_lines.append(f'    -p {param_name} "{param_value}" \\')
@@ -294,10 +295,10 @@ def generate_sbatch_script(
     default_slurm_options = [
         f"--job-name='MuSEEK-Notebook-{block_name}'",
         "--ntasks=1",
-        "--cpus-per-task=16",
-        "--mem=220GB",
-        "--time=01:00:00",
-        f"--output=slurm-{Path(notebook_name).stem}-{block_name}-%j.out",
+        "--cpus-per-task=1",
+        "--mem=64GB",
+        "--time=00:15:00",
+        f"--output=logs/slurm-{Path(notebook_name).stem}-{block_name}-%j.out",
     ]
 
     # Build job-specific body
@@ -460,10 +461,10 @@ def main(
     DEFAULT SLURM PARAMETERS:
       Job name:       MuSEEK-Notebook-<block_name>
       Tasks:          1
-      CPUs per task:  16
-      Memory:         220GB
-      Max time:       1 hour
-      Log output:     slrum-<notebook_name>-<block_name>.log
+      CPUs per task:  1
+      Memory:         64GB
+      Max time:       15 minutes
+      Log output:     /logs/slrum-<notebook_name>-<block_name>.log
 
     """
     # Validate notebook exists
@@ -479,6 +480,12 @@ def main(
     if output_dir is None:
         output_dir = data_path / "notebook"
         click.echo(f"Output directory not specified, using: {output_dir}")
+
+    # Create logs directory if not exists
+    logs_dir = Path("logs")
+    if not logs_dir.exists():
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        click.echo(f"Created logs directory: {logs_dir}")
 
     # Generate the sbatch script
     script_content = generate_sbatch_script(
