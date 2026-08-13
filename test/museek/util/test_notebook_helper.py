@@ -101,6 +101,40 @@ class TestUnwrapRaDeg(unittest.TestCase):
         )
 
 
+class TestDetermineScanDirection(unittest.TestCase):
+    def test_rising_when_ra_decreases_as_dec_increases(self):
+        dec = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+        ra = np.array([50.0, 40.0, 30.0, 20.0, 10.0])
+        self.assertEqual("rising", notebook_helper.determine_scan_direction(ra, dec))
+
+    def test_setting_when_ra_increases_as_dec_increases(self):
+        dec = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+        ra = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+        self.assertEqual("setting", notebook_helper.determine_scan_direction(ra, dec))
+
+    def test_robust_to_noise(self):
+        rng = np.random.default_rng(0)
+        dec = np.linspace(10.0, 50.0, 100)
+        ra = 100.0 - dec + rng.normal(scale=0.1, size=dec.shape)
+        self.assertEqual("rising", notebook_helper.determine_scan_direction(ra, dec))
+
+    def test_ra_wrapping_across_0_360_is_handled(self):
+        dec = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+        ra = np.array([353.0, 355.0, 359.0, 1.0, 3.0])
+        # Unwrapped, ra continues past 360 (increasing) as dec increases -> setting.
+        self.assertEqual("setting", notebook_helper.determine_scan_direction(ra, dec))
+
+    def test_mismatched_shapes_raises(self):
+        with self.assertRaises(ValueError):
+            notebook_helper.determine_scan_direction(
+                np.array([1.0, 2.0, 3.0]), np.array([1.0, 2.0])
+            )
+
+    def test_empty_arrays_raise(self):
+        with self.assertRaises(ValueError):
+            notebook_helper.determine_scan_direction(np.array([]), np.array([]))
+
+
 class TestReduceFlags(unittest.TestCase):
     def setUp(self):
         self.flag_da = xr.DataArray(
