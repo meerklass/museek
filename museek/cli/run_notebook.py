@@ -296,8 +296,8 @@ def generate_sbatch_script(
         f"--job-name='MuSEEK-Notebook-{block_name}'",
         "--ntasks=1",
         "--cpus-per-task=1",
-        "--mem=64GB",
-        "--time=00:15:00",
+        "--mem=64G",
+        "--time=00:20:00",
         f"--output=logs/slurm-{Path(notebook_name).stem}-{block_name}-%j.out",
     ]
 
@@ -462,8 +462,8 @@ def main(
       Job name:       MuSEEK-Notebook-<block_name>
       Tasks:          1
       CPUs per task:  1
-      Memory:         64GB
-      Max time:       15 minutes
+      Memory:         64G
+      Max time:       00:20:00
       Log output:     /logs/slrum-<notebook_name>-<block_name>.log
 
     """
