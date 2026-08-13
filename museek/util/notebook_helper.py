@@ -458,8 +458,12 @@ def load_context_to_ds(
     cache_file: str | Path | None = None,
     skip_cache: bool = False,
     frequency_range: Literal["auto"] | tuple[float, float] = "auto",
+    extra_attrs: dict | None = None,
 ) -> xr.Dataset:
     """Load MuSEEK pickle data as a single dataset with scan and calibrated visibility.
+
+    ``extra_attrs``, if given, is added to ``ds.attrs`` last, after all attributes
+    computed by this function, so it can be used to override them if needed.
 
     The returned dataset is trimmed to the requested frequency range for both
     scan and calibrated visibility data and stores the original untrimmed
@@ -827,6 +831,11 @@ def load_context_to_ds(
     ds["timestamps"].attrs["units"] = "UNIX epoch seconds"
     ds.attrs["original_frequencies"] = original_frequencies
     ds.attrs["all_meerkat_antennas"] = [f"m{ant_num:03d}" for ant_num in range(64)]
+
+    # Add any user-supplied extra attributes, applied last so they can override
+    # attributes computed above if needed.
+    if extra_attrs is not None:
+        ds.attrs.update(extra_attrs)
 
     # Write out dataset to cache
     if cache_file_path is not None:
