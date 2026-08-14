@@ -528,7 +528,11 @@ def load_context_to_ds(
             logger.warning("skip_cache=True: skipping cache load")
         elif cache_file_path.exists():
             logger.info(f"Loading data from cache: {cache_file_path}")
-            return xr.open_dataset(cache_file_path)
+            ds = xr.open_dataset(cache_file_path)
+            ds.attrs["ds_cache_file"] = str(cache_file_path)
+            if extra_attrs is not None:
+                ds.attrs.update(extra_attrs)
+            return ds
         else:
             logger.warning(f"Cache file not found: {cache_file_path}")
 
