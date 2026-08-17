@@ -30,6 +30,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
     - [Configuration File](#configuration-file)
     - [Plugins](#plugins)
     - [Available Plugins](#available-plugins)
+    - [Flags](#flags)
 - [Notebooks](#notebooks)
     - [Running the Notebook with Jupyter](#running-the-notebook-with-jupyter)
     - [Running the Notebook with Papermill](#running-the-notebook-with-papermill)
@@ -49,7 +50,7 @@ If you only need to run pre-existing MuSEEK pipeline or notebooks with no need f
 
 If you are on Ilifu, you can use the shared `meerklass` Python virtual environment that has been pre-configed with most MeerKLASS-related Python modules, including MuSEEK, as well as other modules that you might ever need. Simply source the activation file as below.
 
-```
+```bash
 source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
 ```
 
@@ -61,7 +62,7 @@ You will need `python>=3.10,<3.13` and `pip` for this.
 
 Then you can simply do
 
-```
+```bash
 pip install git+https://github.com/meerklass/museek.git
 ```
 
@@ -239,7 +240,7 @@ the MuSEEK pipeline.
 
 USAGE:
   museek_run_process_uhf_band --block-name <block_name> --patch <patch_name> 
-                            [--base-context-folder <path>] [--data-folder <path>]
+                            [--base-context-folder <path>] [--raw-data-folder <path>]
                             [--slurm-options <options>] [--dry-run]
 
 OPTIONS:
@@ -254,7 +255,7 @@ OPTIONS:
       (optional) Path to the base context/output folder
       Default: /idia/projects/meerklass/MEERKLASS-1/museek/latest_runs
 
-  --data-folder <path>
+    --raw-data-folder <path>
       (optional) Path to raw data folder
       Default: /idia/raw/meerklass/SCI-20230907-MS-01
 
@@ -274,11 +275,11 @@ OPTIONS:
       Display this help message
 
 EXAMPLES:
-  museek_run_process_uhf_band --block-name 1675632179 --patch box6
-  museek_run_process_uhf_band --block-name 1675632179 --patch desi1
-  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --base-context-folder /custom/pipeline
-  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --dry-run
-  museek_run_process_uhf_band --block-name 1675632179 --patch box6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL --slurm-options --time=72:00:00
+  museek_run_process_uhf_band --block-name 1747093289 --patch box6
+  museek_run_process_uhf_band --block-name 1747093289 --patch box6 --dry-run
+  museek_run_process_uhf_band --block-name 1747093289 --patch box6 --base-context-folder /custom/output/path
+  museek_run_process_uhf_band --block-name 1747093289 --patch box6 --slurm-options --mail-user=user@uni.edu --slurm-options --mail-type=ALL
+  museek_run_process_uhf_band --block-name 1678122565 --patch desi1 --raw-data-folder /idia/raw/meerklass/SCI-20220801-MS-01
 ```
 
 
@@ -400,6 +401,32 @@ More information on these are included in their class documentations.
 15. `SanityCheckObservationPlugin`
 16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
 
+### Flags
+
+Several plugins in the pipeline produce data-quality flags, which end up as boolean `raw_flags_<name>` and `cal_flags_<name>` variables in the datasets loaded by the notebooks (see `museek.util.notebook_helper.load_context_to_ds`). Below is a summary of what each flag detects, in pipeline execution order.
+
+**Raw flags** (`raw_flags_<name>`, produced before calibration). `raw_flags_combined` is the OR of all of these except `point_source`, which is a calibration-time prior rather than a persistent data-quality flag:
+
+- `SARAO`: RFI/data-quality flags already embedded in the SARAO archive data itself (`InPlugin`, loaded as-is, not computed by MuSEEK).
+- `noise_diode_on`: timestamps where the calibration noise diode is firing, or in its on/off transition (`NoiseDiodeFlaggerPlugin`).
+- `known_rfi`: frequency channels within pre-defined, catalogued terrestrial RFI bands (e.g. GSM/GPS), flagged for the whole observation regardless of the data (`KnownRfiPlugin`).
+- `rawdata_low_value`: raw visibility samples below a configured minimum threshold, indicating receiver dropouts or invalid correlator readings (`RawdataFlaggerPlugin`).
+- `point_source`: samples where the beam points at or near a known bright point source; used as a prior mask by `AoflaggerPlugin` (`PointSourceFlaggerPlugin`).
+- `aoflagger`: RFI detected by AOFlagger's SumThreshold algorithm run on the raw visibility, per receiver (`AoflaggerPlugin`).
+- `aoflagger_secondrun`: a second AOFlagger pass run on the time-averaged flagged-fraction spectrum, catching channels already heavily flagged (`AoflaggerSecondRunPlugin`).
+- `elevation_flag`: per-antenna timestamps where elevation deviates too far from that antenna's median (mispointing/slew); antennas with unstable elevation or too high a flagged fraction are flagged entirely (`AntennaFlaggerPlugin`).
+- `outlier_antenna_flag`: at each timestamp, antennas whose pointing is a statistical outlier relative to the rest of the array (`AntennaFlaggerPlugin`).
+- `noise_diode_bad_behavior`: antennas/receivers whose noise-diode excess signal is poorly fit over time, an outlier in fit residuals, or too low to trust for diode-based calibration (`NoiseDiodePlugin`).
+
+**Calibrated flags** (`cal_flags_<name>`, applied to `cal_vis`, produced by `AoflaggerPostCalibrationPlugin`). `cal_flags_combined` is the final mask actually applied to the calibrated visibility, i.e. the OR of all of the below:
+
+- `HH_VV_combined`: cellphone-band RFI (GSM/GPS) masking applied at the calibrated-data stage, combined with the mask carried forward from raw flagging.
+- `temp_outlier_flag`: antennas whose median calibrated temperature is a statistical outlier relative to the other antennas.
+- `temp_fluctuation_flag`: antennas whose calibrated temperature standard deviation is a statistical outlier (unusually noisy/unstable gain).
+- `polynomial_fit_flag`: per-timestamp frequency-domain outliers relative to a low-order polynomial fit of the time-median-subtracted spectrum.
+- `synch_correlation_flag`: antennas whose calibrated sky map correlates poorly with a synchrotron sky model, indicating a bad or miscalibrated antenna.
+- `freq_flaggedfraction_flag`: frequency channels flagged in full because their already-flagged fraction (across good antennas/times) exceeds a threshold.
+
 
 ## Notebooks
 
@@ -425,10 +452,10 @@ python -m ipykernel install --user --name meerklass
 Then to execute a notebook, simply do, for example,
 
 ```
-papermill -k meerklass -p block_name 12345678 notebooks/calibrated_data_check-postcali.ipynb output_notebook.ipynb
+papermill -k meerklass -p block_name 1747093289 notebooks/calibrated_data_check_observers.ipynb output_notebook.ipynb
 ```
 
-Here, we tell `papermill` to run the `calibrated_data_check-postcali.ipynb` notebook using the `meerklass` kernel that we just installed, overidding the default `block_name` parameter in the notebook with `12345678` and saved the output notebook as `output_notebook.ipynb`.
+Here, we tell `papermill` to run the `calibrated_data_check_observers.ipynb` notebook using the `meerklass` kernel that we just installed, overidding the default `block_name` parameter in the notebook with `1747093289` and saved the output notebook as `output_notebook.ipynb`.
 
 Note: As of v0.4.1, MuSEEK ships notebook templates as package data under `museek/notebooks/`. After installing MuSEEK (including via `pip install git+https://github.com/meerklass/museek.git`) you can run templates by name with `museek_run_notebook --notebook <name>` or provide an absolute path to any notebook file. This makes using the templates from shared/non-editable installs straightforward.
 
@@ -452,14 +479,14 @@ papermill --help
 
 ### Running the Notebook with `museek_run_notebook` Command
 
-The `museek_run_notebook` command further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command that dynamically generates and submits SLURM jobs. It will find the notebook "template" of matching name in the MuSEEK package currently installed in the provided Python environment, or you may provide an absolute path to any notebook file. It will also attempt to detect a kernel associcated the provided Python environment and construct appropiate papermill command with default path linked to the XLP data. For MeerKLASS XLP data analysis on Ilifu, user only have to run the following commands, providing the block name and box number.
+The `museek_run_notebook` command further streamlines the execution of the notebook via papermill on Ilifu or a compute cluster. It provides a wrapper to the papermill command that dynamically generates and submits SLURM jobs. It will find the notebook "template" of matching name in the MuSEEK package currently installed in the provided Python environment, or you may provide an absolute path to any notebook file. It will also attempt to detect a kernel associated with the provided Python environment and construct the appropriate papermill command with a default path linked to the context data. For MeerKLASS data analysis on Ilifu, users only have to run the following commands, providing the block name and patch name.
 
 ```
 source /idia/projects/meerklass/virtualenv/meerklass/bin/activate
-museek_run_notebook --notebook calibrated_data_check-postcali --block-name <block-name> --box <box-number>
+museek_run_notebook --notebook calibrated_data_check_observers --block-name 1747093289 --patch box6
 ```
 
-This will create an SBATCH script and submit a SLURM job for you, executing the notebook while overriding the block name and box number, and saving the output to the correct path.
+This will create an SBATCH script and submit a SLURM job for you, executing the notebook while overriding the block name and patch name, and saving the output to the correct path.
 
 ```
 $ museek_run_notebook -h
@@ -468,7 +495,7 @@ Usage: museek_run_notebook [OPTIONS]
   Generate and submit a Slurm job to execute a MuSEEK Jupyter notebook using papermill.
 
   This command is desined specifically for post-calibration and observer notebooks, thus requring
-  --block-name and --box parameters, but in principle it can be used to run any Jupyter notebook
+  --block-name and --patch parameters, but in principle it can be used to run any Jupyter notebook
   on a SLURM cluster. The two required parameters will simply be written at the top of the
   notebook without being used in that case.
 
@@ -478,50 +505,52 @@ Usage: museek_run_notebook [OPTIONS]
 
   EXAMPLES:
     # Using notebook name (searches in standard locations):
-    # Standard usage for post-calibration notebook with block name
-    # and box:
-    museek_run_notebook --notebook calibrated_data_check-postcali \
-      --block-name 1708972386 --box 6
+    # Standard usage for post-calibration notebook with block name and patch:
+    museek_run_notebook --notebook calibrated_data_check_observers \
+      --block-name 1747093289 --patch box6
     # Dry run to show the generated sbatch script without submitting:
-    museek_run_notebook --notebook calibrated_data_check-postcali \
-      --block-name 1708972386 --box 6 --dry-run
-    # Passing additional parameters to the notebook (e.g., data_path):
-    museek_run_notebook --notebook calibrated_data_check-postcali \
-      --block-name 1708972386 --box 6 --parameters data_path \
-      /custom/path/
+    museek_run_notebook --notebook calibrated_data_check_observers \
+      --block-name 1747093289 --patch box6 --dry-run
+    # Passing additional parameters to the notebook:
+    museek_run_notebook --notebook calibrated_data_check_observers \
+      --block-name 1747093289 --patch box6 \
+      --parameters random_var random_var_value
     # Passing additional SLURM options (e.g., email notification):
-    museek_run_notebook --notebook calibrated_data_check-postcali \
-      --block-name 1708972386 --box 6 \
+    museek_run_notebook --notebook calibrated_data_check_observers \
+      --block-name 1747093289 --patch box6 \
       --slurm-options --mail-user=user@uni.edu \
       --slurm-options --mail-type=ALL
     # Using absolute path to notebook:
     museek_run_notebook --notebook /custom/path/my_notebook.ipynb \
-      --block-name 1708972386 --box 6
+      --block-name 1747093289 --patch box6
 
   DEFAULT SLURM PARAMETERS:
     Job name:       MuSEEK-Notebook-<block_name>
     Tasks:          1
-    CPUs per task:  32
-    Memory:         248GB
+    CPUs per task:  16
+    Memory:         220GB
     Max time:       1 hour
-    Log output:     <notebook_name>-<block_name>.log
+    Log output:     slrum-<notebook_name>-<block_name>.log
 
 Options:
   -n, --notebook TEXT             Name of the notebook to run (e.g., calibrated_data_check-
                                   postcali) or absolute path to notebook file  [required]
   -b, --block-name TEXT           Block name or observation ID (e.g., 1708972386)  [required]
-  -x, --box TEXT                  Box number of this block name (e.g., 6)  [required]
-  -d, --data-path DIRECTORY       Base path of the data for the notebook. Same as `data_path`
-                                  parameter in calibrated_data_check*.ipynb notebooks.  [default:
-                                  /idia/projects/meerklass/MEERKLASS-1/uhf_data/XLP2025/pipeline]
-  -o, --output-dir DIRECTORY      Directory for notebook output. If not specify, output will be
-                                  saved to <data-path>/BOX<box>/<block-name>/
+  -p, --patch TEXT                Patch name string (e.g., box6, desi1)  [required]
+  -c, --base-context-folder DIRECTORY
+                                  Base directory containing input context pickle files for the
+                                  notebook. The notebook will search for files in
+                                  <base-context-folder>/<patch>/<block-name>/context [default:
+                                  /idia/projects/meerklass/MEERKLASS-1/museek/latest_runs]
+  -o, --output-dir DIRECTORY      Directory to save the executed notebook. Will save to
+                                  <base-context-folder>/<patch>/<block-name>/notebook if not
+                                  specified
   -v, --venv DIRECTORY            Path to Python virtual environment. Use the default shared
                                   meerklass environment on ilifu if not specified.  [default:
                                   /idia/projects/meerklass/virtualenv/meerklass]
   -k, --kernel TEXT               Jupyter kernel to use for execution. If not specified, auto-
                                   detects from venv.
-  -p, --parameters <NAME VALUE>...
+  -P, --parameters <NAME VALUE>...
                                   Extra notebook parameters to pass papermill. Can be specified
                                   multiple times.
   -s, --slurm-options TEXT        Additional SLURM options to pass to sbatch (e.g., --exclusive,
