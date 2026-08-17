@@ -2,7 +2,7 @@ import os
 
 from ivory.utils.config_section import ConfigSection
 
-from museek.definitions import ROOT_DIR
+from museek.definitions import PACKAGE_DIR
 
 Pipeline = ConfigSection(
     plugins=[
@@ -158,9 +158,9 @@ PointSourceCalibrationPlugin = ConfigSection(
     on_source_separation_threshold_deg=0.1,
     n_on_pointings=3,  # expected on-source pointings per period; raises if mismatched. None disables.
     beam_file_path="/idia/projects/meerklass/MEERKLASS-2/beams/uhf/MeerKAT_U_band_primary_beam_aa_highres.npz",
-    receiver_models_dir=os.path.join(ROOT_DIR, "museek/model/receiver_models"),
+    receiver_models_dir=os.path.join(PACKAGE_DIR, "model/receiver_models"),
     spillover_model_file=os.path.join(
-        ROOT_DIR, "museek/model/MK_U_Tspill_AsBuilt_atm_mask.dat"
+        PACKAGE_DIR, "model/MK_U_Tspill_AsBuilt_atm_mask.dat"
     ),
     synch_model="s1",
     synch_nside=128,

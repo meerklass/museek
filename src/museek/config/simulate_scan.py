@@ -2,7 +2,7 @@ import os
 
 from ivory.utils.config_section import ConfigSection
 
-from museek.definitions import ROOT_DIR
+from museek.definitions import PACKAGE_DIR
 
 Pipeline = ConfigSection(
     plugins=[
@@ -100,10 +100,10 @@ ReadCalibratorGainsPlugin = ConfigSection(
 
 SimulateScanPlugin = ConfigSection(
     beam_file_path="/home/mgrsantos/projects/data/MeerKAT_U_band_primary_beam_aa_highres.npz",
-    receiver_models_dir=os.path.join(ROOT_DIR, "museek/model/receiver_models"),
-    noise_diodes_dir=os.path.join(ROOT_DIR, "museek/model/noise_diodes"),
+    receiver_models_dir=os.path.join(PACKAGE_DIR, "model/receiver_models"),
+    noise_diodes_dir=os.path.join(PACKAGE_DIR, "model/noise_diodes"),
     spillover_model_file=os.path.join(
-        ROOT_DIR, "museek/model/MK_U_Tspill_AsBuilt_atm_mask.dat"
+        PACKAGE_DIR, "model/MK_U_Tspill_AsBuilt_atm_mask.dat"
     ),
     synch_model="s1",
     synch_nside=128,
@@ -113,7 +113,7 @@ SimulateScanPlugin = ConfigSection(
     include_cmb=True,  # CMB monopole (~2.7 K, Rayleigh-Jeans) added per channel
     # --- point sources (Phase 2). method: None | 'healpix' (cube+Simeer) | 'primary_beam' (analytic) ---
     point_source_method="primary_beam",
-    point_source_catalog=os.path.join(ROOT_DIR, "museek/model/1Jy_cat.txt"),
+    point_source_catalog=os.path.join(PACKAGE_DIR, "model/1Jy_cat.txt"),
     primary_beam_file="/home/mgrsantos/projects/data/MeerKAT_U_band_primary_beam_aa_highres.npz",
     point_source_min_flux_Jy=1.0,  # cut evaluated at point_source_flux_cut_freq_MHz
     point_source_flux_cut_freq_MHz=800.0,  # band-middle frequency for the flux cut (consistent across sources)

@@ -8,7 +8,7 @@ from museek.util.report_writer import ReportWriter
 class TestReportWriter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.output_path = "./test/museek/util/cache/"
+        cls.output_path = "./tests/museek/util/cache/"
         cls.report_name = "report.md"
         cls.plugin_name = "PluginName"
         if not os.path.exists(cls.output_path):
