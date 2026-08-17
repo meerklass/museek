@@ -13,7 +13,12 @@ class Polarisation(Enum):
 class Receiver:
     """Helper class to contain receiver related infos."""
 
-    def __init__(self, antenna_number: int, polarisation: Polarisation, receiver_id: str | None = None):
+    def __init__(
+        self,
+        antenna_number: int,
+        polarisation: Polarisation,
+        receiver_id: str | None = None,
+    ):
         """Initializes a `Receiver` with the `antenna_index` of the dish and `polarisation`."""
         self.antenna_number = antenna_number
         self.antenna_name = f"m{self.antenna_number:03d}"

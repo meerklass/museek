@@ -16,7 +16,6 @@ from katpoint import Antenna, Target
 from museek.data_element import DataElement
 from museek.definitions import get_cache_dir
 from museek.enums.scan_state_enum import ScanStateEnum
-from museek.util.resource_config import get_resource_config
 from museek.factory.data_element_factory import (
     AbstractDataElementFactory,
     DataElementFactory,
@@ -25,6 +24,7 @@ from museek.factory.data_element_factory import (
 from museek.flag_list import FlagList
 from museek.receiver import Receiver
 from museek.util.clustering import Clustering
+from museek.util.resource_config import get_resource_config
 
 
 class ScanTuple(NamedTuple):
@@ -217,7 +217,9 @@ class TimeOrderedData:
             )
             self.visibility = self._element_factory.create(array=visibility_array)
             self.flags.add_flag(
-                FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory),
+                FlagList.from_array(
+                    array=flag_array, element_factory=self._flag_element_factory
+                ),
                 name="SARAO",
             )
             if self.weights is not None:
@@ -232,7 +234,9 @@ class TimeOrderedData:
             )
             self.visibility_cross = self._element_factory.create(array=visibility_array)
             self.flags_cross.add_flag(
-                FlagList.from_array(array=flag_array, element_factory=self._flag_element_factory),
+                FlagList.from_array(
+                    array=flag_array, element_factory=self._flag_element_factory
+                ),
                 name="SARAO",
             )
             if self.weights_cross is not None:
@@ -534,7 +538,9 @@ class TimeOrderedData:
                 self._do_create_cache = True
                 return self._visibility_flags_weights(data=data, polars=polars)
 
-            self._check_cache_receivers(correlator_products=correlator_products, polars=polars)
+            self._check_cache_receivers(
+                correlator_products=correlator_products, polars=polars
+            )
 
             visibility = data_from_cache["visibility"]
             flags = data_from_cache["flags"]
@@ -584,13 +590,17 @@ class TimeOrderedData:
         :return: a tuple of visibility, flags and weights as `np.ndarray` each, with the visibility and weights
                  3-dimensional and the flags 4-dimensional
         """
-        load_shape = data.shape  # shape after polars-specific select, may differ from self.shape
+        load_shape = (
+            data.shape
+        )  # shape after polars-specific select, may differ from self.shape
         n_time = load_shape[0]
         visibility = np.zeros(shape=load_shape, dtype=complex)
         flags = np.zeros(shape=load_shape, dtype=bool)
         weights = np.zeros(shape=load_shape, dtype=float)
         bytes_per_element = (
-            data.vis.dtype.itemsize + data.flags.dtype.itemsize + data.weights.dtype.itemsize
+            data.vis.dtype.itemsize
+            + data.flags.dtype.itemsize
+            + data.weights.dtype.itemsize
         )
         _, memory_gb = get_resource_config(memory_gb=self._requested_memory_gb)
         available_for_batching = memory_gb * 0.9  # 10% buffer
@@ -598,7 +608,11 @@ class TimeOrderedData:
             raise MemoryError("Insufficient memory to load visibility data.")
         batch_size = max(
             1,
-            int(available_for_batching * 1e9 / (load_shape[1] * self._n_all_products * bytes_per_element)),
+            int(
+                available_for_batching
+                * 1e9
+                / (load_shape[1] * self._n_all_products * bytes_per_element)
+            ),
         )
         n_batches = np.ceil(n_time / batch_size)
         print(
@@ -813,7 +827,8 @@ class TimeOrderedData:
             ]
         else:
             receivers = [
-                Receiver.from_string(receiver_string=name) for name in all_receiver_names
+                Receiver.from_string(receiver_string=name)
+                for name in all_receiver_names
             ]
 
         if hasattr(data, "receivers"):

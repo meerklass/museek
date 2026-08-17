@@ -501,9 +501,7 @@ def point_sources_coordinate(
     the ra, dec, and flux of the selected point sources
     """
 
-    ps_info = np.genfromtxt(
-        point_source_file_path + "/1jy_cat.txt", delimiter="|"
-    )
+    ps_info = np.genfromtxt(point_source_file_path + "/1jy_cat.txt", delimiter="|")
     ra_sources = ps_info[:, 1]
     dec_sources = ps_info[:, 2]
     flux_sources = ps_info[:, 3]

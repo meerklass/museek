@@ -30,7 +30,9 @@ def _find_calibrator_scans_in_period(
     """
     matching_scans = []
     if track_data.timestamps is None:
-        raise ValueError("track_data.timestamps is not set — call set_data_elements first.")
+        raise ValueError(
+            "track_data.timestamps is not set — call set_data_elements first."
+        )
     dump_to_time = dict(zip(track_data._dumps(), track_data.timestamps.squeeze))
 
     # Find matching scans in the specified period
@@ -129,7 +131,9 @@ def find_calibrators(
         max_gap_seconds,
     )
     if track_data.timestamps is None:
-        raise ValueError("track_data.timestamps is not set — call set_data_elements first.")
+        raise ValueError(
+            "track_data.timestamps is not set — call set_data_elements first."
+        )
     dump_to_time = dict(zip(track_data._dumps(), track_data.timestamps.squeeze))
 
     if before_result is not None:

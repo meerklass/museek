@@ -5,9 +5,10 @@ This module provides spillover (ground pickup) temperature models as a function
 of elevation and frequency for both L-band and UHF-band observations.
 """
 
+from pathlib import Path
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from pathlib import Path
 
 
 class SpilloverTemperature:
@@ -63,8 +64,12 @@ class SpilloverTemperature:
 
             # Extract spillover temperatures (reverse rows to match reversed elevation)
             # Columns alternate: H @ freq1, V @ freq1, H @ freq2, V @ freq2, ...
-            T_HH_data = data[1:, 1::2][::-1]  # All odd columns (H polarization), reversed
-            T_VV_data = data[1:, 2::2][::-1]  # All even columns (V polarization), reversed
+            T_HH_data = data[1:, 1::2][
+                ::-1
+            ]  # All odd columns (H polarization), reversed
+            T_VV_data = data[1:, 2::2][
+                ::-1
+            ]  # All even columns (V polarization), reversed
 
             # Store frequency and elevation ranges for validation
             self.freq_range_MHz = (frequencies.min(), frequencies.max())
@@ -72,34 +77,35 @@ class SpilloverTemperature:
 
             # Create 2D interpolators (elevation, frequency) -> T_spill
             # Use cubic interpolation for smooth variation (important due to large frequency gaps)
-            self.spill['HH'] = RegularGridInterpolator(
+            self.spill["HH"] = RegularGridInterpolator(
                 (elevation, frequencies),
                 T_HH_data,
-                method='cubic',
+                method="cubic",
                 bounds_error=False,
-                fill_value=None  # Extrapolate outside bounds
+                fill_value=None,  # Extrapolate outside bounds
             )
-            self.spill['VV'] = RegularGridInterpolator(
+            self.spill["VV"] = RegularGridInterpolator(
                 (elevation, frequencies),
                 T_VV_data,
-                method='cubic',
+                method="cubic",
                 bounds_error=False,
-                fill_value=None  # Extrapolate outside bounds
+                fill_value=None,  # Extrapolate outside bounds
             )
 
-        except (IOError, FileNotFoundError) as e:
+        except (OSError, FileNotFoundError) as e:
             raise FileNotFoundError(
-                f'Failed to load spillover model from {filename}: {e}. '
-                f'Spillover temperature model is required for calibration.'
+                f"Failed to load spillover model from {filename}: {e}. "
+                f"Spillover temperature model is required for calibration."
             ) from e
         except (ValueError, IndexError) as e:
             raise ValueError(
-                f'Invalid spillover model file format in {filename}: {e}. '
-                f'Expected format: Row 1=header, Row 2=frequencies, subsequent rows=ZA and temperatures.'
+                f"Invalid spillover model file format in {filename}: {e}. "
+                f"Expected format: Row 1=header, Row 2=frequencies, subsequent rows=ZA and temperatures."
             ) from e
 
-    def get_temperature(self, elevation: np.ndarray, frequency_MHz: np.ndarray,
-                       polarization: str) -> np.ndarray:
+    def get_temperature(
+        self, elevation: np.ndarray, frequency_MHz: np.ndarray, polarization: str
+    ) -> np.ndarray:
         """
         Get spillover temperature for given elevation(s) and frequency(ies).
 
@@ -122,15 +128,17 @@ class SpilloverTemperature:
 
         Examples
         --------
-        >>> spill = SpilloverTemperature('spillover_model.dat')
-        >>> el = np.array([45., 60., 75.])  # 3 elevations
-        >>> freq = np.array([700., 800., 900.])  # 3 frequencies in MHz
-        >>> T = spill.get_temperature(el, freq, 'HH')  # Shape: (3, 3)
+        >>> spill = SpilloverTemperature("spillover_model.dat")
+        >>> el = np.array([45.0, 60.0, 75.0])  # 3 elevations
+        >>> freq = np.array([700.0, 800.0, 900.0])  # 3 frequencies in MHz
+        >>> T = spill.get_temperature(el, freq, "HH")  # Shape: (3, 3)
         """
         # Normalize polarization input to uppercase
         pol_key = polarization.upper()
-        if pol_key not in ('HH', 'VV'):
-            raise ValueError(f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'")
+        if pol_key not in ("HH", "VV"):
+            raise ValueError(
+                f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'"
+            )
 
         # Ensure inputs are arrays
         el_array = np.atleast_1d(elevation)
@@ -142,7 +150,7 @@ class SpilloverTemperature:
         n_freq = len(freq_array)
 
         # Broadcast to create (n_el, n_freq) grids
-        el_grid, freq_grid = np.meshgrid(el_array, freq_array, indexing='ij')
+        el_grid, freq_grid = np.meshgrid(el_array, freq_array, indexing="ij")
 
         # Stack into points array: (n_el × n_freq, 2)
         # Column order must match interpolator axes: (elevation, frequency)

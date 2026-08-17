@@ -73,7 +73,9 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         )
         new_mask = np.ones(data.shape, dtype=bool)
         new_mask[noise_diode_off_dumps] = False
-        data.flags.add_flag(flag=self.data_element_factory.create(array=new_mask), name="noise_diode_on")
+        data.flags.add_flag(
+            flag=self.data_element_factory.create(array=new_mask), name="noise_diode_on"
+        )
         self.set_result(
             result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True)
         )
@@ -91,7 +93,9 @@ class NoiseDiodeFlaggerPlugin(AbstractPlugin):
         flag_report_writer.write_to_report(lines)
 
         if self.verbose:
-            waterfall(data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar")
+            waterfall(
+                data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar"
+            )
             plt.savefig(
                 os.path.join(output_path, "noise_diode_flagger_result_receiver_0.png"),
                 dpi=1000,

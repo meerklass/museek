@@ -5,8 +5,9 @@ This module provides primary beam gain patterns as a function of pointing direct
 source position, frequency, and polarization for UHF-band observations.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 
@@ -75,7 +76,7 @@ class PrimaryBeam:
             # Extract beam data
             # Shape: (4, n_ant, n_freq, n_m, n_l) where n_m=rows, n_l=columns
             # Polarizations: 0=HH, 1=HV, 2=VH, 3=VV
-            beam_jones = data['beam']
+            beam_jones = data["beam"]
 
             # For array average beam, use antenna index 0
             # Convert Jones matrices to power: |beam|²
@@ -84,8 +85,8 @@ class PrimaryBeam:
             beam_VV_power = np.abs(beam_jones[3, 0, :, :, :]) ** 2
 
             self._build(
-                freq_MHz=data['freq_MHz'],
-                margin_deg=data['margin_deg'],
+                freq_MHz=data["freq_MHz"],
+                margin_deg=data["margin_deg"],
                 beam_HH_power=beam_HH_power,
                 beam_VV_power=beam_VV_power,
                 source=beam_file,
@@ -97,9 +98,7 @@ class PrimaryBeam:
                 f"Expected keys: 'beam', 'freq_MHz', 'margin_deg'"
             ) from e
         except Exception as e:
-            raise ValueError(
-                f"Error loading beam file {beam_file}: {e}"
-            ) from e
+            raise ValueError(f"Error loading beam file {beam_file}: {e}") from e
 
     @classmethod
     def from_arrays(
@@ -124,8 +123,13 @@ class PrimaryBeam:
         :param source: label used in ``repr`` (e.g. the originating beam file)
         """
         obj = cls.__new__(cls)
-        obj._build(freq_MHz=np.asarray(freq_MHz), margin_deg=np.asarray(margin_deg),
-                   beam_HH_power=beam_HH_power, beam_VV_power=beam_VV_power, source=source)
+        obj._build(
+            freq_MHz=np.asarray(freq_MHz),
+            margin_deg=np.asarray(margin_deg),
+            beam_HH_power=beam_HH_power,
+            beam_VV_power=beam_VV_power,
+            source=source,
+        )
         return obj
 
     def _build(
@@ -148,8 +152,12 @@ class PrimaryBeam:
 
         # Beam solid angle: integrate beam power over spatial coordinates
         # Sum over m and l axes (1, 2), leaving frequency axis (0)
-        self._beam_solid_angle_HH = d_omega * beam_HH_power.sum(axis=(1, 2))  # (n_freq,)
-        self._beam_solid_angle_VV = d_omega * beam_VV_power.sum(axis=(1, 2))  # (n_freq,)
+        self._beam_solid_angle_HH = d_omega * beam_HH_power.sum(
+            axis=(1, 2)
+        )  # (n_freq,)
+        self._beam_solid_angle_VV = d_omega * beam_VV_power.sum(
+            axis=(1, 2)
+        )  # (n_freq,)
 
         # Store ranges for validation
         self.freq_range_MHz = (freq_MHz.min(), freq_MHz.max())
@@ -161,17 +169,17 @@ class PrimaryBeam:
         self._interpolator_HH = RegularGridInterpolator(
             (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
             beam_HH_power,
-            method='linear',
+            method="linear",
             bounds_error=False,
-            fill_value=0.0  # Return 0 for points outside beam
+            fill_value=0.0,  # Return 0 for points outside beam
         )
 
         self._interpolator_VV = RegularGridInterpolator(
             (freq_MHz, margin_deg, margin_deg),  # (freq, m_coords, l_coords)
             beam_VV_power,
-            method='linear',
+            method="linear",
             bounds_error=False,
-            fill_value=0.0
+            fill_value=0.0,
         )
 
         # Store for reference
@@ -184,7 +192,7 @@ class PrimaryBeam:
         az_pointing: np.ndarray,
         el_pointing: np.ndarray,
         az_source: np.ndarray,
-        el_source: np.ndarray
+        el_source: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Calculate direction cosines (l, m) from pointing and source coordinates.
@@ -240,15 +248,13 @@ class PrimaryBeam:
         l = np.cos(el_s_rad) * np.sin(az_s_rad - az_p_rad)
 
         # m = cos(el_pointing) * sin(el_source) * cos(az_source - az_pointing)
-        m = (
-            np.sin(el_s_rad) * np.cos(el_p_rad) -
-            np.cos(el_s_rad) * np.sin(el_p_rad) * np.cos(az_s_rad - az_p_rad)
-        )
+        m = np.sin(el_s_rad) * np.cos(el_p_rad) - np.cos(el_s_rad) * np.sin(
+            el_p_rad
+        ) * np.cos(az_s_rad - az_p_rad)
 
         # could also use katpont:
         # import katpoint
         # l,m=katpoint.projection.sphere_to_plane_sin(az_p_rad, el_p_rad, az_s_rad, el_s_rad)
-
 
         return l, m
 
@@ -259,7 +265,7 @@ class PrimaryBeam:
         az_source: np.ndarray,
         el_source: np.ndarray,
         frequency_MHz: np.ndarray,
-        polarization: str
+        polarization: str,
     ) -> np.ndarray:
         """
         Get primary beam gain for given coordinates.
@@ -318,11 +324,11 @@ class PrimaryBeam:
         >>> from astropy.time import Time
         >>> import astropy.units as u
         >>>
-        >>> beam = PrimaryBeam('MeerKAT_U_band_primary_beam_aa_highres.npz')
+        >>> beam = PrimaryBeam("MeerKAT_U_band_primary_beam_aa_highres.npz")
         >>>
         >>> # Transform calibrator (RA, Dec) to (az, el)
-        >>> cal_radec = SkyCoord(ra=180*u.deg, dec=-30*u.deg)
-        >>> times = Time(np.linspace(58000, 58000.1, 100), format='mjd')
+        >>> cal_radec = SkyCoord(ra=180 * u.deg, dec=-30 * u.deg)
+        >>> times = Time(np.linspace(58000, 58000.1, 100), format="mjd")
         >>> altaz_frame = AltAz(obstime=times, location=site_location)
         >>> cal_altaz = cal_radec.transform_to(altaz_frame)
         >>>
@@ -335,28 +341,31 @@ class PrimaryBeam:
         >>>
         >>> # Get beam gain
         >>> gain = beam.get_beam_gain(
-        ...     az_point, el_point,
-        ...     cal_altaz.az.deg, cal_altaz.alt.deg,
-        ...     freq, 'HH'
+        ...     az_point, el_point, cal_altaz.az.deg, cal_altaz.alt.deg, freq, "HH"
         ... )
         >>> gain.shape
         (100, 436)
         """
         # Validate polarization
         pol_key = polarization.upper()
-        if pol_key not in ('HH', 'VV'):
+        if pol_key not in ("HH", "VV"):
             raise ValueError(
                 f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'"
             )
 
         # Select interpolator
-        interpolator = self._interpolator_HH if pol_key == 'HH' else self._interpolator_VV
+        interpolator = (
+            self._interpolator_HH if pol_key == "HH" else self._interpolator_VV
+        )
 
         # Calculate direction cosines (dimensionless)
         l, m = self.calculate_direction_cosines(
-#            az_pointing, el_source, az_source, el_pointing  # just testing some flips
-            az_pointing, el_pointing, az_source, el_source  # correct one
-#            az_source, el_source, az_pointing, el_pointing  # just testing some flips
+            #            az_pointing, el_source, az_source, el_pointing  # just testing some flips
+            az_pointing,
+            el_pointing,
+            az_source,
+            el_source,  # correct one
+            #            az_source, el_source, az_pointing, el_pointing  # just testing some flips
         )  # shape (n_time,)
 
         # Convert to beam file coordinate convention: direction_cosine × 180/π
@@ -453,17 +462,17 @@ class PrimaryBeam:
             If polarization is not 'HH' or 'VV'
         """
         pol_key = polarization.upper()
-        if pol_key not in ('HH', 'VV'):
+        if pol_key not in ("HH", "VV"):
             raise ValueError(
                 f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'"
             )
 
-        return self._beam_solid_angle_HH if pol_key == 'HH' else self._beam_solid_angle_VV
+        return (
+            self._beam_solid_angle_HH if pol_key == "HH" else self._beam_solid_angle_VV
+        )
 
     def get_beam_solid_angle_at_freq(
-        self,
-        frequency_MHz: np.ndarray,
-        polarization: str
+        self, frequency_MHz: np.ndarray, polarization: str
     ) -> np.ndarray:
         """
         Get beam solid angle interpolated at specific frequencies.
@@ -491,13 +500,15 @@ class PrimaryBeam:
         Returns 0 for frequencies outside the beam model range.
         """
         pol_key = polarization.upper()
-        if pol_key not in ('HH', 'VV'):
+        if pol_key not in ("HH", "VV"):
             raise ValueError(
                 f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'"
             )
 
         # Get solid angle array for this polarization
-        solid_angle = self._beam_solid_angle_HH if pol_key == 'HH' else self._beam_solid_angle_VV
+        solid_angle = (
+            self._beam_solid_angle_HH if pol_key == "HH" else self._beam_solid_angle_VV
+        )
 
         # Interpolate to requested frequencies
         original_shape = frequency_MHz.shape
@@ -508,8 +519,8 @@ class PrimaryBeam:
             freq_flat,
             self._freq_MHz,
             solid_angle,
-            left=solid_angle[0],   # Use edge value for low frequencies
-            right=solid_angle[-1]  # Use edge value for high frequencies
+            left=solid_angle[0],  # Use edge value for low frequencies
+            right=solid_angle[-1],  # Use edge value for high frequencies
         )
 
         return solid_angle_interp.reshape(original_shape)
@@ -519,7 +530,7 @@ class PrimaryBeam:
         frequency_MHz: np.ndarray | float,
         l: np.ndarray | float,
         m: np.ndarray | float,
-        polarization: str
+        polarization: str,
     ) -> np.ndarray | float:
         """
         Evaluate beam gain directly at direction cosine coordinates.
@@ -558,25 +569,27 @@ class PrimaryBeam:
 
         Examples
         --------
-        >>> beam = PrimaryBeam('MeerKAT_U_band_primary_beam_aa_highres.npz')
+        >>> beam = PrimaryBeam("MeerKAT_U_band_primary_beam_aa_highres.npz")
         >>> # Beam gain at center
-        >>> gain_center = beam.evaluate_beam(850, 0.0, 0.0, 'HH')
+        >>> gain_center = beam.evaluate_beam(850, 0.0, 0.0, "HH")
         >>> # Beam gain along l axis at fixed frequency (scan ±3° in azimuth)
         >>> offsets_deg = np.linspace(-3, 3, 100)
         >>> l = np.sin(np.radians(offsets_deg))  # Convert to direction cosines
         >>> m = np.zeros_like(l)
         >>> freq = np.full_like(l, 850)
-        >>> gain = beam.evaluate_beam(freq, l, m, 'HH')
+        >>> gain = beam.evaluate_beam(freq, l, m, "HH")
         """
         # Validate polarization
         pol_key = polarization.upper()
-        if pol_key not in ('HH', 'VV'):
+        if pol_key not in ("HH", "VV"):
             raise ValueError(
                 f"Polarization must be 'HH' or 'VV' (case insensitive), got '{polarization}'"
             )
 
         # Select interpolator
-        interpolator = self._interpolator_HH if pol_key == 'HH' else self._interpolator_VV
+        interpolator = (
+            self._interpolator_HH if pol_key == "HH" else self._interpolator_VV
+        )
 
         # Convert to arrays
         freq_array = np.atleast_1d(frequency_MHz)

@@ -104,7 +104,9 @@ class KnownRfiPlugin(AbstractPlugin):
         flag_report_writer.write_to_report(lines)
 
         if self.verbose:
-            waterfall(data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar")
+            waterfall(
+                data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar"
+            )
             plt.savefig(
                 os.path.join(output_path, "known_rfi_plugin_result_receiver_0.png"),
                 dpi=1000,

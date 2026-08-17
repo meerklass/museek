@@ -5,9 +5,10 @@ This module provides noise diode calibration temperature as a function of freque
 for individual receivers identified by their serial numbers.
 """
 
+from pathlib import Path
+
 import numpy as np
 from scipy.interpolate import interp1d
-from pathlib import Path
 
 
 class NoiseDiodeTemperature:
@@ -44,8 +45,8 @@ class NoiseDiodeTemperature:
         --------
         >>> from museek.receiver import Receiver
         >>> receiver = track_data.receivers[0]  # Receiver with receiver_id='u.4001'
-        >>> nd = NoiseDiodeTemperature(receiver, 'data/noise_diodes')
-        >>> T = nd(np.array([700., 800., 900.]))  # MHz -> K
+        >>> nd = NoiseDiodeTemperature(receiver, "data/noise_diodes")
+        >>> T = nd(np.array([700.0, 800.0, 900.0]))  # MHz -> K
         """
         if receiver.receiver_id is None:
             raise ValueError(
@@ -55,7 +56,7 @@ class NoiseDiodeTemperature:
 
         # Parse receiver ID: 'u.4001' -> band='u', serial='4001'
         try:
-            band, serial = receiver.receiver_id.split('.')
+            band, serial = receiver.receiver_id.split(".")
         except (ValueError, AttributeError) as e:
             raise ValueError(
                 f"Invalid receiver_id format: '{receiver.receiver_id}' for {receiver.name}. "
@@ -66,7 +67,7 @@ class NoiseDiodeTemperature:
         pol = receiver.polarisation.lower()
 
         # Construct filename: rx.u.4001.h.csv
-        filename = f'rx.{band}.{serial}.{pol}.csv'
+        filename = f"rx.{band}.{serial}.{pol}.csv"
         filepath = Path(data_dir) / filename
 
         if not filepath.exists():
@@ -77,7 +78,7 @@ class NoiseDiodeTemperature:
 
         try:
             # Load file: frequency (Hz), temperature (K)
-            data = np.loadtxt(filepath, delimiter=',', comments='#')
+            data = np.loadtxt(filepath, delimiter=",", comments="#")
 
             # Extract frequency (Hz -> MHz) and temperature (K)
             freq_MHz = data[:, 0] / 1e6
@@ -87,16 +88,17 @@ class NoiseDiodeTemperature:
 
             # Create linear interpolator with constant extrapolation at edges
             self._interpolator = interp1d(
-                freq_MHz, T_nd,
-                kind='linear',
+                freq_MHz,
+                T_nd,
+                kind="linear",
                 bounds_error=False,  # Allow out-of-range queries
-                fill_value=(T_nd[0], T_nd[-1])  # Use edge values for extrapolation
+                fill_value=(T_nd[0], T_nd[-1]),  # Use edge values for extrapolation
             )
 
         except (ValueError, IndexError) as e:
             raise ValueError(
-                f'Invalid noise diode model file format: {filepath}\n'
-                f'Expected CSV: frequency (Hz), temperature (K)'
+                f"Invalid noise diode model file format: {filepath}\n"
+                f"Expected CSV: frequency (Hz), temperature (K)"
             ) from e
 
     def __call__(self, frequency_MHz: np.ndarray | float) -> np.ndarray | float:
@@ -121,12 +123,16 @@ class NoiseDiodeTemperature:
         extrapolation occurs.
         """
         freq_array = np.atleast_1d(frequency_MHz)
-        if freq_array.min() < self.freq_range_MHz[0] or freq_array.max() > self.freq_range_MHz[1]:
+        if (
+            freq_array.min() < self.freq_range_MHz[0]
+            or freq_array.max() > self.freq_range_MHz[1]
+        ):
             import warnings
+
             warnings.warn(
                 f"Frequency partially out of range: {freq_array.min():.1f}-{freq_array.max():.1f} MHz. "
                 f"Valid: {self.freq_range_MHz[0]:.1f}-{self.freq_range_MHz[1]:.1f} MHz. "
                 f"Using constant extrapolation at edges.",
-                UserWarning
+                UserWarning,
             )
         return self._interpolator(frequency_MHz)

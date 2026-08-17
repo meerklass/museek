@@ -7,9 +7,9 @@ extrapolation and the standard single-dish flux-density -> antenna-temperature c
 
 import numpy as np
 
-JY = 1e-26              # W m^-2 Hz^-1 per Jansky
-K_B = 1.380649e-23      # Boltzmann constant, J/K
-C = 299792458.0         # m/s
+JY = 1e-26  # W m^-2 Hz^-1 per Jansky
+K_B = 1.380649e-23  # Boltzmann constant, J/K
+C = 299792458.0  # m/s
 
 REF_NVSS_HZ = 1400e6
 REF_PKS1410_HZ = 1410e6
@@ -17,7 +17,9 @@ REF_PKS635_HZ = 635e6
 REF_PKS408_HZ = 408e6
 
 
-def load_catalog(path: str, min_flux_Jy: float = 0.0, flux_cut_freq_Hz: float = 800e6) -> dict:
+def load_catalog(
+    path: str, min_flux_Jy: float = 0.0, flux_cut_freq_Hz: float = 800e6
+) -> dict:
     """
     Parse the `1Jy_cat.txt` point-source catalog.
 
@@ -47,13 +49,17 @@ def load_catalog(path: str, min_flux_Jy: float = 0.0, flux_cut_freq_Hz: float = 
     sid, ra, dec, s_ref, nu_ref, alpha = [], [], [], [], [], []
     with open(path) as f:
         for line in f:
-            if line.startswith('#') or not line.strip():
+            if line.startswith("#") or not line.strip():
                 continue
-            parts = line.strip().split('|')
+            parts = line.strip().split("|")
             try:
                 r, d = float(parts[1]), float(parts[2])
                 nvss, nvss_idx = float(parts[3]), float(parts[4])
-                pks1410, pks635, pks408 = float(parts[7]), float(parts[8]), float(parts[9])
+                pks1410, pks635, pks408 = (
+                    float(parts[7]),
+                    float(parts[8]),
+                    float(parts[9]),
+                )
                 pks_idx = float(parts[10])
             except (IndexError, ValueError):
                 continue
@@ -71,11 +77,21 @@ def load_catalog(path: str, min_flux_Jy: float = 0.0, flux_cut_freq_Hz: float = 
                 continue
             if min_flux_Jy > 0 and s * (flux_cut_freq_Hz / nu) ** a < min_flux_Jy:
                 continue  # cut on the flux extrapolated to a fixed frequency, consistent across sources
-            sid.append(parts[0]); ra.append(r); dec.append(d)
-            s_ref.append(s); nu_ref.append(nu); alpha.append(a)
+            sid.append(parts[0])
+            ra.append(r)
+            dec.append(d)
+            s_ref.append(s)
+            nu_ref.append(nu)
+            alpha.append(a)
 
-    return dict(source_id=np.array(sid), ra_deg=np.array(ra), dec_deg=np.array(dec),
-                s_ref_Jy=np.array(s_ref), nu_ref_Hz=np.array(nu_ref), alpha=np.array(alpha))
+    return dict(
+        source_id=np.array(sid),
+        ra_deg=np.array(ra),
+        dec_deg=np.array(dec),
+        s_ref_Jy=np.array(s_ref),
+        nu_ref_Hz=np.array(nu_ref),
+        alpha=np.array(alpha),
+    )
 
 
 def flux_Jy(catalog: dict, freq_Hz: np.ndarray) -> np.ndarray:
@@ -87,11 +103,16 @@ def flux_Jy(catalog: dict, freq_Hz: np.ndarray) -> np.ndarray:
     :return: (n_src, n_freq) if `freq_Hz` is an array, else (n_src,)
     """
     f = np.atleast_1d(np.asarray(freq_Hz, dtype=float))
-    s = catalog['s_ref_Jy'][:, None] * (f[None, :] / catalog['nu_ref_Hz'][:, None]) ** catalog['alpha'][:, None]
+    s = (
+        catalog["s_ref_Jy"][:, None]
+        * (f[None, :] / catalog["nu_ref_Hz"][:, None]) ** catalog["alpha"][:, None]
+    )
     return s if np.ndim(freq_Hz) else s[:, 0]
 
 
-def jy_to_kelvin(flux_Jy_value: np.ndarray, freq_Hz: np.ndarray, omega_sr: np.ndarray) -> np.ndarray:
+def jy_to_kelvin(
+    flux_Jy_value: np.ndarray, freq_Hz: np.ndarray, omega_sr: np.ndarray
+) -> np.ndarray:
     """
     Convert flux density to peak antenna temperature for a beam (or pixel) of solid angle `omega_sr`:
 
@@ -105,11 +126,15 @@ def jy_to_kelvin(flux_Jy_value: np.ndarray, freq_Hz: np.ndarray, omega_sr: np.nd
     :return: temperature in Kelvin
     """
     lam = C / np.asarray(freq_Hz, dtype=float)
-    return flux_Jy_value * JY * lam ** 2 / (2.0 * K_B * omega_sr)
+    return flux_Jy_value * JY * lam**2 / (2.0 * K_B * omega_sr)
 
 
-def select_near_track(catalog: dict, track_ra_deg: np.ndarray, track_dec_deg: np.ndarray,
-                      radius_deg: float) -> np.ndarray:
+def select_near_track(
+    catalog: dict,
+    track_ra_deg: np.ndarray,
+    track_dec_deg: np.ndarray,
+    radius_deg: float,
+) -> np.ndarray:
     """
     Indices of catalog sources whose great-circle distance to any pointing on the track is < radius.
 
@@ -118,12 +143,13 @@ def select_near_track(catalog: dict, track_ra_deg: np.ndarray, track_dec_deg: np
     :param radius_deg: selection radius in degrees
     :return: integer index array of selected sources
     """
-    src_ra = np.radians(catalog['ra_deg'])[:, None]
-    src_dec = np.radians(catalog['dec_deg'])[:, None]
+    src_ra = np.radians(catalog["ra_deg"])[:, None]
+    src_dec = np.radians(catalog["dec_deg"])[:, None]
     t_ra = np.radians(track_ra_deg)[None, :]
     t_dec = np.radians(track_dec_deg)[None, :]
     # great-circle (haversine) separation, (n_src, n_pointing)
-    cos_sep = (np.sin(src_dec) * np.sin(t_dec)
-               + np.cos(src_dec) * np.cos(t_dec) * np.cos(src_ra - t_ra))
+    cos_sep = np.sin(src_dec) * np.sin(t_dec) + np.cos(src_dec) * np.cos(
+        t_dec
+    ) * np.cos(src_ra - t_ra)
     min_sep = np.arccos(np.clip(cos_sep, -1.0, 1.0)).min(axis=1)
     return np.where(min_sep < np.radians(radius_deg))[0]

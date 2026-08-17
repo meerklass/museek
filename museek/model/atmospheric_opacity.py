@@ -14,7 +14,7 @@ def calc_zenith_opacity(
     relative_humidity: np.ndarray,
     pressure_hPa: np.ndarray,
     height_km: float,
-    frequency_GHz: np.ndarray
+    frequency_GHz: np.ndarray,
 ) -> np.ndarray:
     """
     Calculate atmospheric zenith opacity using ITU-R P.676-9 standard.
@@ -103,9 +103,14 @@ def calc_zenith_opacity(
 
     # Dry air specific attenuation [dB/km] - valid only for f <= 54 GHz
     yo = (
-        7.2 * r_t**2.8 / (f**2 + 0.34 * r_p**2 * r_t**1.6)
-        + 0.62 * E_3 / ((54 - f) ** (1.16 * E_1) + 0.83 * E_2)
-    ) * f**2 * r_p**2 * 1e-3
+        (
+            7.2 * r_t**2.8 / (f**2 + 0.34 * r_p**2 * r_t**1.6)
+            + 0.62 * E_3 / ((54 - f) ** (1.16 * E_1) + 0.83 * E_2)
+        )
+        * f**2
+        * r_p**2
+        * 1e-3
+    )
 
     # ITU-R P.676-9 eq 23 - water vapor parameters
     n_1 = 0.955 * r_p * r_t**0.68 + 0.006 * rho
@@ -117,23 +122,48 @@ def calc_zenith_opacity(
 
     # Water vapor specific attenuation [dB/km]
     yw = (
-        3.98 * n_1 * np.exp(2.23 * (1 - r_t)) / ((f - 22.235) ** 2 + 9.42 * n_1**2) * g(f, 22)
-        + 11.96 * n_1 * np.exp(0.7 * (1 - r_t)) / ((f - 183.31) ** 2 + 11.14 * n_1**2)
-        + 0.081 * n_1 * np.exp(6.44 * (1 - r_t)) / ((f - 321.226) ** 2 + 6.29 * n_1**2)
-        + 3.66 * n_1 * np.exp(1.6 * (1 - r_t)) / ((f - 325.153) ** 2 + 9.22 * n_1**2)
-        + 25.37 * n_1 * np.exp(1.09 * (1 - r_t)) / (f - 380) ** 2
-        + 17.4 * n_1 * np.exp(1.46 * (1 - r_t)) / (f - 448) ** 2
-        + 844.6 * n_1 * np.exp(0.17 * (1 - r_t)) / (f - 557) ** 2 * g(f, 557)
-        + 290 * n_1 * np.exp(0.41 * (1 - r_t)) / (f - 752) ** 2 * g(f, 752)
-        + 8.3328e4 * n_2 * np.exp(0.99 * (1 - r_t)) / (f - 1780) ** 2 * g(f, 1780)
-    ) * f**2 * r_t**2.5 * rho * 1e-4
+        (
+            3.98
+            * n_1
+            * np.exp(2.23 * (1 - r_t))
+            / ((f - 22.235) ** 2 + 9.42 * n_1**2)
+            * g(f, 22)
+            + 11.96
+            * n_1
+            * np.exp(0.7 * (1 - r_t))
+            / ((f - 183.31) ** 2 + 11.14 * n_1**2)
+            + 0.081
+            * n_1
+            * np.exp(6.44 * (1 - r_t))
+            / ((f - 321.226) ** 2 + 6.29 * n_1**2)
+            + 3.66
+            * n_1
+            * np.exp(1.6 * (1 - r_t))
+            / ((f - 325.153) ** 2 + 9.22 * n_1**2)
+            + 25.37 * n_1 * np.exp(1.09 * (1 - r_t)) / (f - 380) ** 2
+            + 17.4 * n_1 * np.exp(1.46 * (1 - r_t)) / (f - 448) ** 2
+            + 844.6 * n_1 * np.exp(0.17 * (1 - r_t)) / (f - 557) ** 2 * g(f, 557)
+            + 290 * n_1 * np.exp(0.41 * (1 - r_t)) / (f - 752) ** 2 * g(f, 752)
+            + 8.3328e4 * n_2 * np.exp(0.99 * (1 - r_t)) / (f - 1780) ** 2 * g(f, 1780)
+        )
+        * f**2
+        * r_t**2.5
+        * rho
+        * 1e-4
+    )
 
     # ITU-R P.676-9 eq 25 - equivalent height for dry air
-    t_1 = 4.64 / (1 + 0.066 * r_p**-2.3) * np.exp(-((f - 59.7) / (2.87 + 12.4 * np.exp(-7.9 * r_p))) ** 2)
+    t_1 = (
+        4.64
+        / (1 + 0.066 * r_p**-2.3)
+        * np.exp(-(((f - 59.7) / (2.87 + 12.4 * np.exp(-7.9 * r_p))) ** 2))
+    )
     t_2 = 0.14 * np.exp(2.12 * r_p) / ((f - 118.75) ** 2 + 0.031 * np.exp(2.2 * r_p))
     t_3 = (
-        0.0114 / (1 + 0.14 * r_p**-2.6)
-        * f * (-0.0247 + 0.0001 * f + 1.61e-6 * f**2)
+        0.0114
+        / (1 + 0.14 * r_p**-2.6)
+        * f
+        * (-0.0247 + 0.0001 * f + 1.61e-6 * f**2)
         / (1 - 0.0169 * f + 4.1e-5 * f**2 + 3.2e-7 * f**3)
     )
     ho = 6.1 / (1 + 0.17 * r_p**-1.1) * (1 + t_1 + t_2 + t_3)
@@ -199,8 +229,14 @@ class AtmosphericModel:
             If track_data does not have required sensor data
         """
         # Validate required attributes
-        required_attrs = ['temperature', 'humidity', 'pressure', 'site_elevation_km',
-                          'elevation', 'frequencies']
+        required_attrs = [
+            "temperature",
+            "humidity",
+            "pressure",
+            "site_elevation_km",
+            "elevation",
+            "frequencies",
+        ]
         for attr in required_attrs:
             if not hasattr(track_data, attr) or getattr(track_data, attr) is None:
                 raise ValueError(
@@ -235,7 +271,7 @@ class AtmosphericModel:
             relative_humidity=humidity_fraction,
             pressure_hPa=pressure_hPa,
             height_km=site_elevation_km,
-            frequency_GHz=frequency_GHz
+            frequency_GHz=frequency_GHz,
         )  # shape (n_time, n_freq)
 
         # Calculate atmospheric effective temperature

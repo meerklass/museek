@@ -17,7 +17,7 @@ Pipeline = ConfigSection(
         "museek.plugin.aoflagger_secondrun_plugin",
         "museek.plugin.antenna_flagger_plugin",
         "museek.plugin.noise_diode_plugin",
-#        'museek.plugin.read_calibrator_gains_plugin',
+        #        'museek.plugin.read_calibrator_gains_plugin',
         "museek.plugin.gain_calibration_plugin",
         "museek.plugin.aoflagger_postcalibration_plugin",
         "museek.plugin.inpainting_mapmaking_plugin",
@@ -66,17 +66,20 @@ NoiseDiodeFlaggerPlugin = ConfigSection(
 
 KnownRfiPlugin = ConfigSection(
     gsm_900_uplink=None,
-    gsm_900_downlink=(922, 966),  # widened guard channels to catch 963 MHz band-edge residual
+    gsm_900_downlink=(
+        922,
+        966,
+    ),  # widened guard channels to catch 963 MHz band-edge residual
     gsm_1800_uplink=None,
-    #gps=(1170, 1390),
-    #extra_rfi=[(1524, 1630)],
+    # gps=(1170, 1390),
+    # extra_rfi=[(1524, 1630)],
     gps=None,
     extra_rfi=[
-    (544, 580),   # band edges
-    (1015, 1088), # band edges
-    (765, 778),   # Vodacom
-    (801, 811),   # MTN
-    (811, 821),   # Telkom
+        (544, 580),  # band edges
+        (1015, 1088),  # band edges
+        (765, 778),  # Vodacom
+        (801, 811),  # MTN
+        (811, 821),  # Telkom
     ],
     verbose=0,
 )
@@ -356,7 +359,7 @@ InpaintingMapmakingSelfcaliPlugin = ConfigSection(
 
 ReadCalibratorGainsPlugin = ConfigSection(
     model_components_files=[
-        '/home/mgrsantos/projects/data/context/1675021905/model_components.pkl',
+        "/home/mgrsantos/projects/data/context/1675021905/model_components.pkl",
     ],
     # which period(s) to use, as a flat list of period names. None = default.
     #   1 file:  None -> average all present; ['before_scan'] -> before only;

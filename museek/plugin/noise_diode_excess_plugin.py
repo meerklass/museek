@@ -1,19 +1,25 @@
-from typing import Generator
+import datetime
+import warnings
+from collections.abc import Generator
+
+import numpy as np
 from ivory.plugin.abstract_parallel_joblib_plugin import AbstractParallelJoblibPlugin
 from ivory.utils.requirement import Requirement
 from ivory.utils.result import Result
+
+from museek.data_element import DataElement
 from museek.enums.result_enum import ResultEnum
-from museek.noise_diode import NoiseDiode
 from museek.flag_factory import FlagFactory
 from museek.flag_list import FlagList
-from museek.data_element import DataElement
+from museek.noise_diode import NoiseDiode
 from museek.time_ordered_data import TimeOrderedData
 from museek.util.report_writer import ReportWriter
-from museek.util.tools import flag_percent_recv, git_version_info
-from museek.util.tools import remove_outliers_zscore_mad, polynomial_flag_outlier
-import numpy as np
-import warnings
-import datetime
+from museek.util.tools import (
+    flag_percent_recv,
+    git_version_info,
+    polynomial_flag_outlier,
+    remove_outliers_zscore_mad,
+)
 
 
 class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
@@ -52,19 +58,24 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
     A per-pointing spline baseline is a possible future refinement.
     """
 
-    def __init__(self,
-                 flag_combination_threshold: int,
-                 zscoreflag_threshold: float,
-                 polyflag_deg: int,
-                 polyflag_threshold: float,
-                 polyfit_deg: int,
-                 zscore_antenaflag_threshold: float,
-                 noise_diode_excess_lowlim: float,
-                 nd_dump_good_fraction: float = 0.5,
-                 nd_excess_failure_fraction: float = 0.5,
-                 nd_excluded_flag_names: tuple[str, ...] = ('noise_diode_on', 'aoflagger_tracking'),
-                 do_store_context: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        flag_combination_threshold: int,
+        zscoreflag_threshold: float,
+        polyflag_deg: int,
+        polyflag_threshold: float,
+        polyfit_deg: int,
+        zscore_antenaflag_threshold: float,
+        noise_diode_excess_lowlim: float,
+        nd_dump_good_fraction: float = 0.5,
+        nd_excess_failure_fraction: float = 0.5,
+        nd_excluded_flag_names: tuple[str, ...] = (
+            "noise_diode_on",
+            "aoflagger_tracking",
+        ),
+        do_store_context: bool = False,
+        **kwargs,
+    ):
         """
         Initialise the plugin
         :param flag_combination_threshold: for combining sets of flags, usually `1`
@@ -97,26 +108,33 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         self.nd_excess_failure_fraction = nd_excess_failure_fraction
         self.nd_excluded_flag_names = set(nd_excluded_flag_names)
         self.do_store_context = do_store_context
-        self.report_file_name = 'flag_report.md'
+        self.report_file_name = "flag_report.md"
 
     def set_requirements(self):
-        """ Set the requirements. """
-        self.requirements = [Requirement(location=ResultEnum.TRACK_DATA, variable='track_data'),
-                             Requirement(location=ResultEnum.FLAG_REPORT_WRITER, variable='flag_report_writer'),
-                             Requirement(location=ResultEnum.OUTPUT_PATH, variable='output_path')]
+        """Set the requirements."""
+        self.requirements = [
+            Requirement(location=ResultEnum.TRACK_DATA, variable="track_data"),
+            Requirement(
+                location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
+            ),
+            Requirement(location=ResultEnum.OUTPUT_PATH, variable="output_path"),
+        ]
 
-    def map(self,
-            track_data: TimeOrderedData,
-            flag_report_writer: ReportWriter,
-            output_path: str) \
-            -> Generator[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], None, None]:
+    def map(
+        self,
+        track_data: TimeOrderedData,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+    ) -> Generator[
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], None, None
+    ]:
         """
         Yield a `tuple` of the track visibility data for one receiver and the leaked flags for one receiver.
         :param track_data: time ordered data containing the calibrator tracking part of the observation
         :param flag_report_writer: report of the flag
         """
 
-        track_data.load_visibility_flags_weights(polars='auto')
+        track_data.load_visibility_flags_weights(polars="auto")
 
         # Leak the flagging to the noise diode dumps: combine every flag layer
         # EXCEPT the ones in `nd_excluded_flag_names`. Keeping `noise_diode_on`
@@ -133,25 +151,48 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
             array=np.asarray(result_array, dtype=bool)
         )
 
-        noise_diode = NoiseDiode(dump_period=track_data.dump_period, observation_log=track_data.obs_script_log)
-        noise_diode_off_dumps = noise_diode.get_noise_diode_off_scan_dumps(timestamps=track_data.timestamps)
-        noise_diode_cycle_start_times = noise_diode._get_noise_diode_cycle_start_times(timestamps=track_data.timestamps)
-        noise_diode_ratios = noise_diode._get_noise_diode_ratios(timestamps=track_data.timestamps,
-                                                                 noise_diode_cycle_starts=noise_diode_cycle_start_times,
-                                                                 dump_period=noise_diode._dump_period)
+        noise_diode = NoiseDiode(
+            dump_period=track_data.dump_period,
+            observation_log=track_data.obs_script_log,
+        )
+        noise_diode_off_dumps = noise_diode.get_noise_diode_off_scan_dumps(
+            timestamps=track_data.timestamps
+        )
+        noise_diode_cycle_start_times = noise_diode._get_noise_diode_cycle_start_times(
+            timestamps=track_data.timestamps
+        )
+        noise_diode_ratios = noise_diode._get_noise_diode_ratios(
+            timestamps=track_data.timestamps,
+            noise_diode_cycle_starts=noise_diode_cycle_start_times,
+            dump_period=noise_diode._dump_period,
+        )
 
         for i_receiver, receiver in enumerate(track_data.receivers):
             visibility = track_data.visibility.get(recv=i_receiver).squeeze
             initial_flag = initial_flags.get(recv=i_receiver).squeeze
-            yield visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios, track_data.timestamps.array.squeeze()
+            yield (
+                visibility,
+                initial_flag,
+                noise_diode_off_dumps,
+                noise_diode_ratios,
+                track_data.timestamps.array.squeeze(),
+            )
 
-    def run_job(self, anything: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]) \
-            -> list[np.ndarray, np.ndarray, np.ndarray]:
-        """ Run the plugin and calculate the noise diode excess signal for one receiver. """
+    def run_job(
+        self,
+        anything: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    ) -> list[np.ndarray, np.ndarray, np.ndarray]:
+        """Run the plugin and calculate the noise diode excess signal for one receiver."""
 
-        visibility, initial_flag, noise_diode_off_dumps, noise_diode_ratios, timestamps = anything
+        (
+            visibility,
+            initial_flag,
+            noise_diode_off_dumps,
+            noise_diode_ratios,
+            timestamps,
+        ) = anything
 
-        noise_on = np.ones(np.shape(visibility)[0], dtype='bool')
+        noise_on = np.ones(np.shape(visibility)[0], dtype="bool")
         for i in noise_diode_off_dumps:
             noise_on[i] = False
 
@@ -163,14 +204,24 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         noise_on_timestamp = []
         timestamps_shifted = timestamps - timestamps.min()
         for i_index_list, index_list in enumerate(continuous_noise_on_index):
-            if len(index_list) == 1:   # if noise diode firing is in one timestamp
+            if len(index_list) == 1:  # if noise diode firing is in one timestamp
                 noise_on_index.append(index_list[0])
                 noise_on_timestamp.append(timestamps_shifted[index_list[0]])
-            elif len(index_list) > 1:  # if noise diode firing is in more than one timestamps
+            elif (
+                len(index_list) > 1
+            ):  # if noise diode firing is in more than one timestamps
                 index_array = np.array(index_list)
-                noise_on_index.append(np.sum(index_array*noise_diode_ratios[index_array]) / np.sum(noise_diode_ratios[index_array]))
-                timestamps_shifted_array = np.array([timestamps_shifted[i] for i in index_list])
-                noise_on_timestamp.append(np.sum(timestamps_shifted_array*noise_diode_ratios[index_array]) / np.sum(noise_diode_ratios[index_array]))
+                noise_on_index.append(
+                    np.sum(index_array * noise_diode_ratios[index_array])
+                    / np.sum(noise_diode_ratios[index_array])
+                )
+                timestamps_shifted_array = np.array(
+                    [timestamps_shifted[i] for i in index_list]
+                )
+                noise_on_timestamp.append(
+                    np.sum(timestamps_shifted_array * noise_diode_ratios[index_array])
+                    / np.sum(noise_diode_ratios[index_array])
+                )
 
         # Apply the leaked flags. Unlike the original NoiseDiodePlugin, the ND-firing
         # dumps are NOT unflagged here: a firing dump (or an adjacent off dump) that
@@ -193,26 +244,41 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         edge_firing = np.zeros(len(continuous_noise_on_index), dtype=bool)
         for i_index_list, index_list in enumerate(continuous_noise_on_index):
             lo, hi = np.min(index_list), np.max(index_list)
-            neighbours = [i for i in range(lo - 1, hi + 2)
-                          if i not in index_list and 0 <= i < n_time]
+            neighbours = [
+                i
+                for i in range(lo - 1, hi + 2)
+                if i not in index_list and 0 <= i < n_time
+            ]
             off_neighbours_per_firing.append(neighbours)
             if len(neighbours) < 2:  # missing a bracket dump => at the track-data edge
                 edge_firing[i_index_list] = True
 
         # calculate the noise diode firing - diode off, noise diode off is estimated by averaging two points (one before, one after) adjacent to the noise diode firing point
-        noise_diode_excess = np.ma.zeros((len(continuous_noise_on_index), visibility.shape[1]))
+        noise_diode_excess = np.ma.zeros(
+            (len(continuous_noise_on_index), visibility.shape[1])
+        )
         for i_freq in range(visibility.shape[1]):
             for i_index_list, index_list in enumerate(continuous_noise_on_index):
                 neighbours = off_neighbours_per_firing[i_index_list]
                 if len(index_list) == 1:
-                    noise_on_value = visibility[index_list[0],i_freq]
-                    noise_off_value = np.ma.mean([visibility[i,i_freq] for i in neighbours])
-                    noise_diode_excess[i_index_list,i_freq] = noise_on_value - noise_off_value
+                    noise_on_value = visibility[index_list[0], i_freq]
+                    noise_off_value = np.ma.mean(
+                        [visibility[i, i_freq] for i in neighbours]
+                    )
+                    noise_diode_excess[i_index_list, i_freq] = (
+                        noise_on_value - noise_off_value
+                    )
 
                 elif len(index_list) > 1:
-                    noise_on_value = np.ma.sum([visibility[i,i_freq] for i in index_list])
-                    noise_off_value = np.ma.mean([visibility[i,i_freq] for i in neighbours])
-                    noise_diode_excess[i_index_list,i_freq] = noise_on_value - noise_off_value*len(index_list)
+                    noise_on_value = np.ma.sum(
+                        [visibility[i, i_freq] for i in index_list]
+                    )
+                    noise_off_value = np.ma.mean(
+                        [visibility[i, i_freq] for i in neighbours]
+                    )
+                    noise_diode_excess[i_index_list, i_freq] = (
+                        noise_on_value - noise_off_value * len(index_list)
+                    )
 
         noise_diode_excess.mask[np.isnan(noise_diode_excess.data)] = True
 
@@ -244,11 +310,13 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
 
         return noise_diode_excess, noise_on_index, noise_on_timestamp
 
-    def gather_and_set_result(self,
-                              result_list: list[np.ndarray],
-                              track_data: TimeOrderedData,
-                              flag_report_writer: ReportWriter,
-                              output_path: str):
+    def gather_and_set_result(
+        self,
+        result_list: list[np.ndarray],
+        track_data: TimeOrderedData,
+        flag_report_writer: ReportWriter,
+        output_path: str,
+    ):
         """
         Combine the per-receiver noise diode excess, flag badly behaving receivers, and set results.
         :param result_list: `list` of `(noise_diode_excess, noise_on_index, noise_on_timestamp)` per receiver
@@ -259,19 +327,42 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
 
         noise_on_index = np.array(result_list[0][1])
         noise_on_timestamp = np.array(result_list[0][2])
-        noise_diode_excess = np.ma.array([result_list[i][0] for i in range(len(result_list))]).transpose(1, 2, 0)
+        noise_diode_excess = np.ma.array(
+            [result_list[i][0] for i in range(len(result_list))]
+        ).transpose(1, 2, 0)
 
         # fit the noise diode excess and mask the receiver if the frequency median of its noise diode excess can not be fitted well by a 2-order polynomial
         rmsnorm_poly_fit_list = []
         for i_receiver, receiver in enumerate(track_data.receivers):
-            noise_excess_timemedian = np.ma.median(noise_diode_excess[:,:,i_receiver], axis=1)
-            noise_excess_timemedian.mask = remove_outliers_zscore_mad(noise_excess_timemedian.data, noise_excess_timemedian.mask, self.zscoreflag_threshold)
-            noise_excess_timemedian.mask, p_fit = polynomial_flag_outlier(noise_on_timestamp, noise_excess_timemedian.data, noise_excess_timemedian.mask, self.polyflag_deg, self.polyflag_threshold)
+            noise_excess_timemedian = np.ma.median(
+                noise_diode_excess[:, :, i_receiver], axis=1
+            )
+            noise_excess_timemedian.mask = remove_outliers_zscore_mad(
+                noise_excess_timemedian.data,
+                noise_excess_timemedian.mask,
+                self.zscoreflag_threshold,
+            )
+            noise_excess_timemedian.mask, p_fit = polynomial_flag_outlier(
+                noise_on_timestamp,
+                noise_excess_timemedian.data,
+                noise_excess_timemedian.mask,
+                self.polyflag_deg,
+                self.polyflag_threshold,
+            )
             if noise_excess_timemedian.mask.all():
                 rmsnorm_poly_fit_list.append(np.nan)
             else:
-                p_poly = np.polyfit(noise_on_timestamp[~noise_excess_timemedian.mask], noise_excess_timemedian.data[~noise_excess_timemedian.mask], deg=self.polyfit_deg)
-                rmsnorm_poly_fit_list.append(np.std(np.polyval(p_poly, noise_on_timestamp) / np.median(np.polyval(p_poly, noise_on_timestamp))))
+                p_poly = np.polyfit(
+                    noise_on_timestamp[~noise_excess_timemedian.mask],
+                    noise_excess_timemedian.data[~noise_excess_timemedian.mask],
+                    deg=self.polyfit_deg,
+                )
+                rmsnorm_poly_fit_list.append(
+                    np.std(
+                        np.polyval(p_poly, noise_on_timestamp)
+                        / np.median(np.polyval(p_poly, noise_on_timestamp))
+                    )
+                )
 
         rmsnorm_poly_fit_list = np.array(rmsnorm_poly_fit_list)
 
@@ -297,20 +388,27 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         new_flag_array = np.zeros((shape[0], len(track_data.receivers)))
         bad_receivers = []
         for i_receiver, receiver in enumerate(track_data.receivers):
-            median_excess = np.ma.median(noise_diode_excess[:,:,i_receiver])
+            median_excess = np.ma.median(noise_diode_excess[:, :, i_receiver])
             poly_triggered = bool(receiver_mask_poly_fit[i_receiver] > 0)
             # masked median compares False against <=, so treat fully-masked as a lowlim fail
-            lowlim_triggered = bool(np.ma.is_masked(median_excess) or median_excess <= self.noise_diode_excess_lowlim)
+            lowlim_triggered = bool(
+                np.ma.is_masked(median_excess)
+                or median_excess <= self.noise_diode_excess_lowlim
+            )
             if poly_triggered or lowlim_triggered:
-                outlier_antenna_flag = np.ones((shape[0]))
+                outlier_antenna_flag = np.ones(shape[0])
                 bad_receivers.append(str(receiver))
             else:
-                outlier_antenna_flag = new_flag_array[:,i_receiver]
+                outlier_antenna_flag = new_flag_array[:, i_receiver]
 
-            flag_array = np.repeat(outlier_antenna_flag, shape[1]).reshape((shape[0], shape[1], 1))
-            new_flag.insert_receiver_flag(flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0)
+            flag_array = np.repeat(outlier_antenna_flag, shape[1]).reshape(
+                (shape[0], shape[1], 1)
+            )
+            new_flag.insert_receiver_flag(
+                flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0
+            )
 
-        track_data.flags.add_flag(flag=new_flag, name='noise_diode_bad_behavior')
+        track_data.flags.add_flag(flag=new_flag, name="noise_diode_bad_behavior")
 
         # The "good measure" of the noise diode excess: a robust time-average over
         # all firings, per frequency and receiver. Median is used so that any
@@ -322,27 +420,61 @@ class NoiseDiodeExcessPlugin(AbstractParallelJoblibPlugin):
         current_datetime = datetime.datetime.now()
         receivers_list, flag_percent = flag_percent_recv(track_data)
 
-        lines = ['...........................',
-                 'Running NoiseDiodeExcessPlugin with ' + f"MuSEEK version: {branch} ({commit})",
-                 'Finished at ' + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-                 f'Number of noise diode firings: {noise_diode_excess.shape[0]}',
-                 f'Receivers flagged for bad noise diode behaviour: {bad_receivers if bad_receivers else "none"}'] \
-                + ['The flag fraction for each receiver: '] + [f'{x}  {y}' for x, y in zip(receivers_list, flag_percent)]
+        lines = (
+            [
+                "...........................",
+                "Running NoiseDiodeExcessPlugin with "
+                + f"MuSEEK version: {branch} ({commit})",
+                "Finished at " + current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                f"Number of noise diode firings: {noise_diode_excess.shape[0]}",
+                f"Receivers flagged for bad noise diode behaviour: {bad_receivers if bad_receivers else 'none'}",
+            ]
+            + ["The flag fraction for each receiver: "]
+            + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
+        )
         flag_report_writer.write_to_report(lines)
 
-        self.set_result(result=Result(location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.NOISE_DIODE_EXCESS, result=noise_diode_excess, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.NOISE_DIODE_EXCESS_AVERAGE, result=noise_diode_excess_average, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.NOISE_ON_INDEX, result=noise_on_index, allow_overwrite=True))
-        self.set_result(result=Result(location=ResultEnum.NOISE_ON_TIMESTAMP, result=noise_on_timestamp, allow_overwrite=True))
+        self.set_result(
+            result=Result(
+                location=ResultEnum.TRACK_DATA, result=track_data, allow_overwrite=True
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.NOISE_DIODE_EXCESS,
+                result=noise_diode_excess,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.NOISE_DIODE_EXCESS_AVERAGE,
+                result=noise_diode_excess_average,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.NOISE_ON_INDEX,
+                result=noise_on_index,
+                allow_overwrite=True,
+            )
+        )
+        self.set_result(
+            result=Result(
+                location=ResultEnum.NOISE_ON_TIMESTAMP,
+                result=noise_on_timestamp,
+                allow_overwrite=True,
+            )
+        )
 
         if self.do_store_context:
-            context_file_name = 'noise_diode_excess_plugin.pickle'
-            self.store_context_to_disc(context_file_name=context_file_name,
-                                       context_directory=output_path)
+            context_file_name = "noise_diode_excess_plugin.pickle"
+            self.store_context_to_disc(
+                context_file_name=context_file_name, context_directory=output_path
+            )
 
-    def find_continuous_noise_on_regions(self,
-                                         noise_on: np.ndarray):
+    def find_continuous_noise_on_regions(self, noise_on: np.ndarray):
         """
         Function to find continuous "noise on" sub-regions (the region where there are two timestamps sharing one noise diode firing)
 

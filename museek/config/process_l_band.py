@@ -54,7 +54,9 @@ AntennaFlaggerPlugin = ConfigSection(
 )
 
 PointSourceFlaggerPlugin = ConfigSection(
-    point_source_file_path=os.path.join(ROOT_DIR, "museek/model/radio_point_sources.txt"),
+    point_source_file_path=os.path.join(
+        ROOT_DIR, "museek/model/radio_point_sources.txt"
+    ),
     angle_threshold=0.5,
 )
 

@@ -100,7 +100,7 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
         for period in validated_periods:
             dump_indices, scan_count, total_duration = calibrator_results[period]
             validated_dump_indices[period] = dump_indices
-            if period == 'before_scan':
+            if period == "before_scan":
                 calibrator_names_for_periods[period] = self.calibrator_names[0]
             else:
                 calibrator_names_for_periods[period] = self.calibrator_names[-1]
@@ -131,7 +131,9 @@ class ExtractCalibratorsPlugin(AbstractPlugin):
             self._plot_calibrator_positions(
                 track_data, validated_periods, calibrator_results
             )
-            self._plot_elevation_vs_time(track_data, validated_periods, calibrator_results)
+            self._plot_elevation_vs_time(
+                track_data, validated_periods, calibrator_results
+            )
 
     def _validate_and_report_results(self, calibrator_results):
         """Validate found calibrators against user expectations and report results.

@@ -187,7 +187,8 @@ class AoflaggerPlugin(AbstractParallelJoblibPlugin):
             plt.xlabel("time stamps")
             plt.ylabel("channels")
             plt.savefig(
-                os.path.join(output_path, "rfi_mitigation_result_receiver_0.png"), dpi=1000
+                os.path.join(output_path, "rfi_mitigation_result_receiver_0.png"),
+                dpi=1000,
             )
             plt.close()
 

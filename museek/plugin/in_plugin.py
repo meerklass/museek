@@ -81,7 +81,7 @@ class InPlugin(AbstractPlugin):
         Loads the complete data as `TimeOrderedData` and sets it as a result.
         """
         if self.suppress_katpoint_warnings:
-            logging.getLogger('katpoint.catalogue').setLevel(logging.ERROR)
+            logging.getLogger("katpoint.catalogue").setLevel(logging.ERROR)
 
         receivers = None
         if self.receiver_list is not None:
@@ -100,14 +100,16 @@ class InPlugin(AbstractPlugin):
             cache_folder=self.cache_folder,
         )
 
-        print(f'Processing {len(data.receivers)} receivers: {[str(r) for r in data.receivers]}')
+        print(
+            f"Processing {len(data.receivers)} receivers: {[str(r) for r in data.receivers]}"
+        )
 
         if self.load_visibilities_auto:
-            print('Loading auto-correlation visibilities...')
-            data.load_visibility_flags_weights(polars='auto')
+            print("Loading auto-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="auto")
         if self.load_visibilities_cross:
-            print('Loading cross-correlation visibilities...')
-            data.load_visibility_flags_weights(polars='cross')
+            print("Loading cross-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="cross")
 
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split("_")[0]))
