@@ -60,9 +60,29 @@ class TestFlagList(unittest.TestCase):
     def test_add_flag_when_flag_element(self):
         mock_flags = FlagList(flags=[FlagElement(array=np.zeros((3, 3, 3)))])
         self.flag_list.add_flag(flag=mock_flags)
+        self.assertEqual(4, len(self.flag_list))
         np.testing.assert_array_equal(
-            mock_flags._flags[0].array, self.flag_list._flags[0].array
+            mock_flags._flags[0].array, self.flag_list._flags[-1].array
         )
+
+    def test_add_flag_when_flag_list_inherits_name_and_description(self):
+        mock_flags = FlagList(
+            flags=[FlagElement(array=np.zeros((3, 3, 3)))],
+            names=["mock_name"],
+            descriptions=["mock_description"],
+        )
+        self.flag_list.add_flag(flag=mock_flags)
+        self.assertEqual("mock_name", self.flag_list.flag_names[-1])
+        self.assertEqual("mock_description", self.flag_list.flag_descriptions[-1])
+
+    def test_add_flag_when_flag_list_has_more_than_one_flag_expect_raise(self):
+        mock_flags = FlagList(
+            flags=[
+                FlagElement(array=np.zeros((3, 3, 3))),
+                FlagElement(array=np.zeros((3, 3, 3))),
+            ]
+        )
+        self.assertRaises(ValueError, self.flag_list.add_flag, flag=mock_flags)
 
     def test_remove_flag(self):
         flag_list = FlagList(

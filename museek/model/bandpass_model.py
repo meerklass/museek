@@ -203,8 +203,7 @@ class BandpassModel:
             parameters=parameters, n_legendre_coefficients=n_legendre_coefficients
         )
         parameter_dict = {
-            f"l_{i}": leg_coeff
-            for i, leg_coeff in enumerate(parameters[:n_legendre_coefficients])
+            f"l_{i}": l for i, l in enumerate(parameters[:n_legendre_coefficients])
         }
         for i, w in enumerate(self.wavelengths):
             parameter_dict[f"wavelength_{w}_phase"] = parameters[

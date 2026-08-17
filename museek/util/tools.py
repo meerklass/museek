@@ -110,6 +110,8 @@ def flag_percent_recv(data: TimeOrderedData):
     """
     return the flag percent for each receiver
     """
+    if len(data.flags) == 0:
+        return [str(r) for r in data.receivers], [0.0] * len(data.receivers)
     flag_percent = []
     receivers_list = []
     for i_receiver, receiver in enumerate(data.receivers):
@@ -499,9 +501,7 @@ def point_sources_coordinate(
     the ra, dec, and flux of the selected point sources
     """
 
-    ps_info = np.genfromtxt(
-        point_source_file_path + "/1jy_scat-V0_new.txt", delimiter="|"
-    )
+    ps_info = np.genfromtxt(point_source_file_path + "/1jy_cat.txt", delimiter="|")
     ra_sources = ps_info[:, 1]
     dec_sources = ps_info[:, 2]
     flux_sources = ps_info[:, 3]
@@ -590,7 +590,7 @@ def point_source_flagger(
     return mask_point_source
 
 
-def remove_outliers_zscore_mad(data, mask, threshold=3.5):
+def remove_outliers_zscore_mad(data, mask, threshold=3.5, max_masked_fraction=0.6):
     """
     Removes outliers from the data based on the Median Absolute Deviation (MAD) method.
 
@@ -600,6 +600,9 @@ def remove_outliers_zscore_mad(data, mask, threshold=3.5):
     threshold (float): The threshold in terms of modified Z-score based on MAD.
                        Data points with a modified Z-score greater than this threshold
                        will be considered outliers.
+    max_masked_fraction (float): If, *after* outlier removal, more than this fraction of the
+                       points are masked, the entire array is masked. Set to 1.0 (or above) to
+                       disable this final cut.
 
     Returns:
     array-like: Updated mask where outliers are also masked.
@@ -607,25 +610,28 @@ def remove_outliers_zscore_mad(data, mask, threshold=3.5):
     # Make a copy of the mask to avoid modifying the original
     initial_mask = mask.copy()
 
-    # Mask the entire data if more than 60% of data points are already masked
-    if np.mean(mask) > 0.6:
-        initial_mask[:] = True
-    else:
+    # Outlier detection on the currently-unmasked points (skip if none remain)
+    unmasked = ~mask
+    if np.any(unmasked):
         # Calculate the median of the unmasked data
-        median = np.median(data[~mask])
+        median = np.median(data[unmasked])
 
         # Calculate the MAD of the unmasked data
-        mad = np.median(np.abs(data[~mask] - median))
+        mad = np.median(np.abs(data[unmasked] - median))
 
         # Avoid division by zero; if MAD is zero, use a small constant
         if mad == 0:
             mad = 1e-10
 
         # Compute modified Z-scores using MAD
-        modified_z_scores = np.abs((data[~mask] - median) / mad)
+        modified_z_scores = np.abs((data[unmasked] - median) / mad)
 
         # Mask data points where modified Z-score exceeds the threshold
-        initial_mask[~mask] |= modified_z_scores > threshold
+        initial_mask[unmasked] |= modified_z_scores > threshold
+
+    # If, after outlier removal, more than `max_masked_fraction` is masked, mask everything.
+    if np.mean(initial_mask) > max_masked_fraction:
+        initial_mask[:] = True
 
     return initial_mask
 

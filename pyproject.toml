@@ -37,6 +37,8 @@ dependencies = [
     "pysm3",
     "matplotlib",
     "papermill",
+    "mpmath",   # used by the vendored limtod flicker_model (sim_noise); joblib for the
+                # vendored simeer comes in transitively via ivory's parallel-plugin base
     "ivory @ git+https://github.com/meerklass/ivory.git",
     "xarray[complete]>=2025.6.1",
     "jupyterlab>=4.6.2",
@@ -59,11 +61,18 @@ museek = "museek.cli.main:main"
 museek_run_process_uhf_band = "museek.cli.run_process_uhf_band:main"
 museek_run_notebook = "museek.cli.run_notebook:main"
 
-[tool.setuptools]
-packages = ["museek"]
+[tool.setuptools.packages.find]
+include = ["museek*"]
 
 [tool.setuptools.package-data]
-museek = ["notebooks/*.ipynb", "notebooks/*.md"]
+museek = [
+    "notebooks/*.ipynb",
+    "notebooks/*.md",
+    # ship the vendored third-party license/notice files (see museek/external/)
+    "external/README.md",
+    "external/simeer/LICENSE",
+    "external/limtod/LICENSE",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
@@ -81,6 +90,7 @@ extend-exclude = [
     "cache",
     ".eggs",
     "*.egg-info",
+    "museek/external",   # vendored third-party code, kept verbatim for re-syncing
 ]
 
 [tool.ruff.lint]

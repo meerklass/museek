@@ -1,6 +1,6 @@
 import itertools
 import unittest
-from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import numpy as np
 
@@ -82,10 +82,11 @@ class TestTimeOrderedData(unittest.TestCase):
             scan_state=mock_scan_state, data=mock_data
         )
 
+    @patch.object(FlagList, "add_flag")
     @patch.object(FlagList, "from_array")
     @patch.object(TimeOrderedData, "_visibility_flags_weights")
     def test_load_visibility_flag_weights(
-        self, mock_visibility_flags_weights, mock_from_array
+        self, mock_visibility_flags_weights, mock_from_array, mock_add_flag
     ):
         mock_visibility, mock_flags, mock_weights = Mock(), Mock(), Mock()
         mock_visibility_flags_weights.return_value = (
@@ -98,11 +99,13 @@ class TestTimeOrderedData(unittest.TestCase):
             array=mock_flags,
             element_factory=self.mock_get_flag_element_factory.return_value,
         )
+        mock_add_flag.assert_called_once_with(
+            mock_from_array.return_value, name="SARAO"
+        )
         self.assertEqual(
             self.time_ordered_data.visibility,
             self.mock_get_data_element_factory.return_value.create.return_value,
         )
-        self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
         self.assertEqual(
             self.time_ordered_data.weights,
             self.mock_get_data_element_factory.return_value.create.return_value,
@@ -119,10 +122,11 @@ class TestTimeOrderedData(unittest.TestCase):
         self.assertEqual(self.time_ordered_data.flags, 1)
         self.assertEqual(self.time_ordered_data.weights, 1)
 
+    @patch.object(FlagList, "add_flag")
     @patch.object(FlagList, "from_array")
     @patch.object(TimeOrderedData, "_visibility_flags_weights")
     def test_delete_visibility_flags_weights(
-        self, mock_visibility_flags_weights, mock_from_array
+        self, mock_visibility_flags_weights, mock_from_array, mock_add_flag
     ):
         mock_visibility, mock_flags, mock_weights = Mock(), Mock(), Mock()
         mock_visibility_flags_weights.return_value = (
@@ -135,18 +139,20 @@ class TestTimeOrderedData(unittest.TestCase):
             array=mock_flags,
             element_factory=self.mock_get_flag_element_factory.return_value,
         )
+        mock_add_flag.assert_called_once_with(
+            mock_from_array.return_value, name="SARAO"
+        )
         self.assertEqual(
             self.time_ordered_data.visibility,
             self.mock_get_data_element_factory.return_value.create.return_value,
         )
-        self.assertEqual(self.time_ordered_data.flags, mock_from_array.return_value)
         self.assertEqual(
             self.time_ordered_data.weights,
             self.mock_get_data_element_factory.return_value.create.return_value,
         )
         self.time_ordered_data.delete_visibility_flags_weights(polars="auto")
         self.assertIsNone(self.time_ordered_data.visibility)
-        self.assertIsNone(self.time_ordered_data.flags)
+        self.assertEqual(self.time_ordered_data.flags, FlagList(flags=[]))
         self.assertIsNone(self.time_ordered_data.weights)
 
     def test_antenna(self):
@@ -235,33 +241,6 @@ class TestTimeOrderedData(unittest.TestCase):
             [], self.time_ordered_data.receiver_indices_of_antenna(antenna=mock_antenna)
         )
 
-    def test_set_gain_solution(self):
-        mock_gain_solution_array = MagicMock()
-        mock_gain_solution_mask_array = MagicMock()
-        mock_flags = MagicMock()
-        self.time_ordered_data.flags = mock_flags
-        self.time_ordered_data.set_gain_solution(
-            gain_solution_array=mock_gain_solution_array,
-            gain_solution_mask_array=mock_gain_solution_mask_array,
-        )
-        self.assertEqual(
-            [
-                call(array=mock_gain_solution_array),
-                call(array=mock_gain_solution_mask_array),
-            ],
-            self.mock_get_data_element_factory.return_value.create.call_args_list[-2:],
-        )
-        self.assertIsNotNone(self.time_ordered_data.gain_solution)
-        mock_flags.add_flag.assert_called_once()
-
-    def test_corrected_visibility_when_no_gain_solution_expect_none(self):
-        self.assertIsNone(self.time_ordered_data.corrected_visibility())
-
-    def test_corrected_visibility(self):
-        self.time_ordered_data.visibility = 2
-        self.time_ordered_data.gain_solution = 3
-        self.assertEqual(2 / 3, self.time_ordered_data.corrected_visibility())
-
     def test_set_data_elements_from_katdal(self):
         mock_scan_state = Mock()
         mock_data = MagicMock()
@@ -302,7 +281,9 @@ class TestTimeOrderedData(unittest.TestCase):
     def test_set_data_elements_from_self(self, mock_from_array):
         mock_scan_state = Mock()
         self.time_ordered_data.visibility = Mock(array=1)
-        self.time_ordered_data.flags = Mock(array=1)
+        mock_flags = MagicMock(array=1)
+        mock_flags.__len__.return_value = 1
+        self.time_ordered_data.flags = mock_flags
         self.time_ordered_data.weights = Mock(array=1)
         self.time_ordered_data._set_data_elements_from_self(scan_state=mock_scan_state)
         self.assertEqual(self.time_ordered_data.scan_state, mock_scan_state)
@@ -431,7 +412,10 @@ class TestTimeOrderedData(unittest.TestCase):
 
     @patch("museek.time_ordered_data.DaskLazyIndexer")
     def test_load_visibility(self, mock_dask_lazy_indexer):
-        self.time_ordered_data.shape = (1, 1, 1)
+        self.mock_katdal_data.shape = (1, 1, 1)
+        self.mock_katdal_data.vis.dtype.itemsize = 16
+        self.mock_katdal_data.flags.dtype.itemsize = 1
+        self.mock_katdal_data.weights.dtype.itemsize = 8
         visibility, flags, weights = self.time_ordered_data._load_visibility(
             data=self.mock_katdal_data
         )

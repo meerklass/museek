@@ -114,7 +114,6 @@ class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-        track_data.load_visibility_flags_weights(polars="auto")
         initial_flags = track_data.flags.combine(
             threshold=self.flag_combination_threshold
         )
@@ -251,7 +250,8 @@ class AoflaggerTrackingPlugin(AbstractParallelJoblibPlugin):
         track_data.flags.add_flag(
             flag=FlagList.from_array(
                 array=result_list, element_factory=self.data_element_factory
-            )
+            ),
+            name="aoflagger_tracking_flag",
         )
 
         branch, commit = git_version_info()

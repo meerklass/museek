@@ -23,7 +23,7 @@ from museek.util.tools import (
 
 
 class GainCalibrationPlugin(AbstractPlugin):
-    """Plugin to calibrtion the gain using synchrotron produced from pysm3"""
+    """Plugin to calibrate the gain using synchrotron produced from pysm3"""
 
     def __init__(
         self,
@@ -130,8 +130,6 @@ class GainCalibrationPlugin(AbstractPlugin):
         :param flag_report_writer: report of the flag info
         """
 
-        ########  load the visibility  ###########
-        scan_data.load_visibility_flags_weights(polars="auto")
         initial_flags = scan_data.flags.combine(
             threshold=self.flag_combination_threshold
         )

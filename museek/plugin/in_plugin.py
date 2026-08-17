@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -26,6 +27,10 @@ class InPlugin(AbstractPlugin):
         do_save_visibility_to_disc: bool,
         do_store_context: bool,
         context_folder: str | None,
+        load_visibilities_auto: bool = True,
+        load_visibilities_cross: bool = False,
+        cache_folder: str | None = None,
+        suppress_katpoint_warnings: bool = True,
     ):
         """
         Initialise the plugin.
@@ -40,6 +45,10 @@ class InPlugin(AbstractPlugin):
                                  if `True` it is recommended to also have `do_save_visibility_to_disc` set to `True`
         :param context_folder: the context is stored to this directory after finishing the plugin, if `None`, a
                                   default directory is chosen
+        :param load_visibilities_auto: if `True` auto-correlation visibilities are loaded immediately
+        :param load_visibilities_cross: if `True` cross-correlation visibilities are loaded immediately
+        :param cache_folder: directory to store and read cache files; defaults to `ROOT_DIR/cache`
+        :param suppress_katpoint_warnings: if `True` katpoint catalogue warnings are suppressed
         """
         super().__init__()
         self.block_name = block_name
@@ -52,6 +61,10 @@ class InPlugin(AbstractPlugin):
         )
         self.do_save_visibility_to_disc = do_save_visibility_to_disc
         self.do_store_context = do_store_context
+        self.load_visibilities_auto = load_visibilities_auto
+        self.load_visibilities_cross = load_visibilities_cross
+        self.cache_folder = cache_folder
+        self.suppress_katpoint_warnings = suppress_katpoint_warnings
         self.report_file_name = "flag_report.md"
 
         self.context_folder = context_folder
@@ -65,9 +78,11 @@ class InPlugin(AbstractPlugin):
 
     def run(self):
         """
-        Loads the complete data and the scanning part as `TimeOrderedData` and sets it as a result.
-        Depending on the config, will store the context to hard disc with visibility loaded.
+        Loads the complete data as `TimeOrderedData` and sets it as a result.
         """
+        if self.suppress_katpoint_warnings:
+            logging.getLogger("katpoint.catalogue").setLevel(logging.ERROR)
+
         receivers = None
         if self.receiver_list is not None:
             receivers = [
@@ -82,7 +97,19 @@ class InPlugin(AbstractPlugin):
             force_load_auto_from_correlator_data=self.force_load_auto_from_correlator_data,
             force_load_cross_from_correlator_data=self.force_load_cross_from_correlator_data,
             do_create_cache=self.do_save_visibility_to_disc,
+            cache_folder=self.cache_folder,
         )
+
+        print(
+            f"Processing {len(data.receivers)} receivers: {[str(r) for r in data.receivers]}"
+        )
+
+        if self.load_visibilities_auto:
+            print("Loading auto-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="auto")
+        if self.load_visibilities_cross:
+            print("Loading cross-correlation visibilities...")
+            data.load_visibility_flags_weights(polars="cross")
 
         # observation date from file name
         observation_date = datetime.fromtimestamp(int(data.name.split("_")[0]))
@@ -96,8 +123,6 @@ class InPlugin(AbstractPlugin):
             plugin_name=self.name,
         )
 
-        flag_name_list = ["SARAO"]
-
         branch, commit = git_version_info()
         current_datetime = datetime.now()
         lines = [
@@ -108,10 +133,6 @@ class InPlugin(AbstractPlugin):
         flag_report_writer.write_to_report(lines)
 
         if self.do_store_context:
-            # to create cache file
-            data.load_visibility_flags_weights(polars="auto")
-            data.delete_visibility_flags_weights(polars="auto")
-
             context_file_name = "in_plugin.pickle"
             self.store_context_to_disc(
                 context_file_name=context_file_name, context_directory=context_directory
@@ -134,9 +155,6 @@ class InPlugin(AbstractPlugin):
         )
         self.set_result(
             result=Result(location=ResultEnum.OUTPUT_PATH, result=context_directory)
-        )
-        self.set_result(
-            result=Result(location=ResultEnum.FLAG_NAME_LIST, result=flag_name_list)
         )
 
     def check_context_folder_exists(self):

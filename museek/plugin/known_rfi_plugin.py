@@ -26,6 +26,7 @@ class KnownRfiPlugin(AbstractPlugin):
         gsm_1800_uplink: tuple[float, float] | None,
         gps: tuple[float, float] | None,
         extra_rfi: list[tuple[float, float]] | None = None,
+        verbose: int = 0,
     ):
         """
         Initialise the plugin
@@ -34,8 +35,10 @@ class KnownRfiPlugin(AbstractPlugin):
         :param gsm_1800_uplink: optional lower and upper frequency [MHz] limits, usually `(1710, 1785)`
         :param gps: optional lower and upper frequency [MHz] limits, usually `(1170, 1390)`
         :param extra_rfi: optional `list` of extra rfi frequency [MHz] limit tuples
+        :param verbose: if non-zero, diagnostic plots are saved to disc
         """
         super().__init__()
+        self.verbose = verbose
         rfi_list = [gsm_900_uplink, gsm_900_downlink, gsm_1800_uplink, gps]
         if extra_rfi is not None:
             rfi_list.extend(extra_rfi)
@@ -51,7 +54,6 @@ class KnownRfiPlugin(AbstractPlugin):
             Requirement(
                 location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
             ),
-            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable="flag_name_list"),
         ]
 
     def run(
@@ -59,17 +61,14 @@ class KnownRfiPlugin(AbstractPlugin):
         data: TimeOrderedData,
         flag_report_writer: ReportWriter,
         output_path: str,
-        flag_name_list: list,
     ):
         """
         Flag all channels defined by `self.rfi_list` and save the result to the context.
         :param data: time ordered data of the entire block
         :param flag_report_writer: report of the flag
         :param output_path: path to store results
-        :param flag_name_list: list of the name of existing flags
         """
         mega = 1e6
-        data.load_visibility_flags_weights(polars="auto")
         new_flag = np.zeros(data.shape, dtype=bool)
         for channel, frequency in enumerate(data.frequencies.squeeze):
             for rfi_tuple in self.rfi_list:
@@ -79,18 +78,11 @@ class KnownRfiPlugin(AbstractPlugin):
         data.flags.add_flag(
             flag=FlagList.from_array(
                 array=new_flag, element_factory=self.data_element_factory
-            )
+            ),
+            name="known_rfi",
         )
-        flag_name_list.append("known_rfi")
         self.set_result(
             result=Result(location=ResultEnum.DATA, result=data, allow_overwrite=True)
-        )
-        self.set_result(
-            result=Result(
-                location=ResultEnum.FLAG_NAME_LIST,
-                result=flag_name_list,
-                allow_overwrite=True,
-            )
         )
         self.set_result(
             result=Result(
@@ -111,9 +103,12 @@ class KnownRfiPlugin(AbstractPlugin):
         ] + [f"{x}  {y}" for x, y in zip(receivers_list, flag_percent)]
         flag_report_writer.write_to_report(lines)
 
-        waterfall(data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar")
-        plt.savefig(
-            os.path.join(output_path, "known_rfi_plugin_result_receiver_0.png"),
-            dpi=1000,
-        )
-        plt.close()
+        if self.verbose:
+            waterfall(
+                data.visibility.get(recv=0), data.flags.get(recv=0), cmap="gist_ncar"
+            )
+            plt.savefig(
+                os.path.join(output_path, "known_rfi_plugin_result_receiver_0.png"),
+                dpi=1000,
+            )
+            plt.close()

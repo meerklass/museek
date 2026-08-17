@@ -96,7 +96,6 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param output_path: path to store results
         :param block_name: name of the data block, not used here but for setting results
         """
-        scan_data.load_visibility_flags_weights(polars="cross")
         initial_flags_cross = scan_data.flags_cross.combine(
             threshold=self.flag_combination_threshold
         )
@@ -172,7 +171,7 @@ class AoflaggerCrossPlugin(AbstractParallelJoblibPlugin):
         :param block_name: name of the observation block
         """
         new_flag = FlagFactory().from_list_of_receiver_flags(list_=result_list)
-        scan_data.flags_cross.add_flag(flag=new_flag)
+        scan_data.flags_cross.add_flag(flag=new_flag, name="aoflagger_cross")
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()

@@ -63,23 +63,19 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
             Requirement(
                 location=ResultEnum.FLAG_REPORT_WRITER, variable="flag_report_writer"
             ),
-            Requirement(location=ResultEnum.FLAG_NAME_LIST, variable="flag_name_list"),
         ]
 
     def map(
         self,
         scan_data: TimeOrderedData,
         flag_report_writer: ReportWriter,
-        flag_name_list: list,
     ) -> Generator[tuple[np.ndarray, np.ndarray, np.ndarray, tuple], None, None]:
         """
         Yield a `tuple` of the scanning visibility data for one receiver and the initial flags for one receiver.
         :param scan_data: time ordered data containing the scanning part of the observation
         :param flag_report_writer: report of the flag
-        :param flag_name_list: list of the name of existing flags
         """
 
-        scan_data.load_visibility_flags_weights(polars="auto")
         initial_flags = scan_data.flags.combine(
             threshold=self.flag_combination_threshold
         )
@@ -221,14 +217,12 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
         result_list: list[np.ndarray],
         scan_data: TimeOrderedData,
         flag_report_writer: ReportWriter,
-        flag_name_list: list,
     ):
         """
         Combine the masks in `result_list` into a new flag and set that as a result.
         :param result_list: `list` of `FlagElement`s created from the RFI flagging
         :param scan_data: `TimeOrderedData` containing the scanning part of the observation
         :param flag_report_writer: report of the flag
-        :param flag_name_list: list of the name of existing flags
         """
 
         noise_on_index = np.array(result_list[0][1])
@@ -297,8 +291,7 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
                 flag=DataElement(array=flag_array), i_receiver=i_receiver, index=0
             )
 
-        scan_data.flags.add_flag(flag=new_flag)
-        flag_name_list.append("noise_diode_bad_behavior")
+        scan_data.flags.add_flag(flag=new_flag, name="noise_diode_bad_behavior")
 
         branch, commit = git_version_info()
         current_datetime = datetime.datetime.now()
@@ -334,13 +327,6 @@ class NoiseDiodePlugin(AbstractParallelJoblibPlugin):
             result=Result(
                 location=ResultEnum.NOISE_ON_TIMESTAMP,
                 result=noise_on_timestamp,
-                allow_overwrite=True,
-            )
-        )
-        self.set_result(
-            result=Result(
-                location=ResultEnum.FLAG_NAME_LIST,
-                result=flag_name_list,
                 allow_overwrite=True,
             )
         )
