@@ -7,8 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* `PointSourceCalibrationPlugin` — point-source gain calibration, with a `gain_method` parameter to select the solution method
+* `SimulateScanPlugin` — in-pipeline simulation of scan data across all signal components, for receivers m001/m007/m014/m021/m028
+* `ReadCalibratorGainsPlugin` — reads calibrator gain solutions and applies them to `scan_data`, with per-file calibrator period selection
+* `NoiseDiodeSignalPlugin` and `NoiseDiodeExcessPlugin` — noise-diode signal injection and excess characterisation
+* New models in `museek/model/`: `synchrotron_temperature.py`, `spillover_temperature.py`, `receiver_temperature.py`, plus tabulated model inputs (noise-diode, receiver and spillover tables) and reference/diagnostic plots
+* New config files: `museek/config/point_source_cal.py`, `museek/config/simulate_scan.py`
+* New helpers: `museek/util/beam_io.py`, `museek/util/resource_config.py`
+* Notebooks: `inspect_point_source_calibration.ipynb`, `inspect_simulated_scan.ipynb`, `inspect_noise_diode_excess.ipynb`, `check_raw.ipynb`
+* Vendored the used parts of `simeer` and `limTOD` into `museek.external` (retaining their upstream LICENSE files) ([#238](https://github.com/meerklass/museek/pull/238))
+
 ### Changed
 
+* Adopted the standard `src/` layout: the `museek` package now lives at `src/museek/` (was `museek/` at the repository root)
+* Renamed `test/` directory to `tests/`
+* `museek.definitions` now exposes both `ROOT_DIR` (true repository root, used for `cache/`/`results/` output) and `PACKAGE_DIR` (the `museek` package directory, used for in-package model/catalog data lookups); previously a single `ROOT_DIR` served both purposes
+* Gain moved out of `TimeOrderedData` into a `CALIBRATOR_GAIN` result ([#238](https://github.com/meerklass/museek/pull/238))
+
+### Removed
+
+* Retired plugins (any config referencing them will need updating): `apply_external_gain_solution_plugin.py`, `single_dish_calibrator_plugin.py`, `out_plugin.py`, `zebra_remover_plugin.py`, `standing_wave_fit_plugin.py`, `standing_wave_fit_scan_plugin.py`, `standing_wave_correction_plugin.py`, `museek/config/process_data_from_context.py`
+* Dropped the redundant `joblib` dependency (provided transitively by ivory)
+
+## [0.6.2] - 2026-08-17
+
+### Added
+
+* Observer notebook template rewritten to use `xarray` as the intermediate data container, standardising the pickled data format and reducing memory usage; the notebook now runs with 64GB of memory ([#235](https://github.com/meerklass/museek/pull/235))
+* `combine_flags` and `select_and_flag` notebook helper functions
+* Automated rise/set detection with anchored text placement in observer notebook plots
+* `extra_analysis` parameter and section in the observer notebook; plot functions now return `fig, axes`
+* `catalog_dir` exposed as a configurable notebook parameter
+* `jupyterlab` added as a dependency
+* CI now uses `uv` for the build workflow, shortening test time ([#237](https://github.com/meerklass/museek/issues/237))
+
+### Changed
+
+* Renamed the `polarisations` dimension to `stokes` in xarray datasets used by the observer notebook
+* Renamed `plot_calibrated_vs_synch` to `plot_calibrated_sky_vs_synch`
 * `museek_run_notebook` CLI options renamed for consistency:
   * `--box` / `-x` → `--patch` / `-p` to match UHF processor naming convention
   * `--base-data-path` / `-d` → `--base-context-folder` / `-c` to clarify this is the input context directory
@@ -18,6 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `--data-folder` / `-d` → `--raw-data-folder` / `-d` to clarify this points to raw observation data
   * Context output structure remains `<base-context-folder>/<patch>/<block-name>/context`
 * Removed redundant `data_path` parameter from notebook script generator; now derived internally from `base-context-folder`, `patch`, and `block-name`
+
+### Fixed
+
+* Fixed unwrapped RA going negative in the observer notebook
+* Fixed `extra_attrs` not being added when opening a dataset from cache
+* Fixed `ValueError` raised in the waterfall plot under extra analysis
+* Fixed CI failures caused by GitHub's deprecation of Node.js 20 by switching the build workflow to `uv` ([#236](https://github.com/meerklass/museek/issues/236))
 
 ## [0.6.1] - 2026-05-14
 
