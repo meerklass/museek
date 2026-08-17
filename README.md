@@ -157,11 +157,11 @@ The following sections describe how they work.
 
 ## Running A Pipeline
 
-A MuSEEK pipeline usually consits of several plugins defined in the [museek/plugin](museek/plugin/).
+A MuSEEK pipeline usually consits of several plugins defined in the [src/museek/plugin](src/museek/plugin/).
 
 Running a pipeline requires a configuration file, which define the order of the plugins to run and their parameters.
 
-The configuration files must be in [museek/config](museek/config/) path of this package. These configuration files will likely need to be edited (and thus the reason that the package should be installed with `--editable` flag).
+The configuration files must be in [src/museek/config](src/museek/config/) path of this package. These configuration files will likely need to be edited (and thus the reason that the package should be installed with `--editable` flag).
 
 Several pipeline have been defined. Notably, there is one for a demo purpose, and ones for L band and UHF band data processing.
 
@@ -171,7 +171,7 @@ Pipelines are run with the [Ivory](https://github.com/meerklass/ivory) workflow 
 
 To run a pipeline on your local machine or a compute/Jupyter node on ilifu, the `museek` command can be simply executed, providing a relative path to the configuration file within MuSEEK directory.
 
-For example, to run the Demo pipeline defined in `museek/museek/config/demo.py`, execute the following command,
+For example, to run the Demo pipeline defined in `museek/src/museek/config/demo.py`, execute the following command,
 
 ```python
 museek museek.config.demo
@@ -320,7 +320,7 @@ A pipeline is defined by its configuration file, which is technically a Python m
 
 One instance should be called `Pipeline`, which defines the entire pipeline, i.e. the order of the plugins to run. Other instances need to be named to the plugins they belong to. The workflow manager will hand over the correct configuration parameters to each plugin.
 
-For example, the configuration file for the Demo pipeline ([museek/config/demo.py](museek/config/demo.py)) looks like the following,
+For example, the configuration file for the Demo pipeline ([src/museek/config/demo.py](src/museek/config/demo.py)) looks like the following,
 
 ```python
 from ivory.utils.config_section import ConfigSection

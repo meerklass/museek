@@ -62,6 +62,7 @@ museek_run_process_uhf_band = "museek.cli.run_process_uhf_band:main"
 museek_run_notebook = "museek.cli.run_notebook:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["museek*"]
 
 [tool.setuptools.package-data]
@@ -75,7 +76,7 @@ museek = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -90,7 +91,7 @@ extend-exclude = [
     "cache",
     ".eggs",
     "*.egg-info",
-    "museek/external",   # vendored third-party code, kept verbatim for re-syncing
+    "src/museek/external",   # vendored third-party code, kept verbatim for re-syncing
 ]
 
 [tool.ruff.lint]

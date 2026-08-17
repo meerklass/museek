@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 
-ROOT_DIR = str(Path(__file__).resolve().parent.parent)  # This is your Project Root
+PACKAGE_DIR = str(Path(__file__).resolve().parent)  # museek package directory
+ROOT_DIR = str(
+    Path(__file__).resolve().parent.parent.parent
+)  # This is your Project Root
 KILO = 1e3
 MEGA = 1e6
 GIGA = 1e9

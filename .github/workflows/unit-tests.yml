@@ -31,4 +31,4 @@ jobs:
 
     - name: Test with pytest and generate coverage
       run: |
-        uv run pytest test/ -v --tb=short --cov=museek --cov-report=term --cov-report=html
+        uv run pytest tests/ -v --tb=short --cov=museek --cov-report=term --cov-report=html

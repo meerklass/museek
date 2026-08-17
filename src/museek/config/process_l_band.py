@@ -2,7 +2,7 @@ import os
 
 from ivory.utils.config_section import ConfigSection
 
-from museek.definitions import ROOT_DIR
+from museek.definitions import PACKAGE_DIR
 
 Pipeline = ConfigSection(
     plugins=[
@@ -54,9 +54,7 @@ AntennaFlaggerPlugin = ConfigSection(
 )
 
 PointSourceFlaggerPlugin = ConfigSection(
-    point_source_file_path=os.path.join(
-        ROOT_DIR, "museek/model/radio_point_sources.txt"
-    ),
+    point_source_file_path=os.path.join(PACKAGE_DIR, "model/radio_point_sources.txt"),
     angle_threshold=0.5,
 )
 
