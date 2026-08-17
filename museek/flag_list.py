@@ -108,7 +108,7 @@ class FlagList:
         :param description: optional longer description of what this flag represents
         """
         if isinstance(flag, FlagList):
-            if flag_len := len(flag) > 1:
+            if (flag_len := len(flag)) > 1:
                 raise ValueError(
                     f"Adding more than one flag at once is not implemented yet. Got {flag_len} flags."
                 )
@@ -125,7 +125,9 @@ class FlagList:
     def remove_flag(self, index: int):
         """Remove `flag` at `index` in `self.flags`."""
         self._flags = [flag for i, flag in enumerate(self._flags) if i != index]
-        self._flag_names = [name for i, name in enumerate(self._flag_names) if i != index]
+        self._flag_names = [
+            name for i, name in enumerate(self._flag_names) if i != index
+        ]
         self._flag_descriptions = [
             desc for i, desc in enumerate(self._flag_descriptions) if i != index
         ]
