@@ -30,6 +30,7 @@ The development is coordinated on [GitHub](https://github.com/meerklass/museek) 
     - [Configuration File](#configuration-file)
     - [Plugins](#plugins)
     - [Available Plugins](#available-plugins)
+    - [Flags](#flags)
 - [Notebooks](#notebooks)
     - [Running the Notebook with Jupyter](#running-the-notebook-with-jupyter)
     - [Running the Notebook with Papermill](#running-the-notebook-with-papermill)
@@ -399,6 +400,32 @@ More information on these are included in their class documentations.
 14. `AoflaggerPostCalibrationPlugin`
 15. `SanityCheckObservationPlugin`
 16. other plugins for 'calibrator', 'zebra', and 'standing wave', but they are not finished
+
+### Flags
+
+Several plugins in the pipeline produce data-quality flags, which end up as boolean `raw_flags_<name>` and `cal_flags_<name>` variables in the datasets loaded by the notebooks (see `museek.util.notebook_helper.load_context_to_ds`). Below is a summary of what each flag detects, in pipeline execution order.
+
+**Raw flags** (`raw_flags_<name>`, produced before calibration). `raw_flags_combined` is the OR of all of these except `point_source`, which is a calibration-time prior rather than a persistent data-quality flag:
+
+- `SARAO`: RFI/data-quality flags already embedded in the SARAO archive data itself (`InPlugin`, loaded as-is, not computed by MuSEEK).
+- `noise_diode_on`: timestamps where the calibration noise diode is firing, or in its on/off transition (`NoiseDiodeFlaggerPlugin`).
+- `known_rfi`: frequency channels within pre-defined, catalogued terrestrial RFI bands (e.g. GSM/GPS), flagged for the whole observation regardless of the data (`KnownRfiPlugin`).
+- `rawdata_low_value`: raw visibility samples below a configured minimum threshold, indicating receiver dropouts or invalid correlator readings (`RawdataFlaggerPlugin`).
+- `point_source`: samples where the beam points at or near a known bright point source; used as a prior mask by `AoflaggerPlugin` (`PointSourceFlaggerPlugin`).
+- `aoflagger`: RFI detected by AOFlagger's SumThreshold algorithm run on the raw visibility, per receiver (`AoflaggerPlugin`).
+- `aoflagger_secondrun`: a second AOFlagger pass run on the time-averaged flagged-fraction spectrum, catching channels already heavily flagged (`AoflaggerSecondRunPlugin`).
+- `elevation_flag`: per-antenna timestamps where elevation deviates too far from that antenna's median (mispointing/slew); antennas with unstable elevation or too high a flagged fraction are flagged entirely (`AntennaFlaggerPlugin`).
+- `outlier_antenna_flag`: at each timestamp, antennas whose pointing is a statistical outlier relative to the rest of the array (`AntennaFlaggerPlugin`).
+- `noise_diode_bad_behavior`: antennas/receivers whose noise-diode excess signal is poorly fit over time, an outlier in fit residuals, or too low to trust for diode-based calibration (`NoiseDiodePlugin`).
+
+**Calibrated flags** (`cal_flags_<name>`, applied to `cal_vis`, produced by `AoflaggerPostCalibrationPlugin`). `cal_flags_combined` is the final mask actually applied to the calibrated visibility, i.e. the OR of all of the below:
+
+- `HH_VV_combined`: cellphone-band RFI (GSM/GPS) masking applied at the calibrated-data stage, combined with the mask carried forward from raw flagging.
+- `temp_outlier_flag`: antennas whose median calibrated temperature is a statistical outlier relative to the other antennas.
+- `temp_fluctuation_flag`: antennas whose calibrated temperature standard deviation is a statistical outlier (unusually noisy/unstable gain).
+- `polynomial_fit_flag`: per-timestamp frequency-domain outliers relative to a low-order polynomial fit of the time-median-subtracted spectrum.
+- `synch_correlation_flag`: antennas whose calibrated sky map correlates poorly with a synchrotron sky model, indicating a bad or miscalibrated antenna.
+- `freq_flaggedfraction_flag`: frequency channels flagged in full because their already-flagged fraction (across good antennas/times) exceeds a threshold.
 
 
 ## Notebooks

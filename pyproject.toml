@@ -38,6 +38,8 @@ dependencies = [
     "matplotlib",
     "papermill",
     "ivory @ git+https://github.com/meerklass/ivory.git",
+    "xarray[complete]>=2025.6.1",
+    "jupyterlab>=4.6.2",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -46,17 +48,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Astronomy",
-]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=7.1.3",
-    "pytest-cov>=4.0.0",
-    "ruff>=0.6.9",
-]
-dev = [
-    "pre-commit>=3.0",
-    "ruff>=0.6.9",
 ]
 
 [project.urls]
@@ -127,3 +118,11 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 docstring-code-format = true
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.20",
+]
