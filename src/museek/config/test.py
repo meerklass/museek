@@ -4,6 +4,4 @@ Pipeline = ConfigSection(
     plugins=["museek.plugin.test.test_plugin", "museek.plugin.test.test_plugin"],
 )
 
-TestPlugin = ConfigSection(testvar=1)
-
-TestPlugin2 = ConfigSection(testvar=2)
+DummyPlugin = ConfigSection(testvar=1)

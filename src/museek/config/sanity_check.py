@@ -3,7 +3,6 @@ from ivory.utils.config_section import ConfigSection
 Pipeline = ConfigSection(
     plugins=[
         "museek.plugin.in_plugin",
-        "museek.plugin.out_plugin",
         "museek.plugin.scan_track_split_plugin",
         "museek.plugin.sanity_check_observation_plugin",
     ]
@@ -19,9 +18,10 @@ InPlugin = ConfigSection(
     do_save_visibility_to_disc=False,  # if `True`, the extracted visibilities, flags and weights are stored to disc for quicker access
     do_store_context=False,
     context_folder=None,  # base directory to store results, if `None`, './results/' is chosen
+    load_visibilities_auto=False,
+    load_visibilities_cross=False,
+    cache_folder=None,
 )
-
-OutPlugin = ConfigSection()
 
 ScanTrackSplitPlugin = ConfigSection(
     do_delete_unsplit_data=False, do_store_context=False
