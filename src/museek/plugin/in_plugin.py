@@ -47,7 +47,8 @@ class InPlugin(AbstractPlugin):
                                   default directory is chosen
         :param load_visibilities_auto: if `True` auto-correlation visibilities are loaded immediately
         :param load_visibilities_cross: if `True` cross-correlation visibilities are loaded immediately
-        :param cache_folder: directory to store and read cache files; defaults to `ROOT_DIR/cache`
+        :param cache_folder: directory to store and read cache files; defaults to `get_cache_dir()`
+                             (`ROOT_DIR/cache` if writable, else `MUSEEK_CACHE_DIR`, else the XDG cache dir)
         :param suppress_katpoint_warnings: if `True` katpoint catalogue warnings are suppressed
         """
         super().__init__()

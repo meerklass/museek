@@ -620,10 +620,11 @@ def load_context_to_ds(
     # Extract raw flags, avoiding the expensive FlagList.array class property, which
     # constructs 4D array, by instead accessing individual FlagElement objects.
     flag_elements = scan_data.flags._flags
-    # The flag names are stored as a list of strings in FLAG_NAME_LIST enum with order
-    # matching the order of the FlagElement objects in flag_elements.
-    # TODO: FLAG_NAME_LIST will be deprecated once point source calibration is merged.
-    flag_names = [f"raw_flags_{k}" for k in data.get(ResultEnum.FLAG_NAME_LIST).result]
+    # The flag names are stored on the FlagList itself, in the same order as the
+    # FlagElement objects in flag_elements. Captured here (before scan_data is
+    # deleted below) for reuse when building raw_flag_name_list further down.
+    flag_name_list = scan_data.flags.flag_names
+    flag_names = [f"raw_flags_{k}" for k in flag_name_list]
 
     # Extract RA and Dec
     ra = scan_data.right_ascension.array.squeeze()
@@ -676,13 +677,13 @@ def load_context_to_ds(
         :, freq_select_slice, :
     ]
 
-    # Point-source flags are stored separately (not in FLAG_NAME_LIST) because they are
-    # used as a prior mask inside aoflagger_plugin, not as a persistent flag layer.
+    # Point-source flags are stored separately (not in scan_data.flags) because they
+    # are used as a prior mask inside aoflagger_plugin, not as a persistent flag layer.
     point_source_flag = data.get(ResultEnum.POINT_SOURCE_FLAG).result
 
-    # Build raw_flag_name_list: FLAG_NAME_LIST order + "point_source" inserted after
+    # Build raw_flag_name_list: flag_name_list order + "point_source" inserted after
     # "rawdata_low_value" to reflect pipeline execution order.
-    raw_flag_name_list = list(data.get(ResultEnum.FLAG_NAME_LIST).result)
+    raw_flag_name_list = list(flag_name_list)
     try:
         insert_idx = raw_flag_name_list.index("rawdata_low_value") + 1
     except ValueError:
